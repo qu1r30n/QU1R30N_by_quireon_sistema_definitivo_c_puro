@@ -1,3 +1,30 @@
+//para c
+//
+/* =============================================================================
+ * Proyecto: QU1R30N_by_quireon_sistema_definitivo_c_puro
+ * Archivo:  QU1R30N_by_quireon_sistema_definitivo_c_puro.c
+ * Autor:    QU1R30N,QUIREON <tu_email@ejemplo.com>
+ * Año:      2026
+ * =============================================================================
+ * Descripción:
+ *   HACE TODA LA FUNCIONALIDADES DE UN SISTEMA DE NEGOCIO, CON FUNCIONES DE MENSAJERIA, MANEJO DE ARCHIVOS, Y OPERACIONES DE TEXTO.
+ *   ESTE PROGRAMA ES UN SISTEMA DE NEGOCIO QUE PERMITE LEER, ESCRIBIR, EDITAR Y ELIMINAR INVENTARIO COMPRAS VENTAS Y OTROS DATOS DE NEGOCIO, ASI COMO ENVIAR MENSAJES A CONTACTOS Y GRUPOS.
+ * =============================================================================
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://apache.org
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * =============================================================================
+ */
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
