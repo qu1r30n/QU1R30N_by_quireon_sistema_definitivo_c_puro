@@ -43,7 +43,7 @@ const char* GG_caracter_separacion[] = { "|", "°", "¬", "╦", "╝", "╔" };
 
 const char* GG_caracter_separacion_funciones_espesificas[] = { "~", "§", "¶", "╬" };
 
-const char* GG_caracter_para_confirmacion_o_error[] = { "╣", "╠" };
+const char* GG_caracter_para_confirmacion_o_error[] = { "╣", "╠", "⚺", "⚻", "⚼" };
 
 const char* GG_caracter_para_transferencia_entre_archivos[] = { "┴", "■" };
 
@@ -54,6 +54,12 @@ const char* GG_caracter_para_usar_como_enter_y_nuevo_mensaje[] = { "•", "∆" 
 const char* GG_id_programa = "QU1R30N_SISTEMA_DEFINITIVO";
 
 const char* GG_direccion_control_errores_try = "config\\chatbot\\errores_try\\control_errore.txt";
+
+const char* G_dir_arch_transferencia[] = {
+    /*0*/ "C:\\XEROX\\CONFIG\\INF\\QU1R30N_SISTEMA_DEFINITIVO\\BANDERAS_sis_qu1.TXT",
+    /*1*/ "C:\\XEROX\\CONFIG\\INF\\QU1R30N_SISTEMA_DEFINITIVO\\ent_sis_qu1.TXT", // preguntas
+    /*2*/ "C:\\XEROX\\CONFIG\\INF\\QU1R30N_SISTEMA_DEFINITIVO\\sal_sis_qu1.TXT"  // respuestas
+};
 
 #pragma endregion
 
@@ -97,6 +103,7 @@ const char* GG_direccion_control_errores_try = "config\\chatbot\\errores_try\\co
 
     char** split(const char* texto, const char* delimitador, int* cantidad);
     void   liberarSplit(char** partes, int cantidad);
+    char*  join(char** arreglo, int cantidad, const char* carcter_separacion);
 
 #pragma endregion
 
@@ -156,6 +163,10 @@ int main(void) {
 
     return resultado;
 }
+
+// ============================================================================
+//  FUNCIÓN SUBMENÚS
+// ============================================================================
 
 int submenu_tex_base(char* parametros_en_texto_a_splitear) {
     int opcion = 0;
@@ -496,8 +507,9 @@ int submenu_operaciones_de_texto(char* parametros_en_texto_a_splitear) {
     return estado;
 }
 
+
 // ============================================================================
-// 3. DEFINICIÓN DE FUNCIONES
+// FUNCIONES OPERACIONES DE TEXTO
 // ============================================================================
 
 char** split(const char* texto, const char* delimitador, int* cantidad) {
@@ -557,6 +569,52 @@ void liberarSplit(char** partes, int cantidad) {
     }
     free(partes);
 }
+
+char* join(char** arreglo, int cantidad, const char* carcter_separacion) {
+    const char* separador = (carcter_separacion != NULL) ? carcter_separacion : "";
+    size_t longitud_total = 1;
+    size_t longitud_separador = strlen(separador);
+    char* resultado = NULL;
+    char* destino = NULL;
+
+    if (cantidad < 0 || (cantidad > 0 && arreglo == NULL)) {
+        return NULL;
+    }
+
+    for (int i = 0; i < cantidad; i++) {
+        longitud_total += (arreglo[i] != NULL) ? strlen(arreglo[i]) : 0;
+        if (i > 0) {
+            longitud_total += longitud_separador;
+        }
+    }
+
+    resultado = (char*)malloc(longitud_total);
+    if (resultado == NULL) {
+        return NULL;
+    }
+
+    destino = resultado;
+    for (int i = 0; i < cantidad; i++) {
+        const char* elemento = (arreglo[i] != NULL) ? arreglo[i] : "";
+        size_t longitud_elemento = strlen(elemento);
+
+        if (i > 0) {
+            memcpy(destino, separador, longitud_separador);
+            destino += longitud_separador;
+        }
+
+        memcpy(destino, elemento, longitud_elemento);
+        destino += longitud_elemento;
+    }
+
+    *destino = '\0';
+    return resultado;
+}
+
+// ============================================================================
+// FUNCIONES OPERACIONES DE TEX_BASE
+// ============================================================================
+
 
 // Lector dinámico por punteros sin límite estático de bytes
 char* leerLineaDinamica(FILE* flujo) {
@@ -625,161 +683,6 @@ char* modificarColumna(const char* lineaOriginal, int columnaTarget, const char*
     return resultado;
 }
 
-int checar_si_hay_mensajes_no_leido(void) {
-    const char* rutas[] = {
-        "mensajes_todos.txt",
-        "mensajes_contactos.txt",
-        "mensajes_primero.txt"
-    };
-    const int totalRutas = 3;
-
-    for (int i = 0; i < totalRutas; i++) {
-        FILE* archivo = fopen(rutas[i], "r");
-        if (archivo == NULL) {
-            continue;
-        }
-
-        int c = fgetc(archivo);
-        fclose(archivo);
-
-        if (c != EOF) {
-            printf("[OK] checar_si_hay_mensajes_no_leido: hay mensajes en %s\n", rutas[i]);
-            return 1;
-        }
-    }
-
-    printf("[INFO] checar_si_hay_mensajes_no_leido: no hay mensajes no leídos\n");
-    return 0;
-}
-
-// Ejecuta ejemplos de prueba sobre las operaciones principales
-int ejecutarEjemplosPrueba(void) {
-    int ok = 1;
-    const char* rutaPrueba = "pruebas_demo.txt";
-    char* lineaModificada = NULL;
-
-    printf("\n=== EJEMPLOS DE PRUEBA ===\n");
-
-    lineaModificada = modificarColumna("Ana,25,Programador", 2, "30");
-    if (lineaModificada == NULL || strcmp(lineaModificada, "Ana,30,Programador") != 0) {
-        printf("[ERROR] modificarColumna: resultado inesperado\n");
-        ok = 0;
-    } else {
-        printf("[OK] modificarColumna: %s\n", lineaModificada);
-    }
-    free(lineaModificada);
-
-    remove(rutaPrueba);
-    if (!escribirLinea(rutaPrueba, "Luis,10,Desarrollador") ||
-        !escribirLinea(rutaPrueba, "Marta,20,QA")) {
-        printf("[ERROR] escribirLinea: no se pudo crear el archivo de prueba\n");
-        return 0;
-    }
-
-    if (!editarColumna(rutaPrueba, 1, 2, "15")) {
-        printf("[ERROR] editarColumna: no se modificó la columna\n");
-        ok = 0;
-    } else {
-        printf("[OK] editarColumna: la primera fila fue actualizada\n");
-    }
-
-    if (!eliminarLinea(rutaPrueba, 2)) {
-        printf("[ERROR] eliminarLinea: no se pudo borrar la segunda línea\n");
-        ok = 0;
-    } else {
-        printf("[OK] eliminarLinea: la segunda línea fue eliminada\n");
-    }
-
-    printf("\n--- ARCHIVO DE PRUEBA RESULTANTE ---\n");
-    leerArchivo(rutaPrueba);
-
-    remove(rutaPrueba);
-
-    if (ok) {
-        printf("[RESULTADO FINAL] PRUEBAS OK\n");
-        return 1;
-    }
-
-    printf("[RESULTADO FINAL] PRUEBAS CON ERRORES\n");
-    return 0;
-}
-
-int mandar_mensje_a_todos(const char* mensaje) {
-    if (mensaje == NULL || strlen(mensaje) == 0) {
-        printf("[ERROR] mandar_mensje_a_todos: mensaje vacío\n");
-        return -10;
-    }
-
-    FILE* archivo = fopen("mensajes_todos.txt", "a");
-    if (archivo == NULL) {
-        printf("[ERROR] mandar_mensje_a_todos: no se pudo abrir el archivo\n");
-        return -11;
-    }
-
-    fprintf(archivo, "%s\n", mensaje);
-    fclose(archivo);
-
-    printf("[OK] mandar_mensje_a_todos: mensaje enviado a todos -> %s\n", mensaje);
-    return 1;
-}
-
-int mandar_mensje_a_contacto(const char* mensaje, const char* contactos, int id_opcional) {
-    if (mensaje == NULL || strlen(mensaje) == 0) {
-        printf("[ERROR] mandar_mensje_a_contacto: mensaje vacío\n");
-        return -20;
-    }
-
-    if (contactos == NULL || strlen(contactos) == 0) {
-        printf("[ERROR] mandar_mensje_a_contacto: contactos vacíos\n");
-        return -21;
-    }
-
-    FILE* archivo = fopen("mensajes_contactos.txt", "a");
-    if (archivo == NULL) {
-        printf("[ERROR] mandar_mensje_a_contacto: no se pudo abrir el archivo\n");
-        return -22;
-    }
-
-    fprintf(archivo, "[%d] %s -> %s\n", id_opcional, contactos, mensaje);
-    fclose(archivo);
-
-    printf("[OK] mandar_mensje_a_contacto: mensaje enviado a %s con id %d\n", contactos, id_opcional);
-    return 2;
-}
-
-int mandar_mensje_al_primero_que_responda(const char* mensaje_pregunta,
-                                          const char* mensaje_de_que_ya_alguien_lo_acepto,
-                                          const char* menaje_respuesta_al_quien_lo_logro) {
-    if (mensaje_pregunta == NULL || strlen(mensaje_pregunta) == 0) {
-        printf("[ERROR] mandar_mensje_al_primero_que_responda: pregunta vacía\n");
-        return -30;
-    }
-
-    if (mensaje_de_que_ya_alguien_lo_acepto == NULL || strlen(mensaje_de_que_ya_alguien_lo_acepto) == 0) {
-        printf("[ERROR] mandar_mensje_al_primero_que_responda: mensaje de aceptación vacío\n");
-        return -31;
-    }
-
-    if (menaje_respuesta_al_quien_lo_logro == NULL || strlen(menaje_respuesta_al_quien_lo_logro) == 0) {
-        printf("[ERROR] mandar_mensje_al_primero_que_responda: respuesta vacía\n");
-        return -32;
-    }
-
-    FILE* archivo = fopen("mensajes_primero.txt", "a");
-    if (archivo == NULL) {
-        printf("[ERROR] mandar_mensje_al_primero_que_responda: no se pudo abrir el archivo\n");
-        return -33;
-    }
-
-    fprintf(archivo, "%s | %s | %s\n",
-            mensaje_pregunta,
-            mensaje_de_que_ya_alguien_lo_acepto,
-            menaje_respuesta_al_quien_lo_logro);
-    fclose(archivo);
-
-    printf("[OK] mandar_mensje_al_primero_que_responda: flujo registrado\n");
-    return 3;
-}
 
 // Muestra el contenido completo del archivo
 int leerArchivo(const char* ruta) {
@@ -962,3 +865,177 @@ int vaciarLinea(const char* ruta, int idLinea) {
     rename("temp.txt", ruta);
     return vaciado;
 }
+
+
+
+
+// ============================================================================
+// FUNCIONES OPERACIONES DE MENSAJERIA
+// ============================================================================
+
+
+int checar_si_hay_mensajes_no_leido(void) {
+    const char* rutas[] = {
+        "mensajes_todos.txt",
+        "mensajes_contactos.txt",
+        "mensajes_primero.txt"
+    };
+    const int totalRutas = 3;
+
+    for (int i = 0; i < totalRutas; i++) {
+        FILE* archivo = fopen(rutas[i], "r");
+        if (archivo == NULL) {
+            continue;
+        }
+
+        int c = fgetc(archivo);
+        fclose(archivo);
+
+        if (c != EOF) {
+            printf("[OK] checar_si_hay_mensajes_no_leido: hay mensajes en %s\n", rutas[i]);
+            return 1;
+        }
+    }
+
+    printf("[INFO] checar_si_hay_mensajes_no_leido: no hay mensajes no leídos\n");
+    return 0;
+}
+
+// Ejecuta ejemplos de prueba sobre las operaciones principales
+int ejecutarEjemplosPrueba(void) {
+    int ok = 1;
+    const char* rutaPrueba = "pruebas_demo.txt";
+    char* lineaModificada = NULL;
+
+    printf("\n=== EJEMPLOS DE PRUEBA ===\n");
+
+    lineaModificada = modificarColumna("Ana,25,Programador", 2, "30");
+    if (lineaModificada == NULL || strcmp(lineaModificada, "Ana,30,Programador") != 0) {
+        printf("[ERROR] modificarColumna: resultado inesperado\n");
+        ok = 0;
+    } else {
+        printf("[OK] modificarColumna: %s\n", lineaModificada);
+    }
+    free(lineaModificada);
+
+    remove(rutaPrueba);
+    if (!escribirLinea(rutaPrueba, "Luis,10,Desarrollador") ||
+        !escribirLinea(rutaPrueba, "Marta,20,QA")) {
+        printf("[ERROR] escribirLinea: no se pudo crear el archivo de prueba\n");
+        return 0;
+    }
+
+    if (!editarColumna(rutaPrueba, 1, 2, "15")) {
+        printf("[ERROR] editarColumna: no se modificó la columna\n");
+        ok = 0;
+    } else {
+        printf("[OK] editarColumna: la primera fila fue actualizada\n");
+    }
+
+    if (!eliminarLinea(rutaPrueba, 2)) {
+        printf("[ERROR] eliminarLinea: no se pudo borrar la segunda línea\n");
+        ok = 0;
+    } else {
+        printf("[OK] eliminarLinea: la segunda línea fue eliminada\n");
+    }
+
+    printf("\n--- ARCHIVO DE PRUEBA RESULTANTE ---\n");
+    leerArchivo(rutaPrueba);
+
+    remove(rutaPrueba);
+
+    if (ok) {
+        printf("[RESULTADO FINAL] PRUEBAS OK\n");
+        return 1;
+    }
+
+    printf("[RESULTADO FINAL] PRUEBAS CON ERRORES\n");
+    return 0;
+}
+
+int mandar_mensje_a_todos(const char* mensaje) {
+    if (mensaje == NULL || strlen(mensaje) == 0) {
+        printf("[ERROR] mandar_mensje_a_todos: mensaje vacío\n");
+        return -10;
+    }
+
+    FILE* archivo = fopen("mensajes_todos.txt", "a");
+    if (archivo == NULL) {
+        printf("[ERROR] mandar_mensje_a_todos: no se pudo abrir el archivo\n");
+        return -11;
+    }
+
+    fprintf(archivo, "%s\n", mensaje);
+    fclose(archivo);
+
+    printf("[OK] mandar_mensje_a_todos: mensaje enviado a todos -> %s\n", mensaje);
+    return 1;
+}
+
+int mandar_mensje_a_contacto(const char* mensaje, const char* contactos, int id_opcional) {
+    if (mensaje == NULL || strlen(mensaje) == 0) {
+        printf("[ERROR] mandar_mensje_a_contacto: mensaje vacío\n");
+        return -20;
+    }
+
+    if (contactos == NULL || strlen(contactos) == 0) {
+        printf("[ERROR] mandar_mensje_a_contacto: contactos vacíos\n");
+        return -21;
+    }
+
+    FILE* archivo = fopen("mensajes_contactos.txt", "a");
+    if (archivo == NULL) {
+        printf("[ERROR] mandar_mensje_a_contacto: no se pudo abrir el archivo\n");
+        return -22;
+    }
+
+    fprintf(archivo, "[%d] %s -> %s\n", id_opcional, contactos, mensaje);
+    fclose(archivo);
+
+    printf("[OK] mandar_mensje_a_contacto: mensaje enviado a %s con id %d\n", contactos, id_opcional);
+    return 2;
+}
+
+int mandar_mensje_al_primero_que_responda(const char* mensaje_pregunta,
+                                          const char* mensaje_de_que_ya_alguien_lo_acepto,
+                                          const char* menaje_respuesta_al_quien_lo_logro) {
+    if (mensaje_pregunta == NULL || strlen(mensaje_pregunta) == 0) {
+        printf("[ERROR] mandar_mensje_al_primero_que_responda: pregunta vacía\n");
+        return -30;
+    }
+
+    if (mensaje_de_que_ya_alguien_lo_acepto == NULL || strlen(mensaje_de_que_ya_alguien_lo_acepto) == 0) {
+        printf("[ERROR] mandar_mensje_al_primero_que_responda: mensaje de aceptación vacío\n");
+        return -31;
+    }
+
+    if (menaje_respuesta_al_quien_lo_logro == NULL || strlen(menaje_respuesta_al_quien_lo_logro) == 0) {
+        printf("[ERROR] mandar_mensje_al_primero_que_responda: respuesta vacía\n");
+        return -32;
+    }
+
+    FILE* archivo = fopen("mensajes_primero.txt", "a");
+    if (archivo == NULL) {
+        printf("[ERROR] mandar_mensje_al_primero_que_responda: no se pudo abrir el archivo\n");
+        return -33;
+    }
+
+    fprintf(archivo, "%s | %s | %s\n",
+            mensaje_pregunta,
+            mensaje_de_que_ya_alguien_lo_acepto,
+            menaje_respuesta_al_quien_lo_logro);
+    fclose(archivo);
+
+    printf("[OK] mandar_mensje_al_primero_que_responda: flujo registrado\n");
+    return 3;
+}
+
+// ============================================================================
+// FUNCIONES OPERACIONES DE TEXTO
+// ============================================================================
+
+
+
+
+
+
