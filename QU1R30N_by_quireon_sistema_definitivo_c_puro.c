@@ -1,4 +1,4 @@
-//para c
+// para c
 //
 /* =============================================================================
  * Proyecto: QU1R30N_by_quireon_sistema_definitivo_c_puro
@@ -7,8 +7,9 @@
  * Año:      2026
  * =============================================================================
  * Descripción:
- *   HACE TODA LA FUNCIONALIDADES DE UN SISTEMA DE NEGOCIO, CON FUNCIONES DE MENSAJERIA, MANEJO DE ARCHIVOS, Y OPERACIONES DE TEXTO.
- *   ESTE PROGRAMA ES UN SISTEMA DE NEGOCIO QUE PERMITE LEER, ESCRIBIR, EDITAR Y ELIMINAR INVENTARIO COMPRAS VENTAS Y OTROS DATOS DE NEGOCIO, ASI COMO ENVIAR MENSAJES A CONTACTOS Y GRUPOS.
+ *   HACE TODA LA FUNCIONALIDADES DE UN SISTEMA DE NEGOCIO, CON FUNCIONES DE MENSAJERIA, MANEJO DE ARCHIVOS, Y
+ * OPERACIONES DE TEXTO. ESTE PROGRAMA ES UN SISTEMA DE NEGOCIO QUE PERMITE LEER, ESCRIBIR, EDITAR Y ELIMINAR INVENTARIO
+ * COMPRAS VENTAS Y OTROS DATOS DE NEGOCIO, ASI COMO ENVIAR MENSAJES A CONTACTOS Y GRUPOS.
  * =============================================================================
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +25,6 @@
  * =============================================================================
  */
 
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,23 +39,23 @@
 
 int GG_indice_donde_comensar = 1;
 
-const char* GG_caracter_separacion[] = { "|", "°", "¬", "╦", "╝", "╔" };
+const char *GG_caracter_separacion[] = {"|", "°", "¬", "╦", "╝", "╔"};
 
-const char* GG_caracter_separacion_funciones_espesificas[] = { "~", "§", "¶", "╬" };
+const char *GG_caracter_separacion_funciones_espesificas[] = {"~", "§", "¶", "╬"};
 
-const char* GG_caracter_para_confirmacion_o_error[] = { "╣", "╠", "⚺", "⚻", "⚼" };
+const char *GG_caracter_para_confirmacion_o_error[] = {"╣", "╠", "⚺", "⚻", "⚼"};
 
-const char* GG_caracter_para_transferencia_entre_archivos[] = { "┴", "■" };
+const char *GG_caracter_para_transferencia_entre_archivos[] = {"┴", "■"};
 
-const char* GG_caracter_usadas_por_usuario[] = { ":", "#", "&" };
+const char *GG_caracter_usadas_por_usuario[] = {":", "#", "&"};
 
-const char* GG_caracter_para_usar_como_enter_y_nuevo_mensaje[] = { "•", "∆" };
+const char *GG_caracter_para_usar_como_enter_y_nuevo_mensaje[] = {"•", "∆"};
 
-const char* GG_id_programa = "QU1R30N_SISTEMA_DEFINITIVO";
+const char *GG_id_programa = "QU1R30N_SISTEMA_DEFINITIVO";
 
-const char* GG_direccion_control_errores_try = "config\\chatbot\\errores_try\\control_errore.txt";
+const char *GG_direccion_control_errores_try = "config\\chatbot\\errores_try\\control_errore.txt";
 
-const char* G_dir_arch_transferencia[] = {
+const char *G_dir_arch_transferencia[] = {
     /*0*/ "C:\\XEROX\\CONFIG\\INF\\QU1R30N_SISTEMA_DEFINITIVO\\BANDERAS_sis_qu1.TXT",
     /*1*/ "C:\\XEROX\\CONFIG\\INF\\QU1R30N_SISTEMA_DEFINITIVO\\ent_sis_qu1.TXT", // preguntas
     /*2*/ "C:\\XEROX\\CONFIG\\INF\\QU1R30N_SISTEMA_DEFINITIVO\\sal_sis_qu1.TXT"  // respuestas
@@ -63,24 +63,23 @@ const char* G_dir_arch_transferencia[] = {
 
 #pragma endregion
 
-
 // ============================================================================
 //  DECLARACIÓN DE FUNCIONES TEX_BASE(PROTOTIPOS)
 // ============================================================================
 #pragma region "FUNCIONES TEX_BASE"
-    char* leerLineaDinamica(FILE* flujo);
-    char* modificarColumna(const char* lineaOriginal, int columnaTarget, const char* nuevoValor);
-    int   ejecutarEjemplosPrueba(void);
-    int   submenu_tex_base(char* parametros_en_texto_a_splitear);
-    int   submenu_enlasador_mandar_mensajes(char* parametros_en_texto_a_splitear);
-    int   submenu_operaciones_de_texto(char* parametros_en_texto_a_splitear);
+char *leerLineaDinamica(FILE *flujo);
+char *modificarColumna(const char *lineaOriginal, int columnaTarget, const char *nuevoValor);
+char *ejecutarEjemplosPrueba(void);
+char *submenu_tex_base(char *parametros_en_texto_a_splitear);
+char *submenu_enlasador_mandar_mensajes(char *parametros_en_texto_a_splitear);
+char *submenu_operaciones_de_texto(char *parametros_en_texto_a_splitear);
 
-    int   leerArchivo(const char* ruta);
-    int   escribirLinea(const char* ruta, const char* nuevaLinea);
-    int   editarLinea(const char* ruta, int idLinea, const char* nuevoTexto);
-    int   editarColumna(const char* ruta, int idLinea, int idColumna, const char* nuevoValor);
-    int   eliminarLinea(const char* ruta, int idLinea);
-    int   vaciarLinea(const char* ruta, int idLinea);
+char *leerArchivo(const char *ruta);
+char *escribirLinea(const char *ruta, const char *nuevaLinea);
+char *editarLinea(const char *ruta, int idLinea, const char *nuevoTexto);
+char *editarColumna(const char *ruta, int idLinea, int idColumna, const char *nuevoValor);
+char *eliminarLinea(const char *ruta, int idLinea);
+char *vaciarLinea(const char *ruta, int idLinea);
 #pragma endregion
 // ============================================================================
 //  DECLARACIÓN DE FUNCIONES MENSAJERIA
@@ -88,12 +87,12 @@ const char* G_dir_arch_transferencia[] = {
 
 #pragma region "FUNCIONES MENSAJERIA"
 
-    int   mandar_mensje_a_todos(const char* mensaje);
-    int   mandar_mensje_a_contacto(const char* mensaje, const char* contactos, int id_opcional);
-    int   mandar_mensje_al_primero_que_responda(const char* mensaje_pregunta,
-                                            const char* mensaje_de_que_ya_alguien_lo_acepto,
-                                            const char* menaje_respuesta_al_quien_lo_logro);
-    int   checar_si_hay_mensajes_no_leido(void);
+char *mandar_mensje_a_todos(const char *mensaje);
+char *mandar_mensje_a_contacto(const char *mensaje, const char *contactos, int id_opcional);
+char *mandar_mensje_al_primero_que_responda(const char *mensaje_pregunta,
+                                            const char *mensaje_de_que_ya_alguien_lo_acepto,
+                                            const char *menaje_respuesta_al_quien_lo_logro);
+char *checar_si_hay_mensajes_no_leido(void);
 #pragma endregion
 
 // ============================================================================
@@ -101,20 +100,24 @@ const char* G_dir_arch_transferencia[] = {
 // ============================================================================
 #pragma region "FUNCIONES OPERACIONES DE TEXTO"
 
-    char** split(const char* texto, const char* delimitador, int* cantidad);
-    void   liberarSplit(char** partes, int cantidad);
-    char*  join(char** arreglo, int cantidad, const char* carcter_separacion);
+char **split(const char *texto, const char *delimitador, int *cantidad);
+void liberarSplit(char **partes, int cantidad);
+char *join(char **arreglo, int cantidad, const char *carcter_separacion);
+char *crearResultado(int codigo, const char *separador, const char *informacion);
+int codigoResultado(const char *resultado);
+
+char *extraccion_del_resultado(const char *resultado);
 
 #pragma endregion
 
 // ============================================================================
-//  FUNCIÓN PRINCIPAL MAIN
-// ============================================================================
-int main(void) {
+int main(void)
+{
     int opcion = 0;
-    int resultado = 0;
+    char *resultado = NULL;
 
-    do {
+    do
+    {
         printf("\n=== MENÚ PRINCIPAL ===\n");
         printf("1. comandos_tex_base\n");
         printf("2. enlasador_mandar_mensajes\n");
@@ -122,71 +125,103 @@ int main(void) {
         printf("4. Salir\n");
         printf("Seleccione una opción: ");
 
-        char* optStr = leerLineaDinamica(stdin);
+        char *optStr = leerLineaDinamica(stdin);
         opcion = (optStr != NULL) ? atoi(optStr) : 0;
         free(optStr);
 
-        switch (opcion) {
-            case 1: {
-                char* parametros = "leer,agregar,editar";
-                resultado = submenu_tex_base(parametros);
-                printf("[Retorno del submenú]: %d\n", resultado);
-                break;
-            }
+        switch (opcion)
+        {
+        case 1:
+        {
+            char *parametros = "l";
+            resultado = submenu_tex_base(parametros);
+            char *informacionMain = extraccion_del_resultado(resultado);
+            char *resultadoMain = crearResultado(codigoResultado(resultado),
+                                                 GG_caracter_para_confirmacion_o_error[0], informacionMain);
+            printf("%s\n", resultadoMain);
+            free(informacionMain);
+            free(resultado);
+            free(resultadoMain);
+            break;
+        }
 
-            case 2: {
-                char* parametros = "mandar_todos,mandar_contacto,mandar_primero";
-                resultado = submenu_enlasador_mandar_mensajes(parametros);
-                printf("[Retorno del submenú mensajes]: %d\n", resultado);
-                break;
-            }
+        case 2:
+        {
+            char *parametros = "mandar_todos,mandar_contacto,mandar_primero";
+            resultado = submenu_enlasador_mandar_mensajes(parametros);
+            char *informacionMain = extraccion_del_resultado(resultado);
+            char *resultadoMain = crearResultado(codigoResultado(resultado),
+                                                 GG_caracter_para_confirmacion_o_error[0], informacionMain);
+            printf("%s\n", resultadoMain);
+            free(informacionMain);
+            free(resultado);
+            free(resultadoMain);
+            break;
+        }
 
-            case 3: {
-                char* parametros = "split,modificar_columna,leer_linea";
-                resultado = submenu_operaciones_de_texto(parametros);
-                printf("[Retorno del submenú texto]: %d\n", resultado);
-                break;
-            }
+        case 3:
+        {
+            char *parametros = "split,modificar_columna,leer_linea";
+            resultado = submenu_operaciones_de_texto(parametros);
+            char *informacionMain = extraccion_del_resultado(resultado);
+            char *resultadoMain = crearResultado(codigoResultado(resultado),
+                                                 GG_caracter_para_confirmacion_o_error[0], informacionMain);
+            printf("%s\n", resultadoMain);
+            free(informacionMain);
+            free(resultado);
+            free(resultadoMain);
+            break;
+        }
 
-            case 4:{
-                printf("Saliendo...\n");
-                break;
-            }
-            default:{
-                printf("Opción no válida.\n");
-                resultado = -2;
-                break;
-            }
+        case 4:
+        {
+            printf("Saliendo...\n");
+            free(resultado);
+            resultado = crearResultado(0, GG_caracter_para_confirmacion_o_error[0], "salida_ok");
+            printf("%s\n", resultado);
+            break;
+        }
+        default:
+        {
+            printf("Opción no válida.\n");
+            resultado = crearResultado(-2, GG_caracter_para_confirmacion_o_error[0], "opcion_no_valida");
+            break;
+        }
         }
 
     } while (opcion != 4);
 
-    return resultado;
+    int codigoFinal = codigoResultado(resultado);
+    free(resultado);
+    return codigoFinal;
 }
 
 // ============================================================================
 //  FUNCIÓN SUBMENÚS
 // ============================================================================
 
-int submenu_tex_base(char* parametros_en_texto_a_splitear) {
+char *submenu_tex_base(char *parametros_en_texto_a_splitear)
+{
     int opcion = 0;
     int idLinea = 0;
     int idColumna = 0;
-    int resultado = 0;
-    int estado = 0;
+    char *resultado = NULL;
+    char *estado = NULL;
     int cantidad = 0;
-    char** parametros_espliteados = NULL;
+    char **parametros_espliteados = NULL;
 
-    if (parametros_en_texto_a_splitear != NULL) {
+    if (parametros_en_texto_a_splitear != NULL)
+    {
         parametros_espliteados = split(parametros_en_texto_a_splitear, ",", &cantidad);
         printf("[split tex_base] elementos: %d\n", cantidad);
-        for (int i = 0; i < cantidad; i++) {
+        for (int i = 0; i < cantidad; i++)
+        {
             printf("  [%d] %s\n", i, parametros_espliteados[i]);
         }
         liberarSplit(parametros_espliteados, cantidad);
     }
 
-    do {
+    {
         printf("\n=== SUBMENÚ comandos_tex_base ===\n");
         printf("1. Leer todo el archivo\n");
         printf("2. Añadir nueva línea\n");
@@ -198,217 +233,272 @@ int submenu_tex_base(char* parametros_en_texto_a_splitear) {
         printf("8. Volver al menú principal\n");
         printf("Seleccione una opción: ");
 
-        char* optStr = leerLineaDinamica(stdin);
+        char *optStr = leerLineaDinamica(stdin);
         opcion = (optStr != NULL) ? atoi(optStr) : 0;
         free(optStr);
 
-        switch (opcion) {
-            case 1:
-                resultado = leerArchivo(NOMBRE_ARCHIVO);
-                estado = (resultado == 1) ? 0 : -1;
-                break;
+        switch (opcion)
+        {
+        case 1:
+            free(resultado);
+            resultado = leerArchivo(NOMBRE_ARCHIVO);
+            free(estado);
+            char *informacionLeer = extraccion_del_resultado(resultado);
+            estado = crearResultado(codigoResultado(resultado), GG_caracter_para_confirmacion_o_error[1], informacionLeer);
+            free(informacionLeer);
+            break;
 
-            case 2: {
-                printf("Ingrese el texto/línea a añadir: ");
-                char* texto = leerLineaDinamica(stdin);
-                resultado = escribirLinea(NOMBRE_ARCHIVO, texto);
-                free(texto);
-                estado = (resultado == 1) ? 1 : -3;
-                break;
-            }
-
-            case 3: {
-                printf("Ingrese ID de línea a editar: ");
-                char* inId = leerLineaDinamica(stdin);
-                idLinea = (inId != NULL) ? atoi(inId) : 0;
-                free(inId);
-
-                printf("Ingrese el nuevo contenido completo: ");
-                char* texto = leerLineaDinamica(stdin);
-                resultado = editarLinea(NOMBRE_ARCHIVO, idLinea, texto);
-                free(texto);
-                estado = (resultado == 1) ? 2 : -4;
-                break;
-            }
-
-            case 4: {
-                printf("Ingrese ID de línea a editar: ");
-                char* inId = leerLineaDinamica(stdin);
-                idLinea = (inId != NULL) ? atoi(inId) : 0;
-                free(inId);
-
-                printf("Ingrese el número de columna a editar (1, 2, ...): ");
-                char* inCol = leerLineaDinamica(stdin);
-                idColumna = (inCol != NULL) ? atoi(inCol) : 0;
-                free(inCol);
-
-                printf("Ingrese el nuevo valor para esa columna: ");
-                char* valor = leerLineaDinamica(stdin);
-                resultado = editarColumna(NOMBRE_ARCHIVO, idLinea, idColumna, valor);
-                free(valor);
-                estado = (resultado == 1) ? 2 : -5;
-                break;
-            }
-
-            case 5: {
-                printf("Ingrese ID de línea a eliminar: ");
-                char* inId = leerLineaDinamica(stdin);
-                idLinea = (inId != NULL) ? atoi(inId) : 0;
-                free(inId);
-
-                resultado = eliminarLinea(NOMBRE_ARCHIVO, idLinea);
-                estado = (resultado == 1) ? 3 : -6;
-                break;
-            }
-
-            case 6: {
-                printf("Ingrese ID de línea a vaciar: ");
-                char* inId = leerLineaDinamica(stdin);
-                idLinea = (inId != NULL) ? atoi(inId) : 0;
-                free(inId);
-
-                resultado = vaciarLinea(NOMBRE_ARCHIVO, idLinea);
-                estado = (resultado == 1) ? 3 : -7;
-                break;
-            }
-
-            case 7:
-                resultado = ejecutarEjemplosPrueba();
-                estado = (resultado == 1) ? 0 : -8;
-                break;
-
-            case 8:
-                printf("Volviendo al menú principal...\n");
-                return estado;
-
-            default:
-                printf("Opción no válida.\n");
-                estado = -2;
+        case 2:
+        {
+            printf("Ingrese el texto/línea a añadir: ");
+            char *texto = leerLineaDinamica(stdin);
+            free(resultado);
+            resultado = escribirLinea(NOMBRE_ARCHIVO, texto);
+            free(texto);
+            free(estado);
+            char *informacionPruebas = extraccion_del_resultado(resultado);
+            estado = crearResultado(codigoResultado(resultado), GG_caracter_para_confirmacion_o_error[1], informacionPruebas);
+            free(informacionPruebas);
+            break;
         }
 
-        if (opcion >= 1 && opcion <= 6) {
-            printf("[Resultado de operación]: %s (Código %d)\n",
-                   (resultado == 1) ? "ÉXITO" : "ERROR", resultado);
+        case 3:
+        {
+            printf("Ingrese ID de línea a editar: ");
+            char *inId = leerLineaDinamica(stdin);
+            idLinea = (inId != NULL) ? atoi(inId) : 0;
+            free(inId);
+
+            printf("Ingrese el nuevo contenido completo: ");
+            char *texto = leerLineaDinamica(stdin);
+            free(resultado);
+            resultado = editarLinea(NOMBRE_ARCHIVO, idLinea, texto);
+            free(texto);
+            free(estado);
+            char *informacion = extraccion_del_resultado(resultado);
+            estado = crearResultado(codigoResultado(resultado), GG_caracter_para_confirmacion_o_error[1], informacion);
+            free(informacion);
+            break;
         }
 
-        if (opcion == 7) {
-            printf("[Resultado de prueba]: %s (Código %d)\n",
-                   (resultado == 1) ? "PRUEBAS OK" : "PRUEBAS CON ERRORES", resultado);
+        case 4:
+        {
+            printf("Ingrese ID de línea a editar: ");
+            char *inId = leerLineaDinamica(stdin);
+            idLinea = (inId != NULL) ? atoi(inId) : 0;
+            free(inId);
+
+            printf("Ingrese el número de columna a editar (1, 2, ...): ");
+            char *inCol = leerLineaDinamica(stdin);
+            idColumna = (inCol != NULL) ? atoi(inCol) : 0;
+            free(inCol);
+
+            printf("Ingrese el nuevo valor para esa columna: ");
+            char *valor = leerLineaDinamica(stdin);
+            free(resultado);
+            resultado = editarColumna(NOMBRE_ARCHIVO, idLinea, idColumna, valor);
+            free(valor);
+            free(estado);
+            char *informacion = extraccion_del_resultado(resultado);
+            estado = crearResultado(codigoResultado(resultado), GG_caracter_para_confirmacion_o_error[1], informacion);
+            free(informacion);
+            break;
         }
 
-    } while (opcion != 8);
+        case 5:
+        {
+            printf("Ingrese ID de línea a eliminar: ");
+            char *inId = leerLineaDinamica(stdin);
+            idLinea = (inId != NULL) ? atoi(inId) : 0;
+            free(inId);
 
-    return estado;
+            free(resultado);
+            resultado = eliminarLinea(NOMBRE_ARCHIVO, idLinea);
+            free(estado);
+            char *informacion = extraccion_del_resultado(resultado);
+            estado = crearResultado(codigoResultado(resultado), GG_caracter_para_confirmacion_o_error[1], informacion);
+            free(informacion);
+            break;
+        }
+
+        case 6:
+        {
+            printf("Ingrese ID de línea a vaciar: ");
+            char *inId = leerLineaDinamica(stdin);
+            idLinea = (inId != NULL) ? atoi(inId) : 0;
+            free(inId);
+
+            free(resultado);
+            resultado = vaciarLinea(NOMBRE_ARCHIVO, idLinea);
+            free(estado);
+            char *informacion = extraccion_del_resultado(resultado);
+            estado = crearResultado(codigoResultado(resultado), GG_caracter_para_confirmacion_o_error[1], informacion);
+            free(informacion);
+            break;
+        }
+
+        case 7:
+            free(resultado);
+            resultado = ejecutarEjemplosPrueba();
+            free(estado);
+            char *informacion = extraccion_del_resultado(resultado);
+            estado = crearResultado(codigoResultado(resultado), GG_caracter_para_confirmacion_o_error[1], informacion);
+            free(informacion);
+            break;
+
+        case 8:
+            printf("Volviendo al menú principal...\n");
+            return estado != NULL ? estado : crearResultado(0, GG_caracter_para_confirmacion_o_error[1], "volver");
+
+        default:
+            printf("Opción no válida.\n");
+            free(estado);
+            estado = crearResultado(-2, GG_caracter_para_confirmacion_o_error[1], "opcion_no_valida");
+        }
+
+        if (opcion >= 1 && opcion <= 6)
+        {
+            printf("%s\n", estado);
+        }
+
+        if (opcion == 7)
+        {
+            printf("%s\n", estado);
+        }
+
+    }
+    free(resultado);
+    return estado != NULL ? estado : crearResultado(0, GG_caracter_para_confirmacion_o_error[1], "sin_resultado");
 }
 
-int submenu_enlasador_mandar_mensajes(char* parametros_en_texto_a_splitear) {
+char *submenu_enlasador_mandar_mensajes(char *parametros_en_texto_a_splitear)
+{
     int opcion = 0;
-    int resultado = 0;
-    int estado = 0;
+    char *resultado = NULL;
+    char *estado = NULL;
     int cantidad = 0;
-    char** parametros_espliteados = NULL;
+    char **parametros_espliteados = NULL;
 
-    if (parametros_en_texto_a_splitear != NULL) {
+    if (parametros_en_texto_a_splitear != NULL)
+    {
         parametros_espliteados = split(parametros_en_texto_a_splitear, ",", &cantidad);
         printf("[split mensajes] elementos: %d\n", cantidad);
-        for (int i = 0; i < cantidad; i++) {
+        for (int i = 0; i < cantidad; i++)
+        {
             printf("  [%d] %s\n", i, parametros_espliteados[i]);
         }
         liberarSplit(parametros_espliteados, cantidad);
     }
 
-    do {
+    {
         printf("\n=== SUBMENÚ enlasador_mandar_mensajes ===\n");
         printf("1. mandar_mensje_a_todos(mensaje)\n");
         printf("2. mandar_mensje_a_contacto(mensaje, contactos, id_opcional)\n");
-        printf("3. mandar_mensje_al_primero_que_responda(mensaje_pregunta, mensaje_de_que_ya_alguien_lo_acepto, menaje_respuesta_al_quien_lo_logro)\n");
+        printf("3. mandar_mensje_al_primero_que_responda(mensaje_pregunta, mensaje_de_que_ya_alguien_lo_acepto, "
+               "menaje_respuesta_al_quien_lo_logro)\n");
         printf("4. Volver al menú principal\n");
         printf("Seleccione una opción: ");
 
-        char* optStr = leerLineaDinamica(stdin);
+        char *optStr = leerLineaDinamica(stdin);
         opcion = (optStr != NULL) ? atoi(optStr) : 0;
         free(optStr);
 
-        switch (opcion) {
-            case 1: {
-                printf("Ingrese el mensaje para todos: ");
-                char* mensaje = leerLineaDinamica(stdin);
-                resultado = mandar_mensje_a_todos(mensaje);
-                free(mensaje);
-                estado = resultado;
-                break;
-            }
-
-            case 2: {
-                printf("Ingrese el mensaje: ");
-                char* mensaje = leerLineaDinamica(stdin);
-                printf("Ingrese la lista de contactos: ");
-                char* contactos = leerLineaDinamica(stdin);
-                printf("Ingrese id opcional: ");
-                char* idStr = leerLineaDinamica(stdin);
-                int id_opcional = (idStr != NULL) ? atoi(idStr) : 0;
-                free(idStr);
-
-                resultado = mandar_mensje_a_contacto(mensaje, contactos, id_opcional);
-                free(mensaje);
-                free(contactos);
-                estado = resultado;
-                break;
-            }
-
-            case 3: {
-                printf("Ingrese el mensaje de pregunta: ");
-                char* pregunta = leerLineaDinamica(stdin);
-                printf("Ingrese el mensaje de que alguien ya lo acepto: ");
-                char* aceptado = leerLineaDinamica(stdin);
-                printf("Ingrese la respuesta al quien lo logro: ");
-                char* respuesta = leerLineaDinamica(stdin);
-
-                resultado = mandar_mensje_al_primero_que_responda(pregunta, aceptado, respuesta);
-                free(pregunta);
-                free(aceptado);
-                free(respuesta);
-                estado = resultado;
-                break;
-            }
-
-            case 4:
-                printf("Volviendo al menú principal...\n");
-                return estado;
-
-            default:
-                printf("Opción no válida.\n");
-                estado = -2;
-                break;
+        switch (opcion)
+        {
+        case 1:
+        {
+            printf("Ingrese el mensaje para todos: ");
+            char *mensaje = leerLineaDinamica(stdin);
+            free(resultado);
+            resultado = mandar_mensje_a_todos(mensaje);
+            free(mensaje);
+            free(estado);
+            char *informacion = extraccion_del_resultado(resultado);
+            estado = crearResultado(codigoResultado(resultado), GG_caracter_para_confirmacion_o_error[1], informacion);
+            free(informacion);
+            break;
         }
 
-        if (resultado > 0) {
-            printf("[Resultado del envío]: %d\n", resultado);
-        } else if (resultado < 0) {
-            printf("[Error del envío]: %d\n", resultado);
+        case 2:
+        {
+            printf("Ingrese el mensaje: ");
+            char *mensaje = leerLineaDinamica(stdin);
+            printf("Ingrese la lista de contactos: ");
+            char *contactos = leerLineaDinamica(stdin);
+            printf("Ingrese id opcional: ");
+            char *idStr = leerLineaDinamica(stdin);
+            int id_opcional = (idStr != NULL) ? atoi(idStr) : 0;
+            free(idStr);
+
+            free(resultado);
+            resultado = mandar_mensje_a_contacto(mensaje, contactos, id_opcional);
+            free(mensaje);
+            free(contactos);
+            free(estado);
+            char *informacion = extraccion_del_resultado(resultado);
+            estado = crearResultado(codigoResultado(resultado), GG_caracter_para_confirmacion_o_error[1], informacion);
+            free(informacion);
+            break;
         }
 
-    } while (opcion != 4);
+        case 3:
+        {
+            printf("Ingrese el mensaje de pregunta: ");
+            char *pregunta = leerLineaDinamica(stdin);
+            printf("Ingrese el mensaje de que alguien ya lo acepto: ");
+            char *aceptado = leerLineaDinamica(stdin);
+            printf("Ingrese la respuesta al quien lo logro: ");
+            char *respuesta = leerLineaDinamica(stdin);
 
-    return estado;
+            free(resultado);
+            resultado = mandar_mensje_al_primero_que_responda(pregunta, aceptado, respuesta);
+            free(pregunta);
+            free(aceptado);
+            free(respuesta);
+            free(estado);
+            char *informacion = extraccion_del_resultado(resultado);
+            estado = crearResultado(codigoResultado(resultado), GG_caracter_para_confirmacion_o_error[1], informacion);
+            free(informacion);
+            break;
+        }
+
+        case 4:
+            printf("Volviendo al menú principal...\n");
+            return estado != NULL ? estado : crearResultado(0, GG_caracter_para_confirmacion_o_error[1], "volver");
+
+        default:
+            printf("Opción no válida.\n");
+            free(estado);
+            estado = crearResultado(-2, GG_caracter_para_confirmacion_o_error[1], "opcion_no_valida");
+            break;
+        }
+
+        printf("%s\n", estado);
+
+    }
+    free(resultado);
+    return estado != NULL ? estado : crearResultado(0, GG_caracter_para_confirmacion_o_error[1], "sin_resultado");
 }
 
-int submenu_operaciones_de_texto(char* parametros_en_texto_a_splitear) {
+char *submenu_operaciones_de_texto(char *parametros_en_texto_a_splitear)
+{
     int opcion = 0;
     int cantidad = 0;
-    char** parametros_espliteados = NULL;
-    int estado = 0;
+    char **parametros_espliteados = NULL;
+    char *estado = NULL;
 
-    if (parametros_en_texto_a_splitear != NULL) {
+    if (parametros_en_texto_a_splitear != NULL)
+    {
         parametros_espliteados = split(parametros_en_texto_a_splitear, ",", &cantidad);
         printf("[split operaciones_texto] elementos: %d\n", cantidad);
-        for (int i = 0; i < cantidad; i++) {
+        for (int i = 0; i < cantidad; i++)
+        {
             printf("  [%d] %s\n", i, parametros_espliteados[i]);
         }
         liberarSplit(parametros_espliteados, cantidad);
     }
 
-    do {
+    {
         printf("\n=== SUBMENÚ operaciones_de_texto ===\n");
         printf("1. split(texto, delimitador)\n");
         printf("2. modificarColumna(linea, columna, nuevoValor)\n");
@@ -416,123 +506,138 @@ int submenu_operaciones_de_texto(char* parametros_en_texto_a_splitear) {
         printf("4. Volver al menú principal\n");
         printf("Seleccione una opción: ");
 
-        char* optStr = leerLineaDinamica(stdin);
+        char *optStr = leerLineaDinamica(stdin);
         opcion = (optStr != NULL) ? atoi(optStr) : 0;
         free(optStr);
 
-        switch (opcion) {
-            case 1: {
-                printf("Ingrese el texto a partir: ");
-                char* texto = leerLineaDinamica(stdin);
-                printf("Ingrese el delimitador: ");
-                char* delimitador = leerLineaDinamica(stdin);
-                int total = 0;
-                char** partes = split(texto, delimitador, &total);
+        switch (opcion)
+        {
+        case 1:
+        {
+            printf("Ingrese el texto a partir: ");
+            char *texto = leerLineaDinamica(stdin);
+            printf("Ingrese el delimitador: ");
+            char *delimitador = leerLineaDinamica(stdin);
+            int total = 0;
+            char **partes = split(texto, delimitador, &total);
 
-                if (partes == NULL) {
-                    printf("[ERROR] split: no se pudo separar el texto\n");
-                    free(texto);
-                    free(delimitador);
-                    estado = -10;
-                    break;
-                }
-
-                printf("[OK] split: partes encontradas = %d\n", total);
-                for (int i = 0; i < total; i++) {
-                    printf("  parte[%d] = %s\n", i, partes[i]);
-                }
-
-                liberarSplit(partes, total);
+            if (partes == NULL)
+            {
                 free(texto);
                 free(delimitador);
-                estado = 1;
+                free(estado);
+                estado = crearResultado(-10, GG_caracter_para_confirmacion_o_error[1], "split_no_pudo_separar_texto");
                 break;
             }
 
-            case 2: {
-                printf("Ingrese la línea original: ");
-                char* linea = leerLineaDinamica(stdin);
-                printf("Ingrese la columna a cambiar: ");
-                char* colStr = leerLineaDinamica(stdin);
-                int columna = (colStr != NULL) ? atoi(colStr) : 0;
-                free(colStr);
-
-                printf("Ingrese el nuevo valor: ");
-                char* nuevo = leerLineaDinamica(stdin);
-                char* resultadoMod = modificarColumna(linea, columna, nuevo);
-
-                if (resultadoMod == NULL) {
-                    printf("[ERROR] modificarColumna: no se pudo cambiar la columna\n");
-                    free(linea);
-                    free(nuevo);
-                    estado = -11;
-                    break;
-                }
-
-                printf("[OK] modificarColumna: %s\n", resultadoMod);
-                free(resultadoMod);
-                free(linea);
-                free(nuevo);
-                estado = 2;
-                break;
+            for (int i = 0; i < total; i++)
+            {
+                printf("  parte[%d] = %s\n", i, partes[i]);
             }
 
-            case 3: {
-                printf("Ingrese una línea de texto: ");
-                char* linea = leerLineaDinamica(stdin);
-                if (linea == NULL) {
-                    printf("[ERROR] leerLineaDinamica: no se pudo leer la línea\n");
-                    estado = -12;
-                    break;
-                }
-
-                printf("[OK] leerLineaDinamica: %s\n", linea);
-                free(linea);
-                estado = 3;
-                break;
-            }
-
-            case 4:
-                printf("Volviendo al menú principal...\n");
-                return estado;
-
-            default:
-                printf("Opción no válida.\n");
-                estado = -2;
-                break;
+            liberarSplit(partes, total);
+            free(texto);
+            free(delimitador);
+            free(estado);
+            estado = crearResultado(0, GG_caracter_para_confirmacion_o_error[1], "split_ok");
+            break;
         }
 
-    } while (opcion != 4);
+        case 2:
+        {
+            printf("Ingrese la línea original: ");
+            char *linea = leerLineaDinamica(stdin);
+            printf("Ingrese la columna a cambiar: ");
+            char *colStr = leerLineaDinamica(stdin);
+            int columna = (colStr != NULL) ? atoi(colStr) : 0;
+            free(colStr);
 
-    return estado;
+            printf("Ingrese el nuevo valor: ");
+            char *nuevo = leerLineaDinamica(stdin);
+            char *resultadoMod = modificarColumna(linea, columna, nuevo);
+
+            if (resultadoMod == NULL)
+            {
+                free(linea);
+                free(nuevo);
+                free(estado);
+                estado = crearResultado(-11, GG_caracter_para_confirmacion_o_error[1],
+                                        "modificarColumna_no_pudo_cambiar_columna");
+                break;
+            }
+
+            free(resultadoMod);
+            free(linea);
+            free(nuevo);
+            free(estado);
+            estado = crearResultado(2, GG_caracter_para_confirmacion_o_error[1], "modificarColumna_ok");
+            break;
+        }
+
+        case 3:
+        {
+            printf("Ingrese una línea de texto: ");
+            char *linea = leerLineaDinamica(stdin);
+            if (linea == NULL)
+            {
+                free(estado);
+                estado = crearResultado(-12, GG_caracter_para_confirmacion_o_error[1],
+                                        "leerLineaDinamica_no_pudo_leer_linea");
+                break;
+            }
+
+            free(linea);
+            free(estado);
+            estado = crearResultado(3, GG_caracter_para_confirmacion_o_error[1], "leerLineaDinamica_ok");
+            break;
+        }
+
+        case 4:
+            printf("Volviendo al menú principal...\n");
+            return estado != NULL ? estado : crearResultado(0, GG_caracter_para_confirmacion_o_error[1], "volver");
+
+        default:
+            printf("Opción no válida.\n");
+            free(estado);
+            estado = crearResultado(-2, GG_caracter_para_confirmacion_o_error[1], "opcion_no_valida");
+            break;
+        }
+
+    }
+    return estado != NULL ? estado : crearResultado(0, GG_caracter_para_confirmacion_o_error[1], "sin_resultado");
 }
-
 
 // ============================================================================
 // FUNCIONES OPERACIONES DE TEXTO
 // ============================================================================
 
-char** split(const char* texto, const char* delimitador, int* cantidad) {
-    char** partes = NULL;
-    char* copia = NULL;
-    char* token = NULL;
+char **split(const char *texto, const char *delimitador, int *cantidad)
+{
+    char **partes = NULL;
+    char *copia = NULL;
+    char *token = NULL;
     int total = 0;
 
-    if (texto == NULL || delimitador == NULL || cantidad == NULL) {
+    if (texto == NULL || delimitador == NULL || cantidad == NULL)
+    {
         return NULL;
     }
 
-    copia = (char*)malloc(strlen(texto) + 1);
-    if (copia == NULL) {
+    copia = (char *)malloc(strlen(texto) + 1);
+    if (copia == NULL)
+    {
         return NULL;
     }
     strcpy(copia, texto);
 
     token = strtok(copia, delimitador);
-    while (token != NULL) {
-        char** temp = (char**)realloc(partes, (total + 1) * sizeof(char*));
-        if (temp == NULL) {
-            for (int i = 0; i < total; i++) {
+    while (token != NULL)
+    {
+        char **temp = (char **)realloc(partes, (total + 1) * sizeof(char *));
+        if (temp == NULL)
+        {
+            for (int i = 0; i < total; i++)
+            {
                 free(partes[i]);
             }
             free(partes);
@@ -541,9 +646,11 @@ char** split(const char* texto, const char* delimitador, int* cantidad) {
         }
 
         partes = temp;
-        partes[total] = (char*)malloc(strlen(token) + 1);
-        if (partes[total] == NULL) {
-            for (int i = 0; i <= total; i++) {
+        partes[total] = (char *)malloc(strlen(token) + 1);
+        if (partes[total] == NULL)
+        {
+            for (int i = 0; i <= total; i++)
+            {
                 free(partes[i]);
             }
             free(partes);
@@ -561,77 +668,148 @@ char** split(const char* texto, const char* delimitador, int* cantidad) {
     return partes;
 }
 
-void liberarSplit(char** partes, int cantidad) {
-    if (partes == NULL) return;
+void liberarSplit(char **partes, int cantidad)
+{
+    if (partes == NULL)
+        return;
 
-    for (int i = 0; i < cantidad; i++) {
+    for (int i = 0; i < cantidad; i++)
+    {
         free(partes[i]);
     }
     free(partes);
 }
 
-char* join(char** arreglo, int cantidad, const char* carcter_separacion) {
-    const char* separador = (carcter_separacion != NULL) ? carcter_separacion : "";
+char *join(char **arreglo, int cantidad, const char *carcter_separacion)
+{
+    const char *separador = (carcter_separacion != NULL) ? carcter_separacion : "";
     size_t longitud_total = 1;
     size_t longitud_separador = strlen(separador);
-    char* resultado = NULL;
-    char* destino = NULL;
+    char *resultado = NULL;
+    char *destino = NULL;
 
-    if (cantidad < 0 || (cantidad > 0 && arreglo == NULL)) {
+    if (cantidad < 0 || (cantidad > 0 && arreglo == NULL))
+    {
         return NULL;
     }
 
-    for (int i = 0; i < cantidad; i++) {
+    for (int i = 0; i < cantidad; i++)
+    {
         longitud_total += (arreglo[i] != NULL) ? strlen(arreglo[i]) : 0;
-        if (i > 0) {
+        if (i > 0)
+        {
             longitud_total += longitud_separador;
         }
     }
 
-    resultado = (char*)malloc(longitud_total);
-    if (resultado == NULL) {
+    resultado = (char *)malloc(longitud_total);
+    if (resultado == NULL)
+    {
         return NULL;
     }
 
     destino = resultado;
-    for (int i = 0; i < cantidad; i++) {
-        const char* elemento = (arreglo[i] != NULL) ? arreglo[i] : "";
-        size_t longitud_elemento = strlen(elemento);
+    for (int i = 0; i < cantidad; i++)
+    {
+        const char *elemento = (arreglo[i] != NULL) ? arreglo[i] : "";
+        const char *separador_actual = (i > 0) ? separador : "";
 
-        if (i > 0) {
-            memcpy(destino, separador, longitud_separador);
-            destino += longitud_separador;
-        }
-
-        memcpy(destino, elemento, longitud_elemento);
-        destino += longitud_elemento;
+        sprintf(destino, "%s%s", separador_actual, elemento);
+        destino += strlen(destino);
     }
 
-    *destino = '\0';
+    if (cantidad == 0)
+    {
+        resultado[0] = '\0';
+    }
+
     return resultado;
+}
+
+char *crearResultado(int codigo, const char *separador, const char *informacion)
+{
+    const char *separadorSeguro = (separador != NULL) ? separador : "";
+    const char *informacionSegura = (informacion != NULL) ? informacion : "";
+    size_t longitud = (size_t)snprintf(NULL, 0, "%d%s%s", codigo, separadorSeguro, informacionSegura) + 1;
+    char *resultado = (char *)malloc(longitud);
+
+    if (resultado != NULL)
+    {
+        sprintf(resultado, "%d%s%s", codigo, separadorSeguro, informacionSegura);
+    }
+
+    return resultado;
+}
+
+int codigoResultado(const char *resultado)
+{
+    return (resultado != NULL) ? atoi(resultado) : -1;
+}
+
+char *extraccion_del_resultado(const char *resultado)
+{
+    const char *separadores[] = {GG_caracter_para_confirmacion_o_error[0], GG_caracter_para_confirmacion_o_error[1],
+                                 GG_caracter_para_confirmacion_o_error[2], GG_caracter_para_confirmacion_o_error[3],
+                                 GG_caracter_para_confirmacion_o_error[4]};
+    const char *separadorEncontrado = NULL;
+    const char *inicioInformacion = NULL;
+    char *informacion = NULL;
+
+    if (resultado == NULL)
+    {
+        return NULL;
+    }
+
+    for (int i = 0; i < 5; i++)
+    {
+        const char *encontrado = strstr(resultado, separadores[i]);
+        if (encontrado != NULL && (separadorEncontrado == NULL || encontrado < separadorEncontrado))
+        {
+            separadorEncontrado = encontrado;
+            inicioInformacion = encontrado + strlen(separadores[i]);
+        }
+    }
+
+    if (separadorEncontrado == NULL)
+    {
+        return NULL;
+    }
+
+    informacion = (char *)malloc(strlen(inicioInformacion) + 1);
+    if (informacion == NULL)
+    {
+        return NULL;
+    }
+    sprintf(informacion, "%s", inicioInformacion);
+
+    return informacion;
 }
 
 // ============================================================================
 // FUNCIONES OPERACIONES DE TEX_BASE
 // ============================================================================
 
-
 // Lector dinámico por punteros sin límite estático de bytes
-char* leerLineaDinamica(FILE* flujo) {
+char *leerLineaDinamica(FILE *flujo)
+{
     size_t capacidad = 16;
     size_t longitud = 0;
-    char* cadena = (char*)malloc(capacidad * sizeof(char));
+    char *cadena = (char *)malloc(capacidad * sizeof(char));
 
-    if (cadena == NULL) return NULL;
+    if (cadena == NULL)
+        return NULL;
 
     int c;
-    while ((c = fgetc(flujo)) != EOF && c != '\n') {
+    while ((c = fgetc(flujo)) != EOF && c != '\n')
+    {
         cadena[longitud++] = (char)c;
 
-        if (longitud >= capacidad) {
+        if (longitud >= capacidad)
+        {
             capacidad *= 2;
-            char* ptrTemp = (char*)realloc(cadena, capacidad * sizeof(char));
-            if (ptrTemp == NULL) {
+            char *ptrTemp = (char *)realloc(cadena, capacidad * sizeof(char));
+            if (ptrTemp == NULL)
+            {
                 free(cadena);
                 return NULL;
             }
@@ -639,7 +817,8 @@ char* leerLineaDinamica(FILE* flujo) {
         }
     }
 
-    if (longitud == 0 && c == EOF) {
+    if (longitud == 0 && c == EOF)
+    {
         free(cadena);
         return NULL;
     }
@@ -649,30 +828,39 @@ char* leerLineaDinamica(FILE* flujo) {
 }
 
 // Auxiliar para reconstruir una línea formateada por delimitador (CSV / TXT)
-char* modificarColumna(const char* lineaOriginal, int columnaTarget, const char* nuevoValor) {
+char *modificarColumna(const char *lineaOriginal, int columnaTarget, const char *nuevoValor)
+{
     size_t len = strlen(lineaOriginal);
-    char* copia = (char*)malloc((len + 1) * sizeof(char));
-    if (copia == NULL) return NULL;
+    char *copia = (char *)malloc((len + 1) * sizeof(char));
+    if (copia == NULL)
+        return NULL;
     strcpy(copia, lineaOriginal);
 
     size_t capResultado = len + (nuevoValor ? strlen(nuevoValor) : 0) + 16;
-    char* resultado = (char*)malloc(capResultado * sizeof(char));
-    if (resultado == NULL) {
+    char *resultado = (char *)malloc(capResultado * sizeof(char));
+    if (resultado == NULL)
+    {
         free(copia);
         return NULL;
     }
     resultado[0] = '\0';
 
     int colActual = 1;
-    char* token = strtok(copia, DELIMITADOR);
+    size_t posicion = 0;
+    char *token = strtok(copia, DELIMITADOR);
 
-    while (token != NULL) {
-        if (colActual > 1) strcat(resultado, DELIMITADOR);
+    while (token != NULL)
+    {
+        if (colActual > 1)
+            posicion += (size_t)sprintf(resultado + posicion, "%s", DELIMITADOR);
 
-        if (colActual == columnaTarget) {
-            strcat(resultado, (nuevoValor != NULL) ? nuevoValor : "");
-        } else {
-            strcat(resultado, token);
+        if (colActual == columnaTarget)
+        {
+            posicion += (size_t)sprintf(resultado + posicion, "%s", (nuevoValor != NULL) ? nuevoValor : "");
+        }
+        else
+        {
+            posicion += (size_t)sprintf(resultado + posicion, "%s", token);
         }
 
         token = strtok(NULL, DELIMITADOR);
@@ -683,62 +871,76 @@ char* modificarColumna(const char* lineaOriginal, int columnaTarget, const char*
     return resultado;
 }
 
-
 // Muestra el contenido completo del archivo
-int leerArchivo(const char* ruta) {
-    if (ruta == NULL) return 0;
+char *leerArchivo(const char *ruta)
+{
+    if (ruta == NULL)
+        return crearResultado(-1, GG_caracter_para_confirmacion_o_error[2], "leerArchivo_ruta_nula");
 
-    FILE* archivo = fopen(ruta, "r");
-    if (archivo == NULL) return 0;
+    FILE *archivo = fopen(ruta, "r");
+    if (archivo == NULL)
+        return crearResultado(-2, GG_caracter_para_confirmacion_o_error[2], "leerArchivo_no_pudo_abrir_archivo");
 
     int numLinea = 1;
-    char* linea = NULL;
+    char *linea = NULL;
 
     printf("\n--- CONTENIDO DE [%s] ---\n", ruta);
-    while ((linea = leerLineaDinamica(archivo)) != NULL) {
+    while ((linea = leerLineaDinamica(archivo)) != NULL)
+    {
         printf("%d: %s\n", numLinea++, linea);
         free(linea);
     }
     printf("-----------------------------------\n");
 
     fclose(archivo);
-    return 1;
+    return crearResultado(0, GG_caracter_para_confirmacion_o_error[2], "leerArchivo_ok");
 }
 
 // Añade una nueva fila/línea al final
-int escribirLinea(const char* ruta, const char* nuevaLinea) {
-    if (ruta == NULL || nuevaLinea == NULL) return 0;
+char *escribirLinea(const char *ruta, const char *nuevaLinea)
+{
+    if (ruta == NULL || nuevaLinea == NULL)
+        return crearResultado(-1, GG_caracter_para_confirmacion_o_error[2], "escribirLinea_parametro_nulo");
 
-    FILE* archivo = fopen(ruta, "a");
-    if (archivo == NULL) return 0;
+    FILE *archivo = fopen(ruta, "a");
+    if (archivo == NULL)
+        return crearResultado(-2, GG_caracter_para_confirmacion_o_error[2], "escribirLinea_no_pudo_abrir_archivo");
 
     fprintf(archivo, "%s\n", nuevaLinea);
     fclose(archivo);
-    return 1;
+    return crearResultado(0, GG_caracter_para_confirmacion_o_error[2], "escribirLinea_ok");
 }
 
 // Reemplaza una línea entera según su ID
-int editarLinea(const char* ruta, int idLinea, const char* nuevoTexto) {
-    if (ruta == NULL || idLinea <= 0) return 0;
+char *editarLinea(const char *ruta, int idLinea, const char *nuevoTexto)
+{
+    if (ruta == NULL || idLinea <= 0)
+        return crearResultado(-1, GG_caracter_para_confirmacion_o_error[2], "editarLinea_parametro_invalido");
 
-    FILE* archivo = fopen(ruta, "r");
-    if (archivo == NULL) return 0;
+    FILE *archivo = fopen(ruta, "r");
+    if (archivo == NULL)
+        return crearResultado(-2, GG_caracter_para_confirmacion_o_error[2], "editarLinea_no_pudo_abrir_archivo");
 
-    FILE* temporal = fopen("temp.txt", "w");
-    if (temporal == NULL) {
+    FILE *temporal = fopen("temp.txt", "w");
+    if (temporal == NULL)
+    {
         fclose(archivo);
-        return 0;
+        return crearResultado(-3, GG_caracter_para_confirmacion_o_error[2], "editarLinea_no_pudo_crear_temporal");
     }
 
     int actualLinea = 1;
     int editado = 0;
-    char* linea = NULL;
+    char *linea = NULL;
 
-    while ((linea = leerLineaDinamica(archivo)) != NULL) {
-        if (actualLinea == idLinea) {
+    while ((linea = leerLineaDinamica(archivo)) != NULL)
+    {
+        if (actualLinea == idLinea)
+        {
             fprintf(temporal, "%s\n", (nuevoTexto != NULL) ? nuevoTexto : "");
             editado = 1;
-        } else {
+        }
+        else
+        {
             fprintf(temporal, "%s\n", linea);
         }
         actualLinea++;
@@ -750,37 +952,53 @@ int editarLinea(const char* ruta, int idLinea, const char* nuevoTexto) {
 
     remove(ruta);
     rename("temp.txt", ruta);
-    return editado;
+    return crearResultado(editado ? 0 : -4, GG_caracter_para_confirmacion_o_error[2],
+                          editado ? "editarLinea_ok" : "editarLinea_id_no_encontrado");
 }
 
 // Modifica únicamente una columna delimitada dentro de la línea idLinea
-int editarColumna(const char* ruta, int idLinea, int idColumna, const char* nuevoValor) {
-    if (ruta == NULL || idLinea <= 0 || idColumna <= 0) return 0;
 
-    FILE* archivo = fopen(ruta, "r");
-    if (archivo == NULL) return 0;
+char *editarColumna(const char *ruta, int idLinea, int idColumna, const char *nuevoValor)
+{
 
-    FILE* temporal = fopen("temp.txt", "w");
-    if (temporal == NULL) {
+    if (ruta == NULL || idLinea <= 0 || idColumna <= 0)
+    {
+        return crearResultado(-1, GG_caracter_para_confirmacion_o_error[2], "editarColumna_parametro_invalido");
+    }
+
+    FILE *archivo = fopen(ruta, "r");
+    if (archivo == NULL)
+        return crearResultado(-2, GG_caracter_para_confirmacion_o_error[2], "editarColumna_no_pudo_abrir_archivo");
+
+    FILE *temporal = fopen("temp.txt", "w");
+    if (temporal == NULL)
+    {
         fclose(archivo);
-        return 0;
+        return crearResultado(-3, GG_caracter_para_confirmacion_o_error[2], "editarColumna_no_pudo_crear_temporal");
     }
 
     int actualLinea = 1;
     int editado = 0;
-    char* linea = NULL;
+    char *linea = NULL;
 
-    while ((linea = leerLineaDinamica(archivo)) != NULL) {
-        if (actualLinea == idLinea) {
-            char* lineaModificada = modificarColumna(linea, idColumna, nuevoValor);
-            if (lineaModificada != NULL) {
+    while ((linea = leerLineaDinamica(archivo)) != NULL)
+    {
+        if (actualLinea == idLinea)
+        {
+            char *lineaModificada = modificarColumna(linea, idColumna, nuevoValor);
+            if (lineaModificada != NULL)
+            {
                 fprintf(temporal, "%s\n", lineaModificada);
                 free(lineaModificada);
                 editado = 1;
-            } else {
+            }
+            else
+            {
                 fprintf(temporal, "%s\n", linea);
             }
-        } else {
+        }
+        else
+        {
             fprintf(temporal, "%s\n", linea);
         }
         actualLinea++;
@@ -792,30 +1010,39 @@ int editarColumna(const char* ruta, int idLinea, int idColumna, const char* nuev
 
     remove(ruta);
     rename("temp.txt", ruta);
-    return editado;
+    return crearResultado(editado ? 0 : -4, GG_caracter_para_confirmacion_o_error[2],
+                          editado ? "editarColumna_ok" : "editarColumna_id_no_encontrado");
 }
 
 // Elimina la fila idLinea reduciendo el número de registros
-int eliminarLinea(const char* ruta, int idLinea) {
-    if (ruta == NULL || idLinea <= 0) return 0;
+char *eliminarLinea(const char *ruta, int idLinea)
+{
+    if (ruta == NULL || idLinea <= 0)
+        return crearResultado(-1, GG_caracter_para_confirmacion_o_error[2], "eliminarLinea_parametro_invalido");
 
-    FILE* archivo = fopen(ruta, "r");
-    if (archivo == NULL) return 0;
+    FILE *archivo = fopen(ruta, "r");
+    if (archivo == NULL)
+        return crearResultado(-2, GG_caracter_para_confirmacion_o_error[2], "eliminarLinea_no_pudo_abrir_archivo");
 
-    FILE* temporal = fopen("temp.txt", "w");
-    if (temporal == NULL) {
+    FILE *temporal = fopen("temp.txt", "w");
+    if (temporal == NULL)
+    {
         fclose(archivo);
-        return 0;
+        return crearResultado(-3, GG_caracter_para_confirmacion_o_error[2], "eliminarLinea_no_pudo_crear_temporal");
     }
 
     int actualLinea = 1;
     int eliminado = 0;
-    char* linea = NULL;
+    char *linea = NULL;
 
-    while ((linea = leerLineaDinamica(archivo)) != NULL) {
-        if (actualLinea != idLinea) {
+    while ((linea = leerLineaDinamica(archivo)) != NULL)
+    {
+        if (actualLinea != idLinea)
+        {
             fprintf(temporal, "%s\n", linea);
-        } else {
+        }
+        else
+        {
             eliminado = 1;
         }
         actualLinea++;
@@ -827,31 +1054,40 @@ int eliminarLinea(const char* ruta, int idLinea) {
 
     remove(ruta);
     rename("temp.txt", ruta);
-    return eliminado;
+    return crearResultado(eliminado ? 0 : -4, GG_caracter_para_confirmacion_o_error[2],
+                          eliminado ? "eliminarLinea_ok" : "eliminarLinea_id_no_encontrado");
 }
 
 // Reemplaza la línea con un renglón en blanco manteniéndola
-int vaciarLinea(const char* ruta, int idLinea) {
-    if (ruta == NULL || idLinea <= 0) return 0;
+char *vaciarLinea(const char *ruta, int idLinea)
+{
+    if (ruta == NULL || idLinea <= 0)
+        return crearResultado(-1, GG_caracter_para_confirmacion_o_error[2], "vaciarLinea_parametro_invalido");
 
-    FILE* archivo = fopen(ruta, "r");
-    if (archivo == NULL) return 0;
+    FILE *archivo = fopen(ruta, "r");
+    if (archivo == NULL)
+        return crearResultado(-2, GG_caracter_para_confirmacion_o_error[2], "vaciarLinea_no_pudo_abrir_archivo");
 
-    FILE* temporal = fopen("temp.txt", "w");
-    if (temporal == NULL) {
+    FILE *temporal = fopen("temp.txt", "w");
+    if (temporal == NULL)
+    {
         fclose(archivo);
-        return 0;
+        return crearResultado(-3, GG_caracter_para_confirmacion_o_error[2], "vaciarLinea_no_pudo_crear_temporal");
     }
 
     int actualLinea = 1;
     int vaciado = 0;
-    char* linea = NULL;
+    char *linea = NULL;
 
-    while ((linea = leerLineaDinamica(archivo)) != NULL) {
-        if (actualLinea == idLinea) {
+    while ((linea = leerLineaDinamica(archivo)) != NULL)
+    {
+        if (actualLinea == idLinea)
+        {
             fprintf(temporal, "\n");
             vaciado = 1;
-        } else {
+        }
+        else
+        {
             fprintf(temporal, "%s\n", linea);
         }
         actualLinea++;
@@ -863,179 +1099,180 @@ int vaciarLinea(const char* ruta, int idLinea) {
 
     remove(ruta);
     rename("temp.txt", ruta);
-    return vaciado;
+    return crearResultado(vaciado ? 0 : -4, GG_caracter_para_confirmacion_o_error[2],
+                          vaciado ? "vaciarLinea_ok" : "vaciarLinea_id_no_encontrado");
 }
-
-
-
 
 // ============================================================================
 // FUNCIONES OPERACIONES DE MENSAJERIA
 // ============================================================================
 
-
-int checar_si_hay_mensajes_no_leido(void) {
-    const char* rutas[] = {
-        "mensajes_todos.txt",
-        "mensajes_contactos.txt",
-        "mensajes_primero.txt"
-    };
+char *checar_si_hay_mensajes_no_leido(void)
+{
+    const char *rutas[] = {"mensajes_todos.txt", "mensajes_contactos.txt", "mensajes_primero.txt"};
     const int totalRutas = 3;
 
-    for (int i = 0; i < totalRutas; i++) {
-        FILE* archivo = fopen(rutas[i], "r");
-        if (archivo == NULL) {
+    for (int i = 0; i < totalRutas; i++)
+    {
+        FILE *archivo = fopen(rutas[i], "r");
+        if (archivo == NULL)
+        {
             continue;
         }
 
         int c = fgetc(archivo);
         fclose(archivo);
 
-        if (c != EOF) {
-            printf("[OK] checar_si_hay_mensajes_no_leido: hay mensajes en %s\n", rutas[i]);
-            return 1;
+        if (c != EOF)
+        {
+            return crearResultado(0, GG_caracter_para_confirmacion_o_error[2], "hay_mensajes_no_leidos");
         }
     }
 
-    printf("[INFO] checar_si_hay_mensajes_no_leido: no hay mensajes no leídos\n");
-    return 0;
+    return crearResultado(0, GG_caracter_para_confirmacion_o_error[2], "no_hay_mensajes_no_leidos");
 }
 
 // Ejecuta ejemplos de prueba sobre las operaciones principales
-int ejecutarEjemplosPrueba(void) {
+char *ejecutarEjemplosPrueba(void)
+{
     int ok = 1;
-    const char* rutaPrueba = "pruebas_demo.txt";
-    char* lineaModificada = NULL;
+    const char *rutaPrueba = "pruebas_demo.txt";
+    char *lineaModificada = NULL;
 
     printf("\n=== EJEMPLOS DE PRUEBA ===\n");
 
     lineaModificada = modificarColumna("Ana,25,Programador", 2, "30");
-    if (lineaModificada == NULL || strcmp(lineaModificada, "Ana,30,Programador") != 0) {
-        printf("[ERROR] modificarColumna: resultado inesperado\n");
+    if (lineaModificada == NULL || strcmp(lineaModificada, "Ana,30,Programador") != 0)
+    {
         ok = 0;
-    } else {
-        printf("[OK] modificarColumna: %s\n", lineaModificada);
     }
     free(lineaModificada);
 
     remove(rutaPrueba);
-    if (!escribirLinea(rutaPrueba, "Luis,10,Desarrollador") ||
-        !escribirLinea(rutaPrueba, "Marta,20,QA")) {
-        printf("[ERROR] escribirLinea: no se pudo crear el archivo de prueba\n");
-        return 0;
+    char *resultadoOperacion = escribirLinea(rutaPrueba, "Luis,10,Desarrollador");
+    int codigoOperacion = codigoResultado(resultadoOperacion);
+    free(resultadoOperacion);
+    if (codigoOperacion < 0)
+    {
+        return crearResultado(-1, GG_caracter_para_confirmacion_o_error[2], "escribirLinea_no_pudo_crear_archivo");
     }
 
-    if (!editarColumna(rutaPrueba, 1, 2, "15")) {
-        printf("[ERROR] editarColumna: no se modificó la columna\n");
-        ok = 0;
-    } else {
-        printf("[OK] editarColumna: la primera fila fue actualizada\n");
+    resultadoOperacion = escribirLinea(rutaPrueba, "Marta,20,QA");
+    codigoOperacion = codigoResultado(resultadoOperacion);
+    free(resultadoOperacion);
+    if (codigoOperacion < 0)
+    {
+        return crearResultado(-1, GG_caracter_para_confirmacion_o_error[2], "escribirLinea_no_pudo_crear_archivo");
     }
 
-    if (!eliminarLinea(rutaPrueba, 2)) {
-        printf("[ERROR] eliminarLinea: no se pudo borrar la segunda línea\n");
+    resultadoOperacion = editarColumna(rutaPrueba, 1, 2, "15");
+    codigoOperacion = codigoResultado(resultadoOperacion);
+    free(resultadoOperacion);
+    if (codigoOperacion < 0)
+    {
         ok = 0;
-    } else {
-        printf("[OK] eliminarLinea: la segunda línea fue eliminada\n");
+    }
+
+    resultadoOperacion = eliminarLinea(rutaPrueba, 2);
+    codigoOperacion = codigoResultado(resultadoOperacion);
+    free(resultadoOperacion);
+    if (codigoOperacion < 0)
+    {
+        ok = 0;
     }
 
     printf("\n--- ARCHIVO DE PRUEBA RESULTANTE ---\n");
-    leerArchivo(rutaPrueba);
+    resultadoOperacion = leerArchivo(rutaPrueba);
+    free(resultadoOperacion);
 
     remove(rutaPrueba);
 
-    if (ok) {
-        printf("[RESULTADO FINAL] PRUEBAS OK\n");
-        return 1;
+    if (ok)
+    {
+        return crearResultado(0, GG_caracter_para_confirmacion_o_error[2], "pruebas_ok");
     }
 
-    printf("[RESULTADO FINAL] PRUEBAS CON ERRORES\n");
-    return 0;
+    return crearResultado(-1, GG_caracter_para_confirmacion_o_error[2], "pruebas_con_errores");
 }
 
-int mandar_mensje_a_todos(const char* mensaje) {
-    if (mensaje == NULL || strlen(mensaje) == 0) {
-        printf("[ERROR] mandar_mensje_a_todos: mensaje vacío\n");
-        return -10;
+char *mandar_mensje_a_todos(const char *mensaje)
+{
+    if (mensaje == NULL || strlen(mensaje) == 0)
+    {
+        return crearResultado(-10, GG_caracter_para_confirmacion_o_error[2], "mandar_mensje_a_todos_mensaje_vacio");
     }
 
-    FILE* archivo = fopen("mensajes_todos.txt", "a");
-    if (archivo == NULL) {
-        printf("[ERROR] mandar_mensje_a_todos: no se pudo abrir el archivo\n");
-        return -11;
+    FILE *archivo = fopen("mensajes_todos.txt", "a");
+    if (archivo == NULL)
+    {
+        return crearResultado(-11, GG_caracter_para_confirmacion_o_error[2],
+                              "mandar_mensje_a_todos_no_pudo_abrir_archivo");
     }
 
     fprintf(archivo, "%s\n", mensaje);
     fclose(archivo);
 
-    printf("[OK] mandar_mensje_a_todos: mensaje enviado a todos -> %s\n", mensaje);
-    return 1;
+    return crearResultado(0, GG_caracter_para_confirmacion_o_error[2], "mandar_mensje_a_todos_ok");
 }
 
-int mandar_mensje_a_contacto(const char* mensaje, const char* contactos, int id_opcional) {
-    if (mensaje == NULL || strlen(mensaje) == 0) {
-        printf("[ERROR] mandar_mensje_a_contacto: mensaje vacío\n");
-        return -20;
+char *mandar_mensje_a_contacto(const char *mensaje, const char *contactos, int id_opcional)
+{
+    if (mensaje == NULL || strlen(mensaje) == 0)
+    {
+        return crearResultado(-20, GG_caracter_para_confirmacion_o_error[2], "mandar_mensje_a_contacto_mensaje_vacio");
     }
 
-    if (contactos == NULL || strlen(contactos) == 0) {
-        printf("[ERROR] mandar_mensje_a_contacto: contactos vacíos\n");
-        return -21;
+    if (contactos == NULL || strlen(contactos) == 0)
+    {
+        return crearResultado(-21, GG_caracter_para_confirmacion_o_error[2],
+                              "mandar_mensje_a_contacto_contactos_vacios");
     }
 
-    FILE* archivo = fopen("mensajes_contactos.txt", "a");
-    if (archivo == NULL) {
-        printf("[ERROR] mandar_mensje_a_contacto: no se pudo abrir el archivo\n");
-        return -22;
+    FILE *archivo = fopen("mensajes_contactos.txt", "a");
+    if (archivo == NULL)
+    {
+        return crearResultado(-22, GG_caracter_para_confirmacion_o_error[2],
+                              "mandar_mensje_a_contacto_no_pudo_abrir_archivo");
     }
 
     fprintf(archivo, "[%d] %s -> %s\n", id_opcional, contactos, mensaje);
     fclose(archivo);
 
-    printf("[OK] mandar_mensje_a_contacto: mensaje enviado a %s con id %d\n", contactos, id_opcional);
-    return 2;
+    return crearResultado(2, GG_caracter_para_confirmacion_o_error[2], "mandar_mensje_a_contacto_ok");
 }
 
-int mandar_mensje_al_primero_que_responda(const char* mensaje_pregunta,
-                                          const char* mensaje_de_que_ya_alguien_lo_acepto,
-                                          const char* menaje_respuesta_al_quien_lo_logro) {
-    if (mensaje_pregunta == NULL || strlen(mensaje_pregunta) == 0) {
-        printf("[ERROR] mandar_mensje_al_primero_que_responda: pregunta vacía\n");
-        return -30;
+char *mandar_mensje_al_primero_que_responda(const char *mensaje_pregunta,
+                                            const char *mensaje_de_que_ya_alguien_lo_acepto,
+                                            const char *menaje_respuesta_al_quien_lo_logro)
+{
+    if (mensaje_pregunta == NULL || strlen(mensaje_pregunta) == 0)
+    {
+        return crearResultado(-30, GG_caracter_para_confirmacion_o_error[2],
+                              "mandar_mensje_al_primero_que_responda_pregunta_vacia");
     }
 
-    if (mensaje_de_que_ya_alguien_lo_acepto == NULL || strlen(mensaje_de_que_ya_alguien_lo_acepto) == 0) {
-        printf("[ERROR] mandar_mensje_al_primero_que_responda: mensaje de aceptación vacío\n");
-        return -31;
+    if (mensaje_de_que_ya_alguien_lo_acepto == NULL || strlen(mensaje_de_que_ya_alguien_lo_acepto) == 0)
+    {
+        return crearResultado(-31, GG_caracter_para_confirmacion_o_error[2],
+                              "mandar_mensje_al_primero_que_responda_aceptacion_vacia");
     }
 
-    if (menaje_respuesta_al_quien_lo_logro == NULL || strlen(menaje_respuesta_al_quien_lo_logro) == 0) {
-        printf("[ERROR] mandar_mensje_al_primero_que_responda: respuesta vacía\n");
-        return -32;
+    if (menaje_respuesta_al_quien_lo_logro == NULL || strlen(menaje_respuesta_al_quien_lo_logro) == 0)
+    {
+        return crearResultado(-32, GG_caracter_para_confirmacion_o_error[2],
+                              "mandar_mensje_al_primero_que_responda_respuesta_vacia");
     }
 
-    FILE* archivo = fopen("mensajes_primero.txt", "a");
-    if (archivo == NULL) {
-        printf("[ERROR] mandar_mensje_al_primero_que_responda: no se pudo abrir el archivo\n");
-        return -33;
+    FILE *archivo = fopen("mensajes_primero.txt", "a");
+    if (archivo == NULL)
+    {
+        return crearResultado(-33, GG_caracter_para_confirmacion_o_error[2],
+                              "mandar_mensje_al_primero_que_responda_no_pudo_abrir_archivo");
     }
 
-    fprintf(archivo, "%s | %s | %s\n",
-            mensaje_pregunta,
-            mensaje_de_que_ya_alguien_lo_acepto,
+    fprintf(archivo, "%s | %s | %s\n", mensaje_pregunta, mensaje_de_que_ya_alguien_lo_acepto,
             menaje_respuesta_al_quien_lo_logro);
     fclose(archivo);
 
-    printf("[OK] mandar_mensje_al_primero_que_responda: flujo registrado\n");
-    return 3;
+    return crearResultado(3, GG_caracter_para_confirmacion_o_error[2], "mandar_mensje_al_primero_que_responda_ok");
 }
-
-// ============================================================================
-// FUNCIONES OPERACIONES DE TEXTO
-// ============================================================================
-
-
-
-
-
-
