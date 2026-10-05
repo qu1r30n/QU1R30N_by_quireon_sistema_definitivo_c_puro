@@ -223,56 +223,6 @@
  // ============================================================================
  // MAIN
  // ============================================================================
- int prueba(void)
- {
- 	enum { TAMANO_NOMBRE_PRUEBA = 32 };
- 	char nombre[TAMANO_NOMBRE_PRUEBA + 1];
- 	size_t longitud = 0;
- 	int caracter;
- 	int nombreDemasiadoLargo = 0;
-
- 	if(sistema_consola_escribir_texto(
- 		"\n=== PRUEBA DEL SISTEMA ===\n\nEscribe tu nombre:\n> ") != 0)
- 	{
- 		return -1;
- 	}
-
- 	while((caracter = sistema_consola_leer_caracter()) != SISTEMA_ARCHIVO_FIN_LECTURA)
- 	{
- 		if(caracter == '\n' || caracter == '\r') break;
- 		if(longitud < TAMANO_NOMBRE_PRUEBA)
- 		{
- 			nombre[longitud++] = (char)caracter;
- 		}
- 		else
- 		{
- 			nombreDemasiadoLargo = 1;
- 		}
- 	}
-
- 	if(caracter == SISTEMA_ARCHIVO_FIN_LECTURA || nombreDemasiadoLargo || longitud == 0)
- 	{
- 		sistema_consola_escribir_texto(
- 			nombreDemasiadoLargo
- 				? "\nEl nombre es demasiado largo para esta prueba.\n"
- 				: "\nNo se pudo leer un nombre desde la consola.\n"
- 		);
- 		return -1;
- 	}
-
- 	nombre[longitud] = '\0';
-
- 	if(sistema_consola_escribir_texto("\nHola ") != 0 ||
- 		sistema_consola_escribir_texto(nombre) != 0 ||
- 		sistema_consola_escribir_texto(
- 			"\n\nPrueba completada correctamente.\n") != 0)
- 	{
- 		return -1;
- 	}
-
- 	return 0;
- }
-
   int main(void)
  {
   	configurarConsolaUTF8();
@@ -371,6 +321,57 @@
  	return codigoFinal;
 #endif
  }
+ 
+ int prueba(void)
+ {
+ 	enum { TAMANO_NOMBRE_PRUEBA = 32 };
+ 	char nombre[TAMANO_NOMBRE_PRUEBA + 1];
+ 	size_t longitud = 0;
+ 	int caracter;
+ 	int nombreDemasiadoLargo = 0;
+
+ 	if(sistema_consola_escribir_texto(
+ 		"\n=== PRUEBA DEL SISTEMA ===\n\nEscribe tu nombre:\n> ") != 0)
+ 	{
+ 		return -1;
+ 	}
+
+ 	while((caracter = sistema_consola_leer_caracter()) != SISTEMA_ARCHIVO_FIN_LECTURA)
+ 	{
+ 		if(caracter == '\n' || caracter == '\r') break;
+ 		if(longitud < TAMANO_NOMBRE_PRUEBA)
+ 		{
+ 			nombre[longitud++] = (char)caracter;
+ 		}
+ 		else
+ 		{
+ 			nombreDemasiadoLargo = 1;
+ 		}
+ 	}
+
+ 	if(caracter == SISTEMA_ARCHIVO_FIN_LECTURA || nombreDemasiadoLargo || longitud == 0)
+ 	{
+ 		sistema_consola_escribir_texto(
+ 			nombreDemasiadoLargo
+ 				? "\nEl nombre es demasiado largo para esta prueba.\n"
+ 				: "\nNo se pudo leer un nombre desde la consola.\n"
+ 		);
+ 		return -1;
+ 	}
+
+ 	nombre[longitud] = '\0';
+
+ 	if(sistema_consola_escribir_texto("\nHola ") != 0 ||
+ 		sistema_consola_escribir_texto(nombre) != 0 ||
+ 		sistema_consola_escribir_texto(
+ 			"\n\nPrueba completada correctamente.\n") != 0)
+ 	{
+ 		return -1;
+ 	}
+
+ 	return 0;
+ }
+
  // ============================================================================
  // FUNCIONES SUBMENÚS
  // ============================================================================
