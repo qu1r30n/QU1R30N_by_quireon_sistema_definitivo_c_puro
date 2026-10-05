@@ -39,6 +39,7 @@
  #include <stddef.h>
 
  #include <time.h>
+ #include <limits.h>
 
  #if defined(_WIN32) || defined(_WIN64)
  #define PLATAFORMA_WINDOWS
@@ -56,8 +57,10 @@
  #else
  #error "Plataforma no soportada"
  #endif
- #define CONCATENAR_BUFFER_SIZE 64
- #define RESULTADO_BUFFER_SIZE 1024
+ /*
+  * Este valor es solo la capacidad inicial de una asignación dinámica.
+  * Las cadenas en Windows y Linux crecen con realloc() según sea necesario.
+  */
  #define TAMANO_INICIAL_LINEA 16
  #define NOMBRE_ARCHIVO "datos.txt"
  /*
@@ -203,7 +206,6 @@
  void liberarSplit(char ** partes, int cantidad, int nivel_de_profundidad);
  char * join(char ** arreglo, int cantidad,const char * carcter_separacion,int nivel_de_profundidad);
  char * crearResultado(int codigo,const char * informacion,const char * resultado_anterior,const char * funcion_llamante,int nivel_de_profundidad);
- static int concat(char * destino, size_t capacidad,const char * separador,const char * formato, ...);
  #pragma endregion
  // ============================================================================
  // MAIN
@@ -711,12 +713,18 @@
 
  	while(posicion <= longitud_texto)
  	{
- 		int encontrado = posicion + longitud_separador <= longitud_texto &&
+ 		int encontrado = longitud_separador <= longitud_texto - posicion &&
  			strncmp(texto + posicion, separador, longitud_separador) == 0;
  		if(!encontrado && posicion < longitud_texto)
  		{
  			posicion++;
  			continue;
+ 		}
+
+ 		if(contador >= (size_t)INT_MAX)
+ 		{
+ 			liberarSplit(partes, (int)contador, nivel_de_profundidad);
+ 			return NULL;
  		}
 
  		if(contador == capacidad - 1)
@@ -738,6 +746,11 @@
  		}
 
  		size_t longitud_parte = posicion - inicio;
+ 		if(longitud_parte == (size_t)-1)
+ 		{
+ 			liberarSplit(partes, (int)contador, nivel_de_profundidad);
+ 			return NULL;
+ 		}
  		partes[contador] = sistema_memoria_reservar(longitud_parte + 1);
  		if(partes[contador] == NULL)
  		{
@@ -779,8 +792,14 @@
 
  	for(int i = 0; i < cantidad; i++)
  	{
- 		longitud_total += (arreglo[i] != NULL) ? strlen(arreglo[i]) : 0;
- 		if(i > 0) longitud_total += longitud_separador;
+ 		size_t longitud_elemento = (arreglo[i] != NULL) ? strlen(arreglo[i]) : 0;
+ 		if(longitud_elemento > (size_t)-1 - longitud_total) return NULL;
+ 		longitud_total += longitud_elemento;
+ 		if(i > 0)
+ 		{
+ 			if(longitud_separador > (size_t)-1 - longitud_total) return NULL;
+ 			longitud_total += longitud_separador;
+ 		}
  	}
 
  	char *resultado = sistema_memoria_reservar(longitud_total);
@@ -829,6 +848,7 @@
  		nivel_de_profundidad
  	);
  	if(longitud < 0) return NULL;
+ 	if((size_t)longitud == (size_t)-1) return NULL;
 
  	char *resultado = sistema_memoria_reservar((size_t)longitud + 1);
  	if(resultado == NULL) return NULL;
@@ -914,6 +934,11 @@
         va_end(argumentos);
         return NULL;
     }
+    if ((size_t)longitud == (size_t)-1)
+    {
+        va_end(argumentos);
+        return NULL;
+    }
 
 
     /*
@@ -953,143 +978,6 @@
 }
 
 
-/* ============================================================================
-   CONCAT
-   ============================================================================
- *
- * Agrega texto a un buffer existente respetando su capacidad.
- *
- * Retorna:
- *
- *      0   = correcto
- *     -1   = error
- *
- * ============================================================================
- */
-
-static int concat(
-    char *destino,
-    size_t capacidad,
-    const char *separador,
-    const char *formato,
-    ...
-)
-{
-    va_list argumentos;
-    size_t posicion;
-    int resultadoFormato;
-    size_t restante;
-
-
-    /*
-     * Validamos.
-     */
-    if (destino == NULL ||
-        capacidad == 0 ||
-        formato == NULL)
-    {
-        return -1;
-    }
-
-
-    /*
-     * Buscamos dónde termina el contenido actual.
-     */
-    posicion = strlen(destino);
-
-
-    /*
-     * Evitamos que strlen() haya encontrado
-     * una cadena fuera del buffer.
-     */
-    if (posicion >= capacidad)
-    {
-        return -1;
-    }
-
-
-    /*
-     * Agregamos separador si existe.
-     */
-    if (separador != NULL &&
-        separador[0] != '\0')
-    {
-        size_t longitudSeparador =
-            strlen(separador);
-
-        restante = capacidad - posicion;
-
-        if (longitudSeparador + 1 > restante)
-        {
-            return -1;
-        }
-
-
-        memcpy(
-            destino + posicion,
-            separador,
-            longitudSeparador
-        );
-
-        posicion += longitudSeparador;
-
-        destino[posicion] = '\0';
-    }
-
-
-    /*
-     * Calculamos espacio restante.
-     */
-    restante = capacidad - posicion;
-
-
-    /*
-     * Argumentos.
-     */
-    va_start(argumentos, formato);
-
-
-    /*
-     * Formateamos directamente en el buffer.
-     */
-    resultadoFormato = vsnprintf(
-        destino + posicion,
-        restante,
-        formato,
-        argumentos
-    );
-
-
-    /*
-     * Cerramos argumentos.
-     */
-    va_end(argumentos);
-
-
-    /*
-     * Error.
-     */
-    if (resultadoFormato < 0)
-    {
-        return -1;
-    }
-
-
-    /*
-     * El resultado no cabe.
-     */
-    if ((size_t)resultadoFormato >= restante)
-    {
-        return -1;
-    }
-
-
-    return 0;
-}
-
-
-
- 
  #pragma endregion
  // ============================================================================
  // FUNCIONES OPERACIONES DE TEX_BASE
@@ -1170,6 +1058,11 @@ static char *leerLineaDinamica(
             char *temporal;
 
 
+            if (capacidad > (size_t)-1 / 2)
+            {
+                sistema_memoria_liberar(linea);
+                return NULL;
+            }
             capacidad *= 2;
 
 
