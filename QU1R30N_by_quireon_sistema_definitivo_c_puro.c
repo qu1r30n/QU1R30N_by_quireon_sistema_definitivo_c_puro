@@ -219,12 +219,66 @@
  char * join(char ** arreglo, int cantidad,const char * carcter_separacion,int nivel_de_profundidad);
  char * crearResultado(int codigo,const char * informacion,const char * resultado_anterior,const char * funcion_llamante,int nivel_de_profundidad);
  #pragma endregion
+ int prueba(void);
  // ============================================================================
  // MAIN
  // ============================================================================
- int main(void)
+ int prueba(void)
  {
- 	configurarConsolaUTF8();
+ 	enum { TAMANO_NOMBRE_PRUEBA = 32 };
+ 	char nombre[TAMANO_NOMBRE_PRUEBA + 1];
+ 	size_t longitud = 0;
+ 	int caracter;
+ 	int nombreDemasiadoLargo = 0;
+
+ 	if(sistema_consola_escribir_texto(
+ 		"\n=== PRUEBA DEL SISTEMA ===\n\nEscribe tu nombre:\n> ") != 0)
+ 	{
+ 		return -1;
+ 	}
+
+ 	while((caracter = sistema_consola_leer_caracter()) != SISTEMA_ARCHIVO_FIN_LECTURA)
+ 	{
+ 		if(caracter == '\n' || caracter == '\r') break;
+ 		if(longitud < TAMANO_NOMBRE_PRUEBA)
+ 		{
+ 			nombre[longitud++] = (char)caracter;
+ 		}
+ 		else
+ 		{
+ 			nombreDemasiadoLargo = 1;
+ 		}
+ 	}
+
+ 	if(caracter == SISTEMA_ARCHIVO_FIN_LECTURA || nombreDemasiadoLargo || longitud == 0)
+ 	{
+ 		sistema_consola_escribir_texto(
+ 			nombreDemasiadoLargo
+ 				? "\nEl nombre es demasiado largo para esta prueba.\n"
+ 				: "\nNo se pudo leer un nombre desde la consola.\n"
+ 		);
+ 		return -1;
+ 	}
+
+ 	nombre[longitud] = '\0';
+
+ 	if(sistema_consola_escribir_texto("\nHola ") != 0 ||
+ 		sistema_consola_escribir_texto(nombre) != 0 ||
+ 		sistema_consola_escribir_texto(
+ 			"\n\nPrueba completada correctamente.\n") != 0)
+ 	{
+ 		return -1;
+ 	}
+
+ 	return 0;
+ }
+
+  int main(void)
+ {
+  	configurarConsolaUTF8();
+ #if defined(PLATAFORMA_SEMICONDUCTOR)
+ 	return prueba() == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+ #else
  	for(int i = 0; i < 3; i++)
  	{
  		char *resultadoInicial = crearResultado(200, "prueba", NULL, "main", 2);
@@ -244,6 +298,7 @@
  		sistema_consola_escribir_formato("2. enlasador_mandar_mensajes\n");
  		sistema_consola_escribir_formato("3. operaciones_de_texto\n");
  		sistema_consola_escribir_formato("4. Salir\n");
+		sistema_consola_escribir_formato("5. Ejecutar prueba del sistema\n");
  		sistema_consola_escribir_formato("Seleccione una opción: ");
  		char * optStr = leerLineaConsola(1);
  		if(optStr == NULL)
@@ -295,6 +350,11 @@
  				sistema_consola_escribir_formato("%s\n", resultado);
  				break;
  			}
+			case 5:
+			{
+				prueba();
+				break;
+			}
  			default:
  			{
  				sistema_consola_escribir_formato("Opción no válida.\n");
@@ -309,6 +369,7 @@
  	leerCodigoResultado(resultado, &codigoFinal);
  	sistema_memoria_liberar(resultado);
  	return codigoFinal;
+#endif
  }
  // ============================================================================
  // FUNCIONES SUBMENÚS
