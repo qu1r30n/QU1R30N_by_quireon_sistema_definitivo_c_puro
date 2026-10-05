@@ -28,35 +28,60 @@
   */
  #include <stdarg.h>     /* Argumentos variables */
 
- #include <stdio.h>      /* Entrada y salida estándar */
+#if !defined(SEMICONDUCTOR)
+ #include <stdio.h>
+ #include <locale.h>
+#endif
 
  #include <stdlib.h>     /* malloc, free */
 
  #include <string.h>     /* Manipulación de cadenas */
 
- #include <locale.h>     /* Configuración regional */
-
  #include <stddef.h>
 
- #include <time.h>
  #include <limits.h>
 
- #if defined(_WIN32) || defined(_WIN64)
- #define PLATAFORMA_WINDOWS
-
- #elif defined(__linux__)
- #define PLATAFORMA_LINUX
- #elif defined(SEMICONDUCTOR)
+ #if defined(SEMICONDUCTOR)
  #define PLATAFORMA_SEMICONDUCTOR
  /*
      Los microcontroladores tienen memoria limitada,
      por eso utilizaremos un buffer fijo.
  */
  #define CONCATENAR_BUFFER_SIZE 64
+ #elif defined(_WIN32) || defined(_WIN64)
+ #define PLATAFORMA_WINDOWS
+
+ #elif defined(__linux__)
+ #define PLATAFORMA_LINUX
  /*PLATAFORMA NO SOPORTADA*/
  #else
  #error "Plataforma no soportada"
  #endif
+
+#if defined(PLATAFORMA_WINDOWS)
+#define RUTA_CONTROL_ERRORES_TRY "config\\chatbot\\errores_try\\control_errore.txt"
+#define RUTA_TRANSFERENCIA_BANDERAS "C:\\XEROX\\CONFIG\\INF\\QU1R30N_SISTEMA_DEFINITIVO\\BANDERAS_sis_qu1.TXT"
+#define RUTA_TRANSFERENCIA_PREGUNTAS "C:\\XEROX\\CONFIG\\INF\\QU1R30N_SISTEMA_DEFINITIVO\\ent_sis_qu1.TXT"
+#define RUTA_TRANSFERENCIA_RESPUESTAS "C:\\XEROX\\CONFIG\\INF\\QU1R30N_SISTEMA_DEFINITIVO\\sal_sis_qu1.TXT"
+#elif defined(PLATAFORMA_LINUX)
+#define RUTA_CONTROL_ERRORES_TRY "config/chatbot/errores_try/control_errore.txt"
+#define RUTA_TRANSFERENCIA_BANDERAS "config/QU1R30N_SISTEMA_DEFINITIVO/BANDERAS_sis_qu1.TXT"
+#define RUTA_TRANSFERENCIA_PREGUNTAS "config/QU1R30N_SISTEMA_DEFINITIVO/ent_sis_qu1.TXT"
+#define RUTA_TRANSFERENCIA_RESPUESTAS "config/QU1R30N_SISTEMA_DEFINITIVO/sal_sis_qu1.TXT"
+#elif defined(PLATAFORMA_SEMICONDUCTOR)
+#define RUTA_CONTROL_ERRORES_TRY "control_errores_try"
+#define RUTA_TRANSFERENCIA_BANDERAS "banderas_sis_qu1"
+#define RUTA_TRANSFERENCIA_PREGUNTAS "entrada_sis_qu1"
+#define RUTA_TRANSFERENCIA_RESPUESTAS "salida_sis_qu1"
+#endif
+
+#define RUTA_ARCHIVO_TEMPORAL "temp.txt"
+#define RUTA_ARCHIVO_RESPALDO "temp_qu1ron.bak"
+#define RUTA_ARCHIVO_PRUEBAS "qu1ron_ejemplos.tmp"
+#define RUTA_MENSAJES_TODOS "mensajes_todos.txt"
+#define RUTA_MENSAJES_CONTACTOS "mensajes_contactos.txt"
+#define RUTA_MENSAJES_PRIMERO "mensajes_primero.txt"
+
  /*
   * Este valor es solo la capacidad inicial de una asignación dinámica.
   * Las cadenas en Windows y Linux crecen con realloc() según sea necesario.
@@ -68,52 +93,38 @@
   * CONFIGURACIÓN DE CONSOLA UTF-8
   * ============================================================================
   */
- #pragma region "CONFIGURACIÓN DE CONSOLA UTF-8"
+#pragma region "CONFIGURACIÓN DE CONSOLA UTF-8"
  static void configurarConsolaUTF8(void)
  {
- 	#if defined(PLATAFORMA_WINDOWS)
- 	/*
- 	 * Windows.
- 	 * No incluimos windows.h para mantener esta base
- 	 * lo más cercana posible a C estándar.
- 	 * Si posteriormente necesitas una configuración
- 	 * específica de consola de Windows, puede agregarse
- 	 * aquí.
- 	 */
- 	setlocale(LC_ALL, "");
- 	#elif defined(PLATAFORMA_LINUX)
- 	/*
- 	 * Linux.
- 	 */
- 	setlocale(LC_ALL, "");
- 	#elif defined(PLATAFORMA_SEMICONDUCTOR)
- 	/*
- 	 * Semiconductor.
- 	 * No suponemos que exista una consola.
- 	 * Futuro:
- 	 *      UART
- 	 *      pantalla
- 	 *      USB
- 	 *      red
- 	 *      SPI
- 	 *      etc.
- 	 */
- 	setlocale(LC_ALL, "");
- 	#endif
+#if defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
+	setlocale(LC_ALL, "");
+#endif
  }
  #pragma endregion
  /* ---------------------------------------------------------------------------
-    CAPA DE MEMORIA , ARCHIVOS Y TIEMPO 
+    CAPA DE MEMORIA, ARCHIVOS Y CONSOLA
     --------------------------------------------------------------------------- */
- #pragma region "CAPA DE MEMORIA, ARCHIVOS Y TIEMPO"
+ #pragma region "CAPA DE MEMORIA, ARCHIVOS Y CONSOLA"
+ typedef struct SistemaArchivo SistemaArchivo;
+ #define SISTEMA_ARCHIVO_FIN_LECTURA (-1)
  static void * sistema_memoria_reservar(size_t cantidad);
  static void * sistema_memoria_redimensionar(void * memoria, size_t cantidad);
  static void sistema_memoria_liberar(void * memoria);
- static FILE * sistema_archivo_abrir(const char * ruta,const char * modo);
- static int sistema_archivo_cerrar(FILE * archivo);
+ static SistemaArchivo * sistema_archivo_abrir(const char * ruta,const char * modo);
+ static int sistema_archivo_cerrar(SistemaArchivo *archivo);
  static int sistema_archivo_eliminar(const char * ruta);
  static int sistema_archivo_renombrar(const char * origen,const char * destino);
- static time_t sistema_tiempo_actual(void);
+ static int textoAEntero(const char *texto, int *resultado);
+ static int leerCodigoResultado(const char *texto, int *codigo);
+ static int resultadoTieneError(const char *texto);
+ static int sistema_archivo_leer_caracter(SistemaArchivo *archivo);
+ static int sistema_archivo_escribir_caracter(SistemaArchivo *archivo, int caracter);
+ static int sistema_archivo_escribir_texto(SistemaArchivo *archivo, const char *texto);
+ static int sistema_archivo_hay_error(SistemaArchivo *archivo);
+ static int sistema_consola_leer_caracter(void);
+ static int sistema_consola_escribir_caracter(int caracter);
+ static int sistema_consola_escribir_texto(const char *texto);
+ static int sistema_consola_escribir_formato(const char *formato, ...);
  #pragma endregion
  // ============================================================================
  // DECLARACIÓN DE VARIABLES GLOBALES
@@ -162,21 +173,22 @@
  	"∆"
  };
  const char * GG_id_programa = "QU1R30N_SISTEMA_DEFINITIVO";
- const char * GG_direccion_control_errores_try = "config\\chatbot\\errores_try\\control_errore.txt";
+ const char * GG_direccion_control_errores_try = RUTA_CONTROL_ERRORES_TRY;
  const char * G_dir_arch_transferencia[] = {
  	/* 0 */
- 	"C:\\XEROX\\CONFIG\\INF\\QU1R30N_SISTEMA_DEFINITIVO\\BANDERAS_sis_qu1.TXT",
+ 	RUTA_TRANSFERENCIA_BANDERAS,
  	/* 1 - preguntas */
- 	"C:\\XEROX\\CONFIG\\INF\\QU1R30N_SISTEMA_DEFINITIVO\\ent_sis_qu1.TXT",
+ 	RUTA_TRANSFERENCIA_PREGUNTAS,
  	/* 2 - respuestas */
- 	"C:\\XEROX\\CONFIG\\INF\\QU1R30N_SISTEMA_DEFINITIVO\\sal_sis_qu1.TXT"
+ 	RUTA_TRANSFERENCIA_RESPUESTAS
  };
  #pragma endregion
  // ============================================================================
  // DECLARACIÓN DE FUNCIONES TEX_BASE
  // ============================================================================
  #pragma region "FUNCIONES TEX_BASE"
- static char * leerLineaDinamica(FILE * flujo, int nivel_de_profundidad);
+ static char * leerLineaDinamica(SistemaArchivo * flujo, int nivel_de_profundidad);
+ static char * leerLineaConsola(int nivel_de_profundidad);
  char * modificarColumna(const char * lineaOriginal,int columnaTarget,const char * nuevoValor,int nivel_de_profundidad);
  char * ejecutarEjemplosPrueba(int nivel_de_profundidad);
  char * submenu_tex_base(char * parametros_en_texto_a_splitear, int nivel_de_profundidad);
@@ -213,80 +225,89 @@
  int main(void)
  {
  	configurarConsolaUTF8();
- 	printf("%s\n", crearResultado(200, "prueba", NULL, "main", 2));
- 	printf("%s\n", crearResultado(200, "prueba", NULL, "main", 2));
- 	printf("%s\n", crearResultado(200, "prueba", NULL, "main", 2));
+ 	for(int i = 0; i < 3; i++)
+ 	{
+ 		char *resultadoInicial = crearResultado(200, "prueba", NULL, "main", 2);
+ 		if(resultadoInicial == NULL)
+ 		{
+ 			sistema_consola_escribir_formato("No se pudo crear el resultado inicial.\n");
+ 			return EXIT_FAILURE;
+ 		}
+ 		sistema_consola_escribir_formato("%s\n", resultadoInicial);
+ 		sistema_memoria_liberar(resultadoInicial);
+ 	}
  	int opcion = 0;
  	char * resultado = NULL;
  	do {
- 		printf("\n=== MENÚ PRINCIPAL ===\n");
- 		printf("1. comandos_tex_base\n");
- 		printf("2. enlasador_mandar_mensajes\n");
- 		printf("3. operaciones_de_texto\n");
- 		printf("4. Salir\n");
- 		printf("Seleccione una opción: ");
- 		char * optStr = leerLineaDinamica(stdin, 1);
+ 		sistema_consola_escribir_formato("\n=== MENÚ PRINCIPAL ===\n");
+ 		sistema_consola_escribir_formato("1. comandos_tex_base\n");
+ 		sistema_consola_escribir_formato("2. enlasador_mandar_mensajes\n");
+ 		sistema_consola_escribir_formato("3. operaciones_de_texto\n");
+ 		sistema_consola_escribir_formato("4. Salir\n");
+ 		sistema_consola_escribir_formato("Seleccione una opción: ");
+ 		char * optStr = leerLineaConsola(1);
  		if(optStr == NULL)
  		{
  			opcion = 4;
- 			free(resultado);
+ 			sistema_memoria_liberar(resultado);
  			resultado = crearResultado(0, "entrada_finalizada", "", "main", 1);
  			break;
  		}
- 		opcion = atoi(optStr);
- 		free(optStr);
+ 		if(!textoAEntero(optStr, &opcion)) opcion = 0;
+ 		sistema_memoria_liberar(optStr);
  		switch(opcion)
  		{
  			case 1:
  			{
  				char * parametros = "l";
- 				free(resultado);
+ 				sistema_memoria_liberar(resultado);
  				resultado = submenu_tex_base(parametros, 1);
  				char * resultadoMain = crearResultado(1, "", "1", __func__, 1);
- 				printf("%s\n", resultadoMain);
- 				free(resultadoMain);
+ 				sistema_consola_escribir_formato("%s\n", resultadoMain);
+ 				sistema_memoria_liberar(resultadoMain);
  				break;
  			}
  			case 2:
  			{
  				char * parametros = "mandar_todos,mandar_contacto,mandar_primero";
- 				free(resultado);
+ 				sistema_memoria_liberar(resultado);
  				resultado = submenu_enlasador_mandar_mensajes(parametros, 1);
  				char * resultadoMain = crearResultado(1, "", "1", __func__, 1);
- 				printf("%s\n", resultadoMain);
- 				free(resultadoMain);
+ 				sistema_consola_escribir_formato("%s\n", resultadoMain);
+ 				sistema_memoria_liberar(resultadoMain);
  				break;
  			}
  			case 3:
  			{
  				char * parametros = "split,modificar_columna,leer_linea";
- 				free(resultado);
+ 				sistema_memoria_liberar(resultado);
  				resultado = submenu_operaciones_de_texto(parametros, 1);
  				char * resultadoMain = crearResultado(1, "", "1", __func__, 1);
- 				printf("%s\n", resultadoMain);
- 				free(resultadoMain);
+ 				sistema_consola_escribir_formato("%s\n", resultadoMain);
+ 				sistema_memoria_liberar(resultadoMain);
  				break;
  			}
  			case 4:
  			{
- 				printf("Saliendo...\n");
- 				free(resultado);
+ 				sistema_consola_escribir_formato("Saliendo...\n");
+ 				sistema_memoria_liberar(resultado);
  				resultado = crearResultado(0, "salida_ok", "", "main", 1);
- 				printf("%s\n", resultado);
+ 				sistema_consola_escribir_formato("%s\n", resultado);
  				break;
  			}
  			default:
  			{
- 				printf("Opción no válida.\n");
- 				free(resultado);
+ 				sistema_consola_escribir_formato("Opción no válida.\n");
+ 				sistema_memoria_liberar(resultado);
  				resultado = crearResultado(-2, "opcion_no_valida", "", "main", 1);
- 				printf("%s\n", resultado);
+ 				sistema_consola_escribir_formato("%s\n", resultado);
  				break;
  			}
  		}
  	} while(opcion != 4);
- 	int codigoFinal = (resultado != NULL) ? atoi(resultado) : -1;
- 	free(resultado);
+ 	int codigoFinal = -1;
+ 	leerCodigoResultado(resultado, &codigoFinal);
+ 	sistema_memoria_liberar(resultado);
  	return codigoFinal;
  }
  // ============================================================================
@@ -306,134 +327,134 @@
  	if(parametros_en_texto_a_splitear != NULL)
  	{
  		parametros_espliteados = split(parametros_en_texto_a_splitear, ",", & cantidad, nivel_de_profundidad);
- 		printf("[split tex_base] elementos: %d\n", cantidad);
+ 		sistema_consola_escribir_formato("[split tex_base] elementos: %d\n", cantidad);
  		for(int i = 0; i < cantidad; i++)
  		{
- 			printf("  [%d] %s\n", i, parametros_espliteados[i]);
+ 			sistema_consola_escribir_formato("  [%d] %s\n", i, parametros_espliteados[i]);
  		}
  		liberarSplit(parametros_espliteados, cantidad, nivel_de_profundidad);
  	}
- 	printf("\n=== SUBMENÚ comandos_tex_base ===\n");
- 	printf("1. Leer todo el archivo\n");
- 	printf("2. Añadir nueva línea\n");
- 	printf("3. Editar línea completa por ID\n");
- 	printf("4. Editar columna específica de una línea\n");
- 	printf("5. Eliminar línea por ID\n");
- 	printf("6. Vaciar línea por ID\n");
- 	printf("7. Ejecutar ejemplos de prueba\n");
- 	printf("8. Volver al menú principal\n");
- 	printf("Seleccione una opción: ");
- 	char * optStr = leerLineaDinamica(stdin, nivel_de_profundidad);
- 	opcion = (optStr != NULL) ? atoi(optStr) : 0;
- 	free(optStr);
+ 	sistema_consola_escribir_formato("\n=== SUBMENÚ comandos_tex_base ===\n");
+ 	sistema_consola_escribir_formato("1. Leer todo el archivo\n");
+ 	sistema_consola_escribir_formato("2. Añadir nueva línea\n");
+ 	sistema_consola_escribir_formato("3. Editar línea completa por ID\n");
+ 	sistema_consola_escribir_formato("4. Editar columna específica de una línea\n");
+ 	sistema_consola_escribir_formato("5. Eliminar línea por ID\n");
+ 	sistema_consola_escribir_formato("6. Vaciar línea por ID\n");
+ 	sistema_consola_escribir_formato("7. Ejecutar ejemplos de prueba\n");
+ 	sistema_consola_escribir_formato("8. Volver al menú principal\n");
+ 	sistema_consola_escribir_formato("Seleccione una opción: ");
+ 	char * optStr = leerLineaConsola(nivel_de_profundidad);
+ 	if(!textoAEntero(optStr, &opcion)) opcion = 0;
+ 	sistema_memoria_liberar(optStr);
  	switch(opcion)
  	{
  		case 1:
  		{
- 			free(resultado);
+ 			sistema_memoria_liberar(resultado);
  			resultado = leerArchivo(NOMBRE_ARCHIVO, nivel_de_profundidad);
- 			free(estado);
+ 			sistema_memoria_liberar(estado);
  			estado = crearResultado(1, "informacionMain", "1", __func__, 1);
  			break;
  		}
  		case 2:
  		{
- 			printf("Ingrese el texto/línea a añadir: ");
- 			char * texto = leerLineaDinamica(stdin, nivel_de_profundidad);
- 			free(resultado);
+ 			sistema_consola_escribir_formato("Ingrese el texto/línea a añadir: ");
+ 			char * texto = leerLineaConsola(nivel_de_profundidad);
+ 			sistema_memoria_liberar(resultado);
  			resultado = escribirLinea(NOMBRE_ARCHIVO, texto, nivel_de_profundidad);
- 			free(texto);
- 			free(estado);
+ 			sistema_memoria_liberar(texto);
+ 			sistema_memoria_liberar(estado);
  			estado = crearResultado(1, "informacionMain", "1", __func__, 1);
  			break;
  		}
  		case 3:
  		{
- 			printf("Ingrese ID de línea a editar: ");
- 			char * inId = leerLineaDinamica(stdin, nivel_de_profundidad);
- 			idLinea = (inId != NULL) ? atoi(inId) : 0;
- 			free(inId);
- 			printf("Ingrese el nuevo contenido completo: ");
- 			char * texto = leerLineaDinamica(stdin, nivel_de_profundidad);
- 			free(resultado);
+ 			sistema_consola_escribir_formato("Ingrese ID de línea a editar: ");
+ 			char * inId = leerLineaConsola(nivel_de_profundidad);
+ 			if(!textoAEntero(inId, &idLinea)) idLinea = 0;
+ 			sistema_memoria_liberar(inId);
+ 			sistema_consola_escribir_formato("Ingrese el nuevo contenido completo: ");
+ 			char * texto = leerLineaConsola(nivel_de_profundidad);
+ 			sistema_memoria_liberar(resultado);
  			resultado = editarLinea(NOMBRE_ARCHIVO, idLinea, texto, nivel_de_profundidad);
- 			free(texto);
- 			free(estado);
+ 			sistema_memoria_liberar(texto);
+ 			sistema_memoria_liberar(estado);
  			estado = crearResultado(1, "informacionMain", "1", __func__, 1);
  			break;
  		}
  		case 4:
  		{
- 			printf("Ingrese ID de línea a editar: ");
- 			char * inId = leerLineaDinamica(stdin, nivel_de_profundidad);
- 			idLinea = (inId != NULL) ? atoi(inId) : 0;
- 			free(inId);
- 			printf("Ingrese el número de columna a editar (1, 2, ...): ");
- 			char * inCol = leerLineaDinamica(stdin, nivel_de_profundidad);
- 			idColumna = (inCol != NULL) ? atoi(inCol) : 0;
- 			free(inCol);
- 			printf("Ingrese el nuevo valor para esa columna: ");
- 			char * valor = leerLineaDinamica(stdin, nivel_de_profundidad);
- 			free(resultado);
+ 			sistema_consola_escribir_formato("Ingrese ID de línea a editar: ");
+ 			char * inId = leerLineaConsola(nivel_de_profundidad);
+ 			if(!textoAEntero(inId, &idLinea)) idLinea = 0;
+ 			sistema_memoria_liberar(inId);
+ 			sistema_consola_escribir_formato("Ingrese el número de columna a editar (1, 2, ...): ");
+ 			char * inCol = leerLineaConsola(nivel_de_profundidad);
+ 			if(!textoAEntero(inCol, &idColumna)) idColumna = 0;
+ 			sistema_memoria_liberar(inCol);
+ 			sistema_consola_escribir_formato("Ingrese el nuevo valor para esa columna: ");
+ 			char * valor = leerLineaConsola(nivel_de_profundidad);
+ 			sistema_memoria_liberar(resultado);
  			resultado = editarColumna(NOMBRE_ARCHIVO, idLinea, idColumna, valor, nivel_de_profundidad);
- 			free(valor);
- 			free(estado);
+ 			sistema_memoria_liberar(valor);
+ 			sistema_memoria_liberar(estado);
  			estado = crearResultado(1, "informacionMain", "1", __func__, 1);
  			break;
  		}
  		case 5:
  		{
- 			printf("Ingrese ID de línea a eliminar: ");
- 			char * inId = leerLineaDinamica(stdin, nivel_de_profundidad);
- 			idLinea = (inId != NULL) ? atoi(inId) : 0;
- 			free(inId);
- 			free(resultado);
+ 			sistema_consola_escribir_formato("Ingrese ID de línea a eliminar: ");
+ 			char * inId = leerLineaConsola(nivel_de_profundidad);
+ 			if(!textoAEntero(inId, &idLinea)) idLinea = 0;
+ 			sistema_memoria_liberar(inId);
+ 			sistema_memoria_liberar(resultado);
  			resultado = eliminarLinea(NOMBRE_ARCHIVO, idLinea, nivel_de_profundidad);
- 			free(estado);
+ 			sistema_memoria_liberar(estado);
  			estado = crearResultado(1, "informacionMain", "1", __func__, 1);
  			break;
  		}
  		case 6:
  		{
- 			printf("Ingrese ID de línea a vaciar: ");
- 			char * inId = leerLineaDinamica(stdin, nivel_de_profundidad);
- 			idLinea = (inId != NULL) ? atoi(inId) : 0;
- 			free(inId);
- 			free(resultado);
+ 			sistema_consola_escribir_formato("Ingrese ID de línea a vaciar: ");
+ 			char * inId = leerLineaConsola(nivel_de_profundidad);
+ 			if(!textoAEntero(inId, &idLinea)) idLinea = 0;
+ 			sistema_memoria_liberar(inId);
+ 			sistema_memoria_liberar(resultado);
  			resultado = vaciarLinea(NOMBRE_ARCHIVO, idLinea, nivel_de_profundidad);
- 			free(estado);
+ 			sistema_memoria_liberar(estado);
  			estado = crearResultado(1, "informacionMain", "1", __func__, 1);
  			break;
  		}
  		case 7:
  		{
- 			free(resultado);
+ 			sistema_memoria_liberar(resultado);
  			resultado = ejecutarEjemplosPrueba(nivel_de_profundidad);
- 			free(estado);
+ 			sistema_memoria_liberar(estado);
  			estado = crearResultado(1, "informacionMain", "1", __func__, 1);
  			break;
  		}
  		case 8:
  		{
- 			printf("Volviendo al menú principal...\n");
- 			free(estado);
- 			free(resultado);
+ 			sistema_consola_escribir_formato("Volviendo al menú principal...\n");
+ 			sistema_memoria_liberar(estado);
+ 			sistema_memoria_liberar(resultado);
  			return crearResultado(1, "informacionMain", "1", __func__, 1);
  		}
  		default:
  		{
- 			printf("Opción no válida.\n");
- 			free(estado);
+ 			sistema_consola_escribir_formato("Opción no válida.\n");
+ 			sistema_memoria_liberar(estado);
  			estado = crearResultado(-2, "opcion_no_valida", "", __func__, 1);
  			break;
  		}
  	}
  	if(estado != NULL)
  	{
- 		printf("%s\n", estado);
+ 		sistema_consola_escribir_formato("%s\n", estado);
  	}
- 	free(estado);
- 	free(resultado);
+ 	sistema_memoria_liberar(estado);
+ 	sistema_memoria_liberar(resultado);
  	return crearResultado(1, "informacionMain", "1", __func__, 1);
  }
  char * submenu_enlasador_mandar_mensajes(char * parametros_en_texto_a_splitear, int nivel_de_profundidad)
@@ -446,93 +467,94 @@
  	if(parametros_en_texto_a_splitear != NULL)
  	{
  		parametros_espliteados = split(parametros_en_texto_a_splitear, ",", & cantidad, nivel_de_profundidad);
- 		printf("[split mensajes] elementos: %d\n", cantidad);
+ 		sistema_consola_escribir_formato("[split mensajes] elementos: %d\n", cantidad);
  		for(int i = 0; i < cantidad; i++)
  		{
- 			printf("  [%d] %s\n", i, parametros_espliteados[i]);
+ 			sistema_consola_escribir_formato("  [%d] %s\n", i, parametros_espliteados[i]);
  		}
  		liberarSplit(parametros_espliteados, cantidad, nivel_de_profundidad);
  	}
- 	printf("\n=== SUBMENÚ enlasador_mandar_mensajes ===\n");
- 	printf("1. mandar_mensje_a_todos(mensaje)\n");
- 	printf("2. mandar_mensje_a_contacto(mensaje, contactos, id_opcional)\n");
- 	printf("3. mandar_mensje_al_primero_que_responda("
+ 	sistema_consola_escribir_formato("\n=== SUBMENÚ enlasador_mandar_mensajes ===\n");
+ 	sistema_consola_escribir_formato("1. mandar_mensje_a_todos(mensaje)\n");
+ 	sistema_consola_escribir_formato("2. mandar_mensje_a_contacto(mensaje, contactos, id_opcional)\n");
+ 	sistema_consola_escribir_formato("3. mandar_mensje_al_primero_que_responda("
  		"mensaje_pregunta, mensaje_de_que_ya_alguien_lo_acepto, "
  		"menaje_respuesta_al_quien_lo_logro)\n");
- 	printf("4. Volver al menú principal\n");
- 	printf("Seleccione una opción: ");
- 	char * optStr = leerLineaDinamica(stdin, nivel_de_profundidad);
- 	opcion = (optStr != NULL) ? atoi(optStr) : 0;
- 	free(optStr);
+ 	sistema_consola_escribir_formato("4. Volver al menú principal\n");
+ 	sistema_consola_escribir_formato("Seleccione una opción: ");
+ 	char * optStr = leerLineaConsola(nivel_de_profundidad);
+ 	if(!textoAEntero(optStr, &opcion)) opcion = 0;
+ 	sistema_memoria_liberar(optStr);
  	switch(opcion)
  	{
  		case 1:
  		{
- 			printf("Ingrese el mensaje para todos: ");
- 			char * mensaje = leerLineaDinamica(stdin, nivel_de_profundidad);
- 			free(resultado);
+ 			sistema_consola_escribir_formato("Ingrese el mensaje para todos: ");
+ 			char * mensaje = leerLineaConsola(nivel_de_profundidad);
+ 			sistema_memoria_liberar(resultado);
  			resultado = mandar_mensje_a_todos(mensaje, nivel_de_profundidad);
- 			free(mensaje);
- 			free(estado);
+ 			sistema_memoria_liberar(mensaje);
+ 			sistema_memoria_liberar(estado);
  			estado = crearResultado(1, "informacionMain", "1", __func__, 1);
  			break;
  		}
  		case 2:
  		{
- 			printf("Ingrese el mensaje: ");
- 			char * mensaje = leerLineaDinamica(stdin, nivel_de_profundidad);
- 			printf("Ingrese la lista de contactos: ");
- 			char * contactos = leerLineaDinamica(stdin, nivel_de_profundidad);
- 			printf("Ingrese id opcional: ");
- 			char * idStr = leerLineaDinamica(stdin, nivel_de_profundidad);
- 			int id_opcional = (idStr != NULL) ? atoi(idStr) : 0;
- 			free(idStr);
- 			free(resultado);
+ 			sistema_consola_escribir_formato("Ingrese el mensaje: ");
+ 			char * mensaje = leerLineaConsola(nivel_de_profundidad);
+ 			sistema_consola_escribir_formato("Ingrese la lista de contactos: ");
+ 			char * contactos = leerLineaConsola(nivel_de_profundidad);
+ 			sistema_consola_escribir_formato("Ingrese id opcional: ");
+ 			char * idStr = leerLineaConsola(nivel_de_profundidad);
+ 			int id_opcional = 0;
+ 			textoAEntero(idStr, &id_opcional);
+ 			sistema_memoria_liberar(idStr);
+ 			sistema_memoria_liberar(resultado);
  			resultado = mandar_mensje_a_contacto(mensaje, contactos, id_opcional, nivel_de_profundidad);
- 			free(mensaje);
- 			free(contactos);
- 			free(estado);
+ 			sistema_memoria_liberar(mensaje);
+ 			sistema_memoria_liberar(contactos);
+ 			sistema_memoria_liberar(estado);
  			estado = crearResultado(1, "informacionMain", "1", __func__, 1);
  			break;
  		}
  		case 3:
  		{
- 			printf("Ingrese el mensaje de pregunta: ");
- 			char * pregunta = leerLineaDinamica(stdin, nivel_de_profundidad);
- 			printf("Ingrese el mensaje de que alguien ya lo aceptó: ");
- 			char * aceptado = leerLineaDinamica(stdin, nivel_de_profundidad);
- 			printf("Ingrese la respuesta a quien lo logró: ");
- 			char * respuesta = leerLineaDinamica(stdin, nivel_de_profundidad);
- 			free(resultado);
+ 			sistema_consola_escribir_formato("Ingrese el mensaje de pregunta: ");
+ 			char * pregunta = leerLineaConsola(nivel_de_profundidad);
+ 			sistema_consola_escribir_formato("Ingrese el mensaje de que alguien ya lo aceptó: ");
+ 			char * aceptado = leerLineaConsola(nivel_de_profundidad);
+ 			sistema_consola_escribir_formato("Ingrese la respuesta a quien lo logró: ");
+ 			char * respuesta = leerLineaConsola(nivel_de_profundidad);
+ 			sistema_memoria_liberar(resultado);
  			resultado = mandar_mensje_al_primero_que_responda(pregunta, aceptado, respuesta, nivel_de_profundidad);
- 			free(pregunta);
- 			free(aceptado);
- 			free(respuesta);
- 			free(estado);
+ 			sistema_memoria_liberar(pregunta);
+ 			sistema_memoria_liberar(aceptado);
+ 			sistema_memoria_liberar(respuesta);
+ 			sistema_memoria_liberar(estado);
  			estado = crearResultado(1, "informacionMain", "1", __func__, 1);
  			break;
  		}
  		case 4:
  		{
- 			printf("Volviendo al menú principal...\n");
- 			free(estado);
- 			free(resultado);
+ 			sistema_consola_escribir_formato("Volviendo al menú principal...\n");
+ 			sistema_memoria_liberar(estado);
+ 			sistema_memoria_liberar(resultado);
  			return crearResultado(1, "informacionMain", "1", __func__, 1);
  		}
  		default:
  		{
- 			printf("Opción no válida.\n");
- 			free(estado);
+ 			sistema_consola_escribir_formato("Opción no válida.\n");
+ 			sistema_memoria_liberar(estado);
  			estado = crearResultado(-2, "opcion_no_valida", "", __func__, 1);
  			break;
  		}
  	}
  	if(estado != NULL)
  	{
- 		printf("%s\n", estado);
+ 		sistema_consola_escribir_formato("%s\n", estado);
  	}
- 	free(estado);
- 	free(resultado);
+ 	sistema_memoria_liberar(estado);
+ 	sistema_memoria_liberar(resultado);
  	return crearResultado(1, "informacionMain", "1", __func__, 1);
  }
  char * submenu_operaciones_de_texto(char * parametros_en_texto_a_splitear, int nivel_de_profundidad)
@@ -544,97 +566,98 @@
  	if(parametros_en_texto_a_splitear != NULL)
  	{
  		parametros_espliteados = split(parametros_en_texto_a_splitear, ",", & cantidad, nivel_de_profundidad);
- 		printf("[split operaciones_texto] elementos: %d\n", cantidad);
+ 		sistema_consola_escribir_formato("[split operaciones_texto] elementos: %d\n", cantidad);
  		for(int i = 0; i < cantidad; i++)
  		{
- 			printf("  [%d] %s\n", i, parametros_espliteados[i]);
+ 			sistema_consola_escribir_formato("  [%d] %s\n", i, parametros_espliteados[i]);
  		}
  		liberarSplit(parametros_espliteados, cantidad, nivel_de_profundidad);
  	}
- 	printf("\n=== SUBMENÚ operaciones_de_texto ===\n");
- 	printf("1. split(texto, delimitador)\n");
- 	printf("2. modificarColumna(linea, columna, nuevoValor)\n");
- 	printf("3. leerLineaDinamica(FILE*)\n");
- 	printf("4. Volver al menú principal\n");
- 	printf("Seleccione una opción: ");
- 	char * optStr = leerLineaDinamica(stdin, nivel_de_profundidad);
- 	opcion = (optStr != NULL) ? atoi(optStr) : 0;
- 	free(optStr);
+ 	sistema_consola_escribir_formato("\n=== SUBMENÚ operaciones_de_texto ===\n");
+ 	sistema_consola_escribir_formato("1. split(texto, delimitador)\n");
+ 	sistema_consola_escribir_formato("2. modificarColumna(linea, columna, nuevoValor)\n");
+ 	sistema_consola_escribir_formato("3. leerLineaDinamica(consola)\n");
+ 	sistema_consola_escribir_formato("4. Volver al menú principal\n");
+ 	sistema_consola_escribir_formato("Seleccione una opción: ");
+ 	char * optStr = leerLineaConsola(nivel_de_profundidad);
+ 	if(!textoAEntero(optStr, &opcion)) opcion = 0;
+ 	sistema_memoria_liberar(optStr);
  	switch(opcion)
  	{
  		case 1:
  		{
- 			printf("Ingrese el texto a partir: ");
- 			char * texto = leerLineaDinamica(stdin, nivel_de_profundidad);
- 			printf("Ingrese el delimitador: ");
- 			char * delimitador = leerLineaDinamica(stdin, nivel_de_profundidad);
+ 			sistema_consola_escribir_formato("Ingrese el texto a partir: ");
+ 			char * texto = leerLineaConsola(nivel_de_profundidad);
+ 			sistema_consola_escribir_formato("Ingrese el delimitador: ");
+ 			char * delimitador = leerLineaConsola(nivel_de_profundidad);
  			int total = 0;
  			char ** partes = split(texto, delimitador, & total, nivel_de_profundidad);
  			if(partes == NULL)
  			{
- 				free(texto);
- 				free(delimitador);
- 				free(estado);
+ 				sistema_memoria_liberar(texto);
+ 				sistema_memoria_liberar(delimitador);
+ 				sistema_memoria_liberar(estado);
  				estado = crearResultado(-1, "error_split", "", __func__, 1);
  				break;
  			}
  			for(int i = 0; i < total; i++)
  			{
- 				printf("  parte[%d] = %s\n", i, partes[i]);
+ 				sistema_consola_escribir_formato("  parte[%d] = %s\n", i, partes[i]);
  			}
  			liberarSplit(partes, total, nivel_de_profundidad);
- 			free(texto);
- 			free(delimitador);
- 			free(estado);
+ 			sistema_memoria_liberar(texto);
+ 			sistema_memoria_liberar(delimitador);
+ 			sistema_memoria_liberar(estado);
  			estado = crearResultado(1, "informacionMain", "1", __func__, 1);
  			break;
  		}
  		case 2:
  		{
- 			printf("Ingrese la línea original: ");
- 			char * linea = leerLineaDinamica(stdin, nivel_de_profundidad);
- 			printf("Ingrese la columna a cambiar: ");
- 			char * colStr = leerLineaDinamica(stdin, nivel_de_profundidad);
- 			int columna = (colStr != NULL) ? atoi(colStr) : 0;
- 			free(colStr);
- 			printf("Ingrese el nuevo valor: ");
- 			char * nuevo = leerLineaDinamica(stdin, nivel_de_profundidad);
+ 			sistema_consola_escribir_formato("Ingrese la línea original: ");
+ 			char * linea = leerLineaConsola(nivel_de_profundidad);
+ 			sistema_consola_escribir_formato("Ingrese la columna a cambiar: ");
+ 			char * colStr = leerLineaConsola(nivel_de_profundidad);
+ 			int columna = 0;
+ 			textoAEntero(colStr, &columna);
+ 			sistema_memoria_liberar(colStr);
+ 			sistema_consola_escribir_formato("Ingrese el nuevo valor: ");
+ 			char * nuevo = leerLineaConsola(nivel_de_profundidad);
  			char * resultadoMod = modificarColumna(linea, columna, nuevo, nivel_de_profundidad);
  			if(resultadoMod == NULL)
  			{
- 				free(linea);
- 				free(nuevo);
- 				free(estado);
+ 				sistema_memoria_liberar(linea);
+ 				sistema_memoria_liberar(nuevo);
+ 				sistema_memoria_liberar(estado);
  				estado = crearResultado(-1, "error_modificar_columna", "", __func__, 1);
  				break;
  			}
- 			printf("Resultado: %s\n", resultadoMod);
- 			free(resultadoMod);
- 			free(linea);
- 			free(nuevo);
- 			free(estado);
+ 			sistema_consola_escribir_formato("Resultado: %s\n", resultadoMod);
+ 			sistema_memoria_liberar(resultadoMod);
+ 			sistema_memoria_liberar(linea);
+ 			sistema_memoria_liberar(nuevo);
+ 			sistema_memoria_liberar(estado);
  			estado = crearResultado(1, "informacionMain", "1", __func__, 1);
  			break;
  		}
  		case 3:
  		{
- 			printf("Ingrese una línea de texto: ");
- 			char * linea = leerLineaDinamica(stdin, nivel_de_profundidad);
+ 			sistema_consola_escribir_formato("Ingrese una línea de texto: ");
+ 			char * linea = leerLineaConsola(nivel_de_profundidad);
  			if(linea == NULL)
  			{
- 				free(estado);
+ 				sistema_memoria_liberar(estado);
  				estado = crearResultado(-1, "error_lectura", "", __func__, 1);
  				break;
  			}
- 			printf("Línea recibida: %s\n", linea);
- 			free(linea);
- 			free(estado);
+ 			sistema_consola_escribir_formato("Línea recibida: %s\n", linea);
+ 			sistema_memoria_liberar(linea);
+ 			sistema_memoria_liberar(estado);
  			estado = crearResultado(1, "informacionMain", "1", __func__, 1);
  			break;
  		}
  		case 4:
  		{
- 			printf("Volviendo al menú principal...\n");
+ 			sistema_consola_escribir_formato("Volviendo al menú principal...\n");
  			if(estado != NULL)
  			{
  				char * tmp = estado;
@@ -645,17 +668,17 @@
  		}
  		default:
  		{
- 			printf("Opción no válida.\n");
- 			free(estado);
+ 			sistema_consola_escribir_formato("Opción no válida.\n");
+ 			sistema_memoria_liberar(estado);
  			estado = crearResultado(-2, "opcion_no_valida", "", __func__, 1);
  			break;
  		}
  	}
  	if(estado != NULL)
  	{
- 		printf("%s\n", estado);
+ 		sistema_consola_escribir_formato("%s\n", estado);
  	}
- 	free(estado);
+ 	sistema_memoria_liberar(estado);
  	return crearResultado(1, "informacionMain", "1", __func__, 1);
  }
  #pragma endregion
@@ -823,7 +846,194 @@
  	*destino = '\0';
  	return resultado;
  }
- char * crearResultado(int codigo,
+ static char *enteroATexto(int valor, char *buffer, size_t capacidad)
+ {
+ 	unsigned int magnitud;
+ 	size_t longitud = 0;
+ 	int negativo = valor < 0;
+
+ 	if(buffer == NULL || capacidad < 2) return NULL;
+ 	magnitud = negativo ? 0u - (unsigned int)valor : (unsigned int)valor;
+
+ 	do
+ 	{
+ 		if(longitud + (size_t)negativo + 1 >= capacidad) return NULL;
+ 		buffer[longitud++] = (char)('0' + magnitud % 10u);
+ 		magnitud /= 10u;
+ 	} while(magnitud != 0);
+
+ 	if(negativo) buffer[longitud++] = '-';
+ 	buffer[longitud] = '\0';
+
+ 	for(size_t inicio = 0, fin = longitud - 1; inicio < fin; inicio++, fin--)
+ 	{
+ 		char temporal = buffer[inicio];
+ 		buffer[inicio] = buffer[fin];
+ 		buffer[fin] = temporal;
+ 	}
+
+ 	return buffer;
+ }
+
+ static int textoAEnteroN(const char *texto, size_t longitud, int *resultado)
+ {
+ 	size_t posicion = 0;
+ 	unsigned int magnitud = 0;
+ 	unsigned int limite;
+ 	int negativo = 0;
+ 	int hayDigito = 0;
+
+ 	if(texto == NULL || resultado == NULL) return 0;
+ 	while(posicion < longitud &&
+ 		(texto[posicion] == ' ' || texto[posicion] == '\t' ||
+ 		 texto[posicion] == '\n' || texto[posicion] == '\r' ||
+ 		 texto[posicion] == '\f' || texto[posicion] == '\v'))
+ 	{
+ 		posicion++;
+ 	}
+
+ 	if(posicion < longitud && (texto[posicion] == '-' || texto[posicion] == '+'))
+ 	{
+ 		negativo = texto[posicion] == '-';
+ 		posicion++;
+ 	}
+
+ 	limite = (unsigned int)INT_MAX + (unsigned int)negativo;
+ 	while(posicion < longitud && texto[posicion] >= '0' && texto[posicion] <= '9')
+ 	{
+ 		unsigned int digito = (unsigned int)(texto[posicion] - '0');
+ 		if(magnitud > (limite - digito) / 10u) return 0;
+ 		magnitud = magnitud * 10u + digito;
+ 		hayDigito = 1;
+ 		posicion++;
+ 	}
+
+ 	if(!hayDigito) return 0;
+ 	while(posicion < longitud &&
+ 		(texto[posicion] == ' ' || texto[posicion] == '\t' ||
+ 		 texto[posicion] == '\n' || texto[posicion] == '\r' ||
+ 		 texto[posicion] == '\f' || texto[posicion] == '\v'))
+ 	{
+ 		posicion++;
+ 	}
+ 	if(posicion != longitud) return 0;
+
+ 	if(negativo)
+ 	{
+ 		*resultado = magnitud == (unsigned int)INT_MAX + 1u
+ 			? INT_MIN
+ 			: -(int)magnitud;
+ 	}
+ 	else
+ 	{
+ 		*resultado = (int)magnitud;
+ 	}
+ 	return 1;
+ }
+
+ static int textoAEntero(const char *texto, int *resultado)
+ {
+ 	return texto != NULL
+ 		? textoAEnteroN(texto, strlen(texto), resultado)
+ 		: 0;
+ }
+
+ static int leerCodigoResultado(const char *texto, int *codigo)
+ {
+ 	const char *separador;
+
+ 	if(texto == NULL || codigo == NULL) return 0;
+ 	separador = strchr(texto, GG_caracter_separacion[0][0]);
+ 	return separador != NULL
+ 		? textoAEnteroN(texto, (size_t)(separador - texto), codigo)
+ 		: 0;
+ }
+
+ static int resultadoTieneError(const char *texto)
+ {
+ 	int codigo;
+ 	return !leerCodigoResultado(texto, &codigo) || codigo < 0;
+ }
+
+ static int sistema_consola_escribir_formato(const char *formato, ...)
+ {
+ 	va_list argumentos;
+ 	const char *cursor;
+ 	const char *inicio;
+
+ 	if(formato == NULL) return -1;
+
+ 	va_start(argumentos, formato);
+ 	cursor = formato;
+ 	inicio = formato;
+
+ 	while(*cursor != '\0')
+ 	{
+ 		char numero[sizeof(int) * CHAR_BIT + 2];
+ 		const char *texto;
+
+ 		if(*cursor != '%')
+ 		{
+ 			cursor++;
+ 			continue;
+ 		}
+
+ 		while(inicio < cursor)
+ 		{
+ 			if(sistema_consola_escribir_caracter((unsigned char)*inicio++) != 0) goto error;
+ 		}
+ 		cursor++;
+ 		if(*cursor == '\0') goto error;
+
+ 		if(*cursor == 's')
+ 		{
+ 			texto = va_arg(argumentos, const char *);
+ 			if(texto == NULL || sistema_consola_escribir_texto(texto) != 0) goto error;
+ 		}
+ 		else if(*cursor == 'd')
+ 		{
+ 			if(enteroATexto(va_arg(argumentos, int), numero, sizeof(numero)) == NULL ||
+ 				sistema_consola_escribir_texto(numero) != 0)
+ 			{
+ 				goto error;
+ 			}
+ 		}
+ 		else if(*cursor == '%')
+ 		{
+ 			if(sistema_consola_escribir_caracter('%') != 0) goto error;
+ 		}
+ 		else
+ 		{
+ 			goto error;
+ 		}
+
+ 		cursor++;
+ 		inicio = cursor;
+ 	}
+
+ 	if(sistema_consola_escribir_texto(inicio) != 0) goto error;
+ 	va_end(argumentos);
+ 	return 0;
+
+ error:
+ 	va_end(argumentos);
+ 	return -1;
+ }
+
+ static int sistema_archivo_escribir_entero(SistemaArchivo *archivo, int valor)
+ {
+ 	char buffer[sizeof(int) * CHAR_BIT + 2];
+ 	if(enteroATexto(valor, buffer, sizeof(buffer)) == NULL) return -1;
+ 	return sistema_archivo_escribir_texto(archivo, buffer);
+ }
+
+ static int escribirLineaArchivo(SistemaArchivo *archivo, const char *texto)
+ {
+ 	if(texto == NULL || sistema_archivo_escribir_texto(archivo, texto) != 0) return -1;
+ 	return sistema_archivo_escribir_caracter(archivo, '\n');
+ }
+
+  char * crearResultado(int codigo,
  	const char * informacion,
  		const char * resultado_anterior,
  			const char * funcion_llamante,
@@ -833,152 +1043,49 @@
  	const char *info = (informacion != NULL) ? informacion : "";
  	const char *anterior = (resultado_anterior != NULL) ? resultado_anterior : "";
  	const char *funcion = (funcion_llamante != NULL) ? funcion_llamante : "";
- 	int longitud = snprintf(
- 		NULL,
- 		0,
- 		"%d%s%s%s%s%s%s%s%d",
- 		codigo,
- 		separador,
- 		info,
- 		separador,
- 		anterior,
- 		separador,
- 		funcion,
- 		separador,
- 		nivel_de_profundidad
- 	);
- 	if(longitud < 0) return NULL;
- 	if((size_t)longitud == (size_t)-1) return NULL;
+ 	char codigoTexto[sizeof(int) * CHAR_BIT + 2];
+ 	char profundidadTexto[sizeof(int) * CHAR_BIT + 2];
+ 	const char *partes[9];
 
- 	char *resultado = sistema_memoria_reservar((size_t)longitud + 1);
- 	if(resultado == NULL) return NULL;
-
- 	if(snprintf(
- 			resultado,
- 			(size_t)longitud + 1,
- 			"%d%s%s%s%s%s%s%s%d",
- 			codigo,
- 			separador,
- 			info,
- 			separador,
- 			anterior,
- 			separador,
- 			funcion,
- 			separador,
- 			nivel_de_profundidad
- 		) != longitud)
+ 	if(enteroATexto(codigo, codigoTexto, sizeof(codigoTexto)) == NULL ||
+ 		enteroATexto(nivel_de_profundidad, profundidadTexto, sizeof(profundidadTexto)) == NULL)
  	{
- 		sistema_memoria_liberar(resultado);
  		return NULL;
  	}
 
+ 	partes[0] = codigoTexto;
+ 	partes[1] = separador;
+ 	partes[2] = info;
+ 	partes[3] = separador;
+ 	partes[4] = anterior;
+ 	partes[5] = separador;
+ 	partes[6] = funcion;
+ 	partes[7] = separador;
+ 	partes[8] = profundidadTexto;
+
+ 	size_t longitudTotal = 1;
+ 	for(size_t i = 0; i < sizeof(partes) / sizeof(partes[0]); i++)
+ 	{
+ 		size_t longitudParte = strlen(partes[i]);
+ 		if(longitudParte > (size_t)-1 - longitudTotal) return NULL;
+ 		longitudTotal += longitudParte;
+ 	}
+
+ 	char *resultado = sistema_memoria_reservar(longitudTotal);
+ 	if(resultado == NULL) return NULL;
+
+ 	char *destino = resultado;
+ 	for(size_t i = 0; i < sizeof(partes) / sizeof(partes[0]); i++)
+ 	{
+ 		size_t longitudParte = strlen(partes[i]);
+ 		memcpy(destino, partes[i], longitudParte);
+ 		destino += longitudParte;
+ 	}
+ 	*destino = '\0';
  	return resultado;
  }
  
- static char *concatenar(
-    const char *formato,
-    ...
-)
-{
-    va_list argumentos;
-    va_list copia;
-    int longitud;
-    char *resultado;
-
-
-    /*
-     * Validamos.
-     */
-    if (formato == NULL)
-    {
-        return NULL;
-    }
-
-
-    /*
-     * Iniciamos argumentos.
-     */
-    va_start(argumentos, formato);
-
-
-    /*
-     * Hacemos una copia.
-     */
-    va_copy(copia, argumentos);
-
-
-    /*
-     * Calculamos el tamaño.
-     *
-     * Si la implementación de C del microcontrolador
-     * no soporta esta modalidad de vsnprintf(),
-     * esta función puede sustituirse posteriormente
-     * por el formateador propio del sistema.
-     */
-    longitud = vsnprintf(
-        NULL,
-        0,
-        formato,
-        copia
-    );
-
-
-    va_end(copia);
-
-
-    /*
-     * Error de formato.
-     */
-    if (longitud < 0)
-    {
-        va_end(argumentos);
-        return NULL;
-    }
-    if ((size_t)longitud == (size_t)-1)
-    {
-        va_end(argumentos);
-        return NULL;
-    }
-
-
-    /*
-     * Reservamos espacio.
-     */
-    resultado =
-        (char *)sistema_memoria_reservar(
-            (size_t)longitud + 1
-        );
-
-
-    if (resultado == NULL)
-    {
-        va_end(argumentos);
-        return NULL;
-    }
-
-
-    /*
-     * Escribimos.
-     */
-    vsnprintf(
-        resultado,
-        (size_t)longitud + 1,
-        formato,
-        argumentos
-    );
-
-
-    /*
-     * Finalizamos argumentos.
-     */
-    va_end(argumentos);
-
-
-    return resultado;
-}
-
-
- #pragma endregion
+  #pragma endregion
  // ============================================================================
  // FUNCIONES OPERACIONES DE TEX_BASE
  // ============================================================================
@@ -987,8 +1094,9 @@
    LEER LINEA DINAMICA
    ============================================================================ */
 
-static char *leerLineaDinamica(
-    FILE *flujo,
+static char *leerLineaDesde(
+    int (*leerCaracter)(void *contexto),
+    void *contexto,
     int nivel_de_profundidad
 )
 {
@@ -1008,7 +1116,7 @@ static char *leerLineaDinamica(
     /*
      * Validamos.
      */
-    if (flujo == NULL)
+    if (leerCaracter == NULL)
     {
         return NULL;
     }
@@ -1039,7 +1147,7 @@ static char *leerLineaDinamica(
     /*
      * Leemos carácter por carácter.
      */
-    while ((caracter = fgetc(flujo)) != EOF)
+    while ((caracter = leerCaracter(contexto)) != SISTEMA_ARCHIVO_FIN_LECTURA)
     {
         /*
          * Final de línea.
@@ -1096,11 +1204,11 @@ static char *leerLineaDinamica(
 
 
     /*
-     * Si no leímos nada y encontramos EOF,
+     * Si no leímos nada y terminó la lectura,
      * liberamos.
      */
     if (longitud == 0 &&
-        caracter == EOF)
+        caracter == SISTEMA_ARCHIVO_FIN_LECTURA)
     {
         sistema_memoria_liberar(linea);
         return NULL;
@@ -1115,6 +1223,29 @@ static char *leerLineaDinamica(
 
     return linea;
 }
+
+static int leerCaracterArchivo(void *contexto)
+{
+	return sistema_archivo_leer_caracter((SistemaArchivo *)contexto);
+}
+
+static int leerCaracterConsola(void *contexto)
+{
+	(void)contexto;
+	return sistema_consola_leer_caracter();
+}
+
+static char *leerLineaDinamica(SistemaArchivo *flujo, int nivel_de_profundidad)
+{
+	if(flujo == NULL) return NULL;
+	return leerLineaDesde(leerCaracterArchivo, flujo, nivel_de_profundidad);
+}
+
+static char *leerLineaConsola(int nivel_de_profundidad)
+{
+	return leerLineaDesde(leerCaracterConsola, NULL, nivel_de_profundidad);
+}
+
 char * modificarColumna(const char * lineaOriginal,
  	int columnaTarget,
  	const char * nuevoValor,
@@ -1148,9 +1279,9 @@ char * modificarColumna(const char * lineaOriginal,
 
 static int reemplazarArchivoTemporal(const char *ruta)
 {
-	const char *temporal = "temp.txt";
-	const char *respaldo = "temp_qu1ron.bak";
-	FILE *existente;
+	const char *temporal = RUTA_ARCHIVO_TEMPORAL;
+	const char *respaldo = RUTA_ARCHIVO_RESPALDO;
+	SistemaArchivo *existente;
 
 	if(ruta == NULL || strcmp(ruta, temporal) == 0 || strcmp(ruta, respaldo) == 0) return -1;
 
@@ -1180,8 +1311,8 @@ static int aplicarOperacionLinea(
 	int nivel_de_profundidad
 )
 {
-	FILE *archivo;
-	FILE *temporal;
+	SistemaArchivo *archivo;
+	SistemaArchivo *temporal;
 	char *linea;
 	int encontrada = 0;
 	int error = 0;
@@ -1189,7 +1320,8 @@ static int aplicarOperacionLinea(
 
 	if(ruta == NULL || numeroLinea < 1 || (operacion == 0 && contenido == NULL) ||
 		(operacion == 3 && (contenido == NULL || columna < 1)) ||
-		strcmp(ruta, "temp.txt") == 0 || strcmp(ruta, "temp_qu1ron.bak") == 0)
+		strcmp(ruta, RUTA_ARCHIVO_TEMPORAL) == 0 ||
+		strcmp(ruta, RUTA_ARCHIVO_RESPALDO) == 0)
 	{
 		return -1;
 	}
@@ -1197,7 +1329,7 @@ static int aplicarOperacionLinea(
 	archivo = sistema_archivo_abrir(ruta, "r");
 	if(archivo == NULL) return -1;
 
-	FILE *temporalExistente = sistema_archivo_abrir("temp.txt", "r");
+	SistemaArchivo *temporalExistente = sistema_archivo_abrir(RUTA_ARCHIVO_TEMPORAL, "r");
 	if(temporalExistente != NULL)
 	{
 		sistema_archivo_cerrar(temporalExistente);
@@ -1205,7 +1337,7 @@ static int aplicarOperacionLinea(
 		return -1;
 	}
 
-	temporal = sistema_archivo_abrir("temp.txt", "w");
+	temporal = sistema_archivo_abrir(RUTA_ARCHIVO_TEMPORAL, "w");
 	if(temporal == NULL)
 	{
 		sistema_archivo_cerrar(archivo);
@@ -1219,20 +1351,20 @@ static int aplicarOperacionLinea(
 			encontrada = 1;
 			if(operacion == 0)
 			{
-				if(fprintf(temporal, "%s\n", contenido) < 0) error = 1;
+				if(escribirLineaArchivo(temporal, contenido) != 0) error = 1;
 			}
 			else if(operacion == 2)
 			{
-				if(fputc('\n', temporal) == EOF) error = 1;
+				if(sistema_archivo_escribir_caracter(temporal, '\n') < 0) error = 1;
 			}
 			else if(operacion == 3)
 			{
 				char *modificada = modificarColumna(linea, columna, contenido, nivel_de_profundidad);
-				if(modificada == NULL || fprintf(temporal, "%s\n", modificada) < 0) error = 1;
+				if(modificada == NULL || escribirLineaArchivo(temporal, modificada) != 0) error = 1;
 				sistema_memoria_liberar(modificada);
 			}
 		}
-		else if(fprintf(temporal, "%s\n", linea) < 0)
+		else if(escribirLineaArchivo(temporal, linea) != 0)
 		{
 			error = 1;
 		}
@@ -1241,19 +1373,19 @@ static int aplicarOperacionLinea(
 		actual++;
 	}
 
-	if(ferror(archivo)) error = 1;
+	if(sistema_archivo_hay_error(archivo)) error = 1;
 	if(sistema_archivo_cerrar(archivo) != 0) error = 1;
 	if(sistema_archivo_cerrar(temporal) != 0) error = 1;
 
 	if(error || !encontrada)
 	{
-		sistema_archivo_eliminar("temp.txt");
+		sistema_archivo_eliminar(RUTA_ARCHIVO_TEMPORAL);
 		return error ? -1 : -2;
 	}
 
 	if(reemplazarArchivoTemporal(ruta) != 0)
 	{
-		sistema_archivo_eliminar("temp.txt");
+		sistema_archivo_eliminar(RUTA_ARCHIVO_TEMPORAL);
 		return -1;
 	}
 	return 0;
@@ -1268,7 +1400,7 @@ static int aplicarOperacionLinea(
  		return crearResultado(-1, "ruta_invalida", "", __func__, nivel_de_profundidad);
  	}
 
- 	FILE *archivo = sistema_archivo_abrir(ruta, "r");
+ 	SistemaArchivo *archivo = sistema_archivo_abrir(ruta, "r");
  	if(archivo == NULL)
  	{
  		return crearResultado(-1, "no_se_pudo_abrir_archivo", "", __func__, nivel_de_profundidad);
@@ -1276,16 +1408,16 @@ static int aplicarOperacionLinea(
 
  	int numeroLinea = 1;
  	char *linea;
- 	printf("\n--- CONTENIDO DE [%s] ---\n", ruta);
+ 	sistema_consola_escribir_formato("\n--- CONTENIDO DE [%s] ---\n", ruta);
  	while((linea = leerLineaDinamica(archivo, nivel_de_profundidad)) != NULL)
  	{
- 		printf("%d: %s\n", numeroLinea++, linea);
+ 		sistema_consola_escribir_formato("%d: %s\n", numeroLinea++, linea);
  		sistema_memoria_liberar(linea);
  	}
 
- 	int errorLectura = ferror(archivo);
+ 	int errorLectura = sistema_archivo_hay_error(archivo);
  	int errorCierre = sistema_archivo_cerrar(archivo);
- 	printf("-----------------------------------\n");
+ 	sistema_consola_escribir_formato("-----------------------------------\n");
  	if(errorLectura || errorCierre != 0)
  	{
  		return crearResultado(-1, "error_al_leer_archivo", "", __func__, nivel_de_profundidad);
@@ -1297,17 +1429,18 @@ static int aplicarOperacionLinea(
  		int nivel_de_profundidad)
  {
  	nivel_de_profundidad++;
- 	if(ruta == NULL || nuevaLinea == NULL || strcmp(ruta, "temp.txt") == 0 ||
- 		strcmp(ruta, "temp_qu1ron.bak") == 0)
+ 	if(ruta == NULL || nuevaLinea == NULL ||
+		strcmp(ruta, RUTA_ARCHIVO_TEMPORAL) == 0 ||
+		strcmp(ruta, RUTA_ARCHIVO_RESPALDO) == 0)
  	{
  		return crearResultado(-1, "parametros_invalidos", "", __func__, nivel_de_profundidad);
  	}
- 	FILE *archivo = sistema_archivo_abrir(ruta, "a");
+ 	SistemaArchivo *archivo = sistema_archivo_abrir(ruta, "a");
  	if(archivo == NULL)
  	{
  		return crearResultado(-1, "no_se_pudo_abrir_archivo", "", __func__, nivel_de_profundidad);
  	}
- 	int errorEscritura = fprintf(archivo, "%s\n", nuevaLinea) < 0;
+ 	int errorEscritura = escribirLineaArchivo(archivo, nuevaLinea) != 0;
  	if(sistema_archivo_cerrar(archivo) != 0) errorEscritura = 1;
  	if(errorEscritura)
  	{
@@ -1407,25 +1540,25 @@ static int aplicarOperacionLinea(
  {
  	nivel_de_profundidad++;
  	const char * rutas[] = {
- 		"mensajes_todos.txt",
- 		"mensajes_contactos.txt",
- 		"mensajes_primero.txt"
+ 		RUTA_MENSAJES_TODOS,
+ 		RUTA_MENSAJES_CONTACTOS,
+ 		RUTA_MENSAJES_PRIMERO
  	};
  	for(size_t i = 0; i < sizeof(rutas) / sizeof(rutas[0]); i++)
  	{
- 		FILE *archivo = sistema_archivo_abrir(rutas[i], "r");
+ 		SistemaArchivo *archivo = sistema_archivo_abrir(rutas[i], "r");
  		if(archivo == NULL)
  		{
  			continue;
  		}
- 		int caracter = fgetc(archivo);
- 		int errorLectura = ferror(archivo);
+ 		int caracter = sistema_archivo_leer_caracter(archivo);
+ 		int errorLectura = sistema_archivo_hay_error(archivo);
  		int errorCierre = sistema_archivo_cerrar(archivo);
  		if(errorLectura || errorCierre != 0)
  		{
  			return crearResultado(-1, "error_al_consultar_mensajes", "", __func__, nivel_de_profundidad);
  		}
- 		if(caracter != EOF)
+ 		if(caracter != SISTEMA_ARCHIVO_FIN_LECTURA)
  		{
  			return crearResultado(1, "hay_mensajes_no_leidos", "", __func__, nivel_de_profundidad);
  		}
@@ -1435,8 +1568,8 @@ static int aplicarOperacionLinea(
  char * ejecutarEjemplosPrueba(int nivel_de_profundidad)
  {
  	nivel_de_profundidad++;
- 	const char *rutaPrueba = "qu1ron_ejemplos.tmp";
- 	FILE *existente = sistema_archivo_abrir(rutaPrueba, "r");
+ 	const char *rutaPrueba = RUTA_ARCHIVO_PRUEBAS;
+ 	SistemaArchivo *existente = sistema_archivo_abrir(rutaPrueba, "r");
  	if(existente != NULL)
  	{
  		sistema_archivo_cerrar(existente);
@@ -1453,7 +1586,7 @@ static int aplicarOperacionLinea(
  	sistema_memoria_liberar(lineaModificada);
 
  	char *resultadoOperacion = escribirLinea(rutaPrueba, "Luis,10,Desarrollador", nivel_de_profundidad);
- 	if(resultadoOperacion == NULL || atoi(resultadoOperacion) < 0)
+ 	if(resultadoTieneError(resultadoOperacion))
  	{
  		sistema_memoria_liberar(resultadoOperacion);
  		goto limpieza;
@@ -1461,7 +1594,7 @@ static int aplicarOperacionLinea(
  	sistema_memoria_liberar(resultadoOperacion);
 
  	resultadoOperacion = escribirLinea(rutaPrueba, "Marta,20,QA", nivel_de_profundidad);
- 	if(resultadoOperacion == NULL || atoi(resultadoOperacion) < 0)
+ 	if(resultadoTieneError(resultadoOperacion))
  	{
  		sistema_memoria_liberar(resultadoOperacion);
  		goto limpieza;
@@ -1469,7 +1602,7 @@ static int aplicarOperacionLinea(
  	sistema_memoria_liberar(resultadoOperacion);
 
  	resultadoOperacion = editarColumna(rutaPrueba, 1, 2, "15", nivel_de_profundidad);
- 	if(resultadoOperacion == NULL || atoi(resultadoOperacion) < 0)
+ 	if(resultadoTieneError(resultadoOperacion))
  	{
  		sistema_memoria_liberar(resultadoOperacion);
  		goto limpieza;
@@ -1477,16 +1610,16 @@ static int aplicarOperacionLinea(
  	sistema_memoria_liberar(resultadoOperacion);
 
  	resultadoOperacion = eliminarLinea(rutaPrueba, 2, nivel_de_profundidad);
- 	if(resultadoOperacion == NULL || atoi(resultadoOperacion) < 0)
+ 	if(resultadoTieneError(resultadoOperacion))
  	{
  		sistema_memoria_liberar(resultadoOperacion);
  		goto limpieza;
  	}
  	sistema_memoria_liberar(resultadoOperacion);
 
- 	printf("\n--- ARCHIVO DE PRUEBA RESULTANTE ---\n");
+ 	sistema_consola_escribir_formato("\n--- ARCHIVO DE PRUEBA RESULTANTE ---\n");
  	resultadoOperacion = leerArchivo(rutaPrueba, nivel_de_profundidad);
- 	if(resultadoOperacion == NULL || atoi(resultadoOperacion) < 0)
+ 	if(resultadoTieneError(resultadoOperacion))
  	{
  		sistema_memoria_liberar(resultadoOperacion);
  		goto limpieza;
@@ -1495,9 +1628,24 @@ static int aplicarOperacionLinea(
  	exito = 1;
 
  limpieza:
- 	if(sistema_archivo_eliminar(rutaPrueba) != 0 && exito)
  	{
- 		return crearResultado(-1, "no_se_pudo_limpiar_archivo_de_prueba", "", __func__, nivel_de_profundidad);
+ 		SistemaArchivo *archivoPrueba = sistema_archivo_abrir(rutaPrueba, "r");
+ 		int errorLimpieza = 0;
+
+ 		if(archivoPrueba != NULL)
+ 		{
+ 			if(sistema_archivo_cerrar(archivoPrueba) != 0) errorLimpieza = 1;
+ 			if(sistema_archivo_eliminar(rutaPrueba) != 0) errorLimpieza = 1;
+ 		}
+ 		else if(exito)
+ 		{
+ 			errorLimpieza = 1;
+ 		}
+
+ 		if(errorLimpieza)
+ 		{
+ 			return crearResultado(-1, "no_se_pudo_limpiar_archivo_de_prueba", "", __func__, nivel_de_profundidad);
+ 		}
  	}
  	return crearResultado(exito ? 1 : -1, exito ? "pruebas_ok" : "pruebas_fallaron", "", __func__, nivel_de_profundidad);
  }
@@ -1509,12 +1657,12 @@ static int aplicarOperacionLinea(
  	{
  		return crearResultado(-1, "mensaje_invalido", "", __func__, nivel_de_profundidad);
  	}
- 	FILE *archivo = sistema_archivo_abrir("mensajes_todos.txt", "a");
+ 	SistemaArchivo *archivo = sistema_archivo_abrir(RUTA_MENSAJES_TODOS, "a");
  	if(archivo == NULL)
  	{
  		return crearResultado(-1, "no_se_pudo_abrir_archivo", "", __func__, nivel_de_profundidad);
  	}
- 	int error = fprintf(archivo, "%s\n", mensaje) < 0;
+ 	int error = escribirLineaArchivo(archivo, mensaje) != 0;
  	if(sistema_archivo_cerrar(archivo) != 0) error = 1;
  	if(error) return crearResultado(-1, "error_al_guardar_mensaje", "", __func__, nivel_de_profundidad);
  	return crearResultado(1, "mensaje_enviado", "", __func__, nivel_de_profundidad);
@@ -1533,12 +1681,19 @@ static int aplicarOperacionLinea(
  	{
  		return crearResultado(-1, "contactos_invalidos", "", __func__, nivel_de_profundidad);
  	}
- 	FILE *archivo = sistema_archivo_abrir("mensajes_contactos.txt", "a");
+ 	SistemaArchivo *archivo = sistema_archivo_abrir(RUTA_MENSAJES_CONTACTOS, "a");
  	if(archivo == NULL)
  	{
  		return crearResultado(-1, "no_se_pudo_abrir_archivo", "", __func__, nivel_de_profundidad);
  	}
- 	int error = fprintf(archivo, "[%d] %s -> %s\n", id_opcional, contactos, mensaje) < 0;
+	int error =
+		sistema_archivo_escribir_texto(archivo, "[") != 0 ||
+		sistema_archivo_escribir_entero(archivo, id_opcional) != 0 ||
+		sistema_archivo_escribir_texto(archivo, "] ") != 0 ||
+		sistema_archivo_escribir_texto(archivo, contactos) != 0 ||
+		sistema_archivo_escribir_texto(archivo, " -> ") != 0 ||
+		sistema_archivo_escribir_texto(archivo, mensaje) != 0 ||
+		sistema_archivo_escribir_caracter(archivo, '\n') != 0;
  	if(sistema_archivo_cerrar(archivo) != 0) error = 1;
  	if(error) return crearResultado(-1, "error_al_guardar_mensaje", "", __func__, nivel_de_profundidad);
  	return crearResultado(1, "mensaje_enviado", "", __func__, nivel_de_profundidad);
@@ -1561,18 +1716,18 @@ static int aplicarOperacionLinea(
  	{
  		return crearResultado(-1, "mensaje_respuesta_invalido", "", __func__, nivel_de_profundidad);
  	}
- 	FILE *archivo = sistema_archivo_abrir("mensajes_primero.txt", "a");
+ 	SistemaArchivo *archivo = sistema_archivo_abrir(RUTA_MENSAJES_PRIMERO, "a");
  	if(archivo == NULL)
  	{
  		return crearResultado(-1, "no_se_pudo_abrir_archivo", "", __func__, nivel_de_profundidad);
  	}
- 	int error = fprintf(
- 		archivo,
- 		"%s | %s | %s\n",
- 		mensaje_pregunta,
- 		mensaje_de_que_ya_alguien_lo_acepto,
- 		menaje_respuesta_al_quien_lo_logro
- 	) < 0;
+ 	int error =
+ 		sistema_archivo_escribir_texto(archivo, mensaje_pregunta) != 0 ||
+ 		sistema_archivo_escribir_texto(archivo, " | ") != 0 ||
+ 		sistema_archivo_escribir_texto(archivo, mensaje_de_que_ya_alguien_lo_acepto) != 0 ||
+ 		sistema_archivo_escribir_texto(archivo, " | ") != 0 ||
+ 		sistema_archivo_escribir_texto(archivo, menaje_respuesta_al_quien_lo_logro) != 0 ||
+ 		sistema_archivo_escribir_caracter(archivo, '\n') != 0;
  	if(sistema_archivo_cerrar(archivo) != 0) error = 1;
  	if(error) return crearResultado(-1, "error_al_guardar_mensaje", "", __func__, nivel_de_profundidad);
  	return crearResultado(1, "mensaje_enviado", "", __func__, nivel_de_profundidad);
@@ -1582,119 +1737,214 @@ static int aplicarOperacionLinea(
     MEMORIA
     ============================================================================ */
  #pragma region "MEMORIA"
+#if defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
+
+/*
+ * Windows y Linux usan memoria dinámica, sin un límite fijo de capacidad.
+ */
  static void * sistema_memoria_reservar(size_t cantidad)
  {
- 	/*
- 	 * Por ahora utilizamos malloc().
- 	 * FUTURO:
- 	 * En un semiconductor puedes cambiar esto por:
- 	 *      arena de memoria
- 	 *      pool
- 	 *      memoria estática
- 	 *      allocator propio
- 	 *      memoria RAM del microcontrolador
- 	 * La lógica del programa no tendrá que cambiar.
- 	 */
  	return malloc(cantidad);
  }
  static void * sistema_memoria_redimensionar(void * memoria, size_t cantidad)
  {
- 	/*
- 	 * Por ahora utilizamos realloc().
- 	 * FUTURO:
- 	 * Se puede sustituir por tu propio administrador
- 	 * de memoria.
- 	 */
  	return realloc(memoria, cantidad);
  }
  static void sistema_memoria_liberar(void * memoria)
  {
- 	/*
- 	 * Por ahora utilizamos free().
- 	 * FUTURO:
- 	 * Se puede sustituir por:
- 	 *      core_memory_free()
- 	 *      arena_free()
- 	 *      pool_free()
- 	 * etc.
- 	 */
  	free(memoria);
  }
+
+#elif defined(PLATAFORMA_SEMICONDUCTOR)
+
+/*
+ * Sustituir estas operaciones con el administrador fijo de memoria del PIC16F.
+ * Hasta entonces, las reservas fallan explícitamente en esta plataforma.
+ */
+static void * sistema_memoria_reservar(size_t cantidad)
+{
+	(void)cantidad;
+	return NULL;
+}
+
+static void * sistema_memoria_redimensionar(void *memoria, size_t cantidad)
+{
+	(void)memoria;
+	(void)cantidad;
+	return NULL;
+}
+
+static void sistema_memoria_liberar(void *memoria)
+{
+	(void)memoria;
+}
+
+#endif
  #pragma endregion
  /* ============================================================================
     ARCHIVOS
     ============================================================================ */
  #pragma region "ARCHIVOS"
- static FILE * sistema_archivo_abrir(const char * ruta,const char * modo)
+#if defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
+ struct SistemaArchivo
  {
- 		/*Windows / Linux:
-      fopen()
- 
-      Semiconductor:
-      FUTURO:
+  	FILE *flujo;
+  };
 
-      esta función puede convertirse en acceso a:
-
-          Flash
-          EEPROM
-          SD
-          memoria externa
-          sistema de archivos embebido
-
-        Por ahora utilizamos FILE para conservar
-        la estructura actual del programa.
-        */
-
-        return fopen(ruta, modo);
-    }
-
-static int sistema_archivo_cerrar(FILE *archivo)
+ static SistemaArchivo *sistema_archivo_abrir(const char *ruta, const char *modo)
 {
-    if (archivo == NULL)
-    {
-        return -1;
-    }
+ 	if(ruta == NULL || modo == NULL) return NULL;
+ 	FILE *flujo = fopen(ruta, modo);
+ 	if(flujo == NULL) return NULL;
 
-    return fclose(archivo);
+ 	SistemaArchivo *archivo = sistema_memoria_reservar(sizeof(*archivo));
+ 	if(archivo == NULL)
+ 	{
+ 		fclose(flujo);
+ 		return NULL;
+ 	}
+ 	archivo->flujo = flujo;
+ 	return archivo;
+ }
+
+ static int sistema_archivo_cerrar(SistemaArchivo *archivo)
+ {
+ 	if(archivo == NULL) return -1;
+
+ 	int resultado = fclose(archivo->flujo);
+ 	sistema_memoria_liberar(archivo);
+ 	return resultado;
 }
 
 static int sistema_archivo_eliminar(const char *ruta)
 {
-    if (ruta == NULL)
-    {
-        return -1;
-    }
-
-    return remove(ruta);
+	return (ruta == NULL) ? -1 : remove(ruta);
 }
+
 static int sistema_archivo_renombrar(const char *origen, const char *destino)
 {
-    if (origen == NULL || destino == NULL)
-    {
-        return -1;
-    }
-
-    return rename(origen, destino);
+	return (origen == NULL || destino == NULL) ? -1 : rename(origen, destino);
 }
 
+static int sistema_archivo_leer_caracter(SistemaArchivo *archivo)
+{
+	if(archivo == NULL || archivo->flujo == NULL) return SISTEMA_ARCHIVO_FIN_LECTURA;
+
+	int caracter = fgetc(archivo->flujo);
+	return (caracter == EOF) ? SISTEMA_ARCHIVO_FIN_LECTURA : caracter;
+}
+
+static int sistema_archivo_escribir_caracter(SistemaArchivo *archivo, int caracter)
+{
+	if(archivo == NULL || archivo->flujo == NULL) return -1;
+	return (fputc(caracter, archivo->flujo) == EOF) ? -1 : 0;
+}
+
+static int sistema_archivo_hay_error(SistemaArchivo *archivo)
+{
+	return (archivo == NULL || archivo->flujo == NULL) ? 1 : ferror(archivo->flujo);
+}
+
+static int sistema_archivo_escribir_texto(SistemaArchivo *archivo, const char *texto)
+{
+	if(archivo == NULL || archivo->flujo == NULL || texto == NULL) return -1;
+	size_t longitud = strlen(texto);
+	return fwrite(texto, 1, longitud, archivo->flujo) == longitud ? 0 : -1;
+}
+
+#elif defined(PLATAFORMA_SEMICONDUCTOR)
+
+/*
+ * Implementar con el controlador elegido (Flash, EEPROM, SD, etc.).
+ * No se simula éxito mientras no exista un backend real.
+ */
+static SistemaArchivo *sistema_archivo_abrir(const char *ruta, const char *modo)
+{
+	(void)ruta;
+	(void)modo;
+	return NULL;
+}
+
+static int sistema_archivo_cerrar(SistemaArchivo *archivo)
+{
+	(void)archivo;
+	return -1;
+}
+
+static int sistema_archivo_eliminar(const char *ruta)
+{
+	(void)ruta;
+	return -1;
+}
+
+static int sistema_archivo_renombrar(const char *origen, const char *destino)
+{
+	(void)origen;
+	(void)destino;
+	return -1;
+}
+
+static int sistema_archivo_leer_caracter(SistemaArchivo *archivo)
+{
+	(void)archivo;
+	return SISTEMA_ARCHIVO_FIN_LECTURA;
+}
+
+static int sistema_archivo_escribir_caracter(SistemaArchivo *archivo, int caracter)
+{
+	(void)archivo;
+	(void)caracter;
+	return -1;
+}
+
+static int sistema_archivo_escribir_texto(SistemaArchivo *archivo, const char *texto)
+{
+	(void)archivo;
+	(void)texto;
+	return -1;
+}
+
+static int sistema_archivo_hay_error(SistemaArchivo *archivo)
+{
+	(void)archivo;
+	return 1;
+}
+#endif
+
+#if defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
+static int sistema_consola_leer_caracter(void)
+{
+	int caracter = getchar();
+	return caracter == EOF ? SISTEMA_ARCHIVO_FIN_LECTURA : caracter;
+}
+
+static int sistema_consola_escribir_caracter(int caracter)
+{
+	return fputc(caracter, stdout) == EOF ? -1 : 0;
+}
+
+static int sistema_consola_escribir_texto(const char *texto)
+{
+	if(texto == NULL || fputs(texto, stdout) == EOF || fflush(stdout) != 0) return -1;
+	return 0;
+}
+#elif defined(PLATAFORMA_SEMICONDUCTOR)
+static int sistema_consola_leer_caracter(void)
+{
+	return SISTEMA_ARCHIVO_FIN_LECTURA;
+}
+
+static int sistema_consola_escribir_caracter(int caracter)
+{
+	(void)caracter;
+	return -1;
+}
+
+static int sistema_consola_escribir_texto(const char *texto)
+{
+	(void)texto;
+	return -1;
+}
+#endif
+
 #pragma endregion
-/* ============================================================================
-   TIEMPO
-   ============================================================================ */
- 		#pragma region "TIEMPO"
- 		static time_t sistema_tiempo_actual(void)
- 		{
- 			/*
- 			 * FUTURO:
- 			 * En un microcontrolador esta función puede obtener
- 			 * el tiempo desde:
- 			 *      RTC
- 			 *      contador
- 			 *      sistema operativo
- 			 *      red
- 			 *      GPS
- 			 *      etc.
- 			 */
- 			return time(NULL);
- 		}
- 		#pragma endregion
