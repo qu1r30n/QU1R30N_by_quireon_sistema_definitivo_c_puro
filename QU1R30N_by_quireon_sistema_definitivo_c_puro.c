@@ -285,149 +285,19 @@
  char ** split(const char * texto,const char * delimitador,int * cantidad,int nivel_de_profundidad);
  void liberarSplit(char ** partes, int cantidad, int nivel_de_profundidad);
  char * join(char ** arreglo, int cantidad,const char * carcter_separacion,int nivel_de_profundidad);
- char * crearResultado(int codigo,const char * informacion,const char * resultado_anterior,const char * funcion_llamante,int nivel_de_profundidad);
  
  #pragma endregion DECLARACIÓN DE FUNCIONES DE OPERACIONES DE TEXTO
  
-/*
- * Imprime un mensaje de depuración con formato printf.
- * En PIC16F, el mensaje se limita al tamaño del buffer.
- */
-void imprimirMensaje_para_depurar(const char *format, ...)
-{
-	if(format == NULL) return;
+// ============================================================================
+ // DECLARACIÓN DE FUNCIONES DE OPERACIONES DE TEXTO
+ // ============================================================================
+ #pragma region FUNCIONES_DE_DEPURACION
 
-	va_list args;
-	va_start(args, format);
-
-#ifdef PIC16F
-	char buffer[80];
-	int longitud = vsnprintf(buffer, sizeof(buffer), format, args);
-	va_end(args);
-
-	if(longitud < 0)
-	{
-		printf("[error al formatear mensaje de depuracion]\n");
-		return;
-	}
-	printf("%s", buffer);
-#elif defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
-	vprintf(format, args);
-	va_end(args);
-#else
-	va_end(args);
-	sistema_consola_escribir_texto(
-		"[formato de depuracion no disponible en este backend]\n"
-	);
-#endif
-}
-
-/*
- * Imprime un arreglo de cadenas. Si total <= 0, contenido debe terminar
- * en NULL; de lo contrario se imprimen exactamente total elementos.
- */
-void imprimirMensaje_para_depurar_arreglo(
-	char **contenido,
-	const char *texto,
-	int total
-)
-{
-	const char *prefijo = (texto != NULL) ? texto : "celda";
-
-	if(contenido == NULL)
-	{
-#if defined(PIC16F) || defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
-		printf("%s[0]: (null)\n", prefijo);
-#else
-		sistema_consola_escribir_formato("%s[0]: (null)\n", prefijo);
-#endif
-		return;
-	}
-
-	if(total > 0)
-	{
-		for(int i = 0; i < total; ++i)
-		{
-			const char *valor =
-				(contenido[i] != NULL) ? contenido[i] : "(null)";
-
-#ifdef PIC16F
-			char buffer[120];
-			int longitud = snprintf(
-				buffer,
-				sizeof(buffer),
-				"\n%s[%d]: %s",
-				prefijo,
-				i,
-				valor
-			);
-			if(longitud >= 0)
-			{
-				printf("%s", buffer);
-			}
-			else
-			{
-				printf("[error al formatear elemento de depuracion]\n");
-			}
-#elif defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
-			printf("\n%s[%d]: %s", prefijo, i, valor);
-#else
-			sistema_consola_escribir_formato(
-				"\n%s[%d]: %s",
-				prefijo,
-				i,
-				valor
-			);
-#endif
-		}
-		return;
-	}
-
-	int i = 0;
-	while(contenido[i] != NULL)
-	{
-		const char *valor = contenido[i];
-
-#ifdef PIC16F
-		char buffer[120];
-		int longitud = snprintf(
-			buffer,
-			sizeof(buffer),
-			"%s[%d]: %s\n",
-			prefijo,
-			i,
-			valor
-		);
-		if(longitud >= 0)
-		{
-			printf("%s", buffer);
-		}
-		else
-		{
-			printf("[error al formatear elemento de depuracion]\n");
-		}
-#elif defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
-		printf("%s[%d]: %s\n", prefijo, i, valor);
-#else
-		sistema_consola_escribir_formato(
-			"%s[%d]: %s\n",
-			prefijo,
-			i,
-			valor
-		);
-#endif
-		++i;
-	}
-
-	if(i == 0)
-	{
-#if defined(PIC16F) || defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
-		printf("%s[0]: (null)\n", prefijo);
-#else
-		sistema_consola_escribir_formato("%s[0]: (null)\n", prefijo);
-#endif
-	}
-}
+ char * crearResultado(int codigo,const char * informacion,const char * resultado_anterior,const char * funcion_llamante,int nivel_de_profundidad);
+ void imprimirMensaje_para_depurar(const char *format, ...);
+ void imprimirMensaje_para_depurar_arreglo(char **contenido, const char *texto, int total);
+ 
+ #pragma endregion FUNCIONES_DE_DEPURACION
 
  // ============================================================================
  // MAIN
@@ -1359,141 +1229,6 @@ void imprimirMensaje_para_depurar_arreglo(
  	return sistema_archivo_escribir_caracter(archivo, '\n');
  }
 
-/*
- * Agrega el código de estado actual al inicio de la traza acumulada.
- *
- * Separadores según la profundidad:
- *   0 -> '|'
- *   1 -> '°'
- *   2 -> '¬'
- *
- * Ejemplo:
- *   crearResultado(-4, 2, ...) -> "¬-4"
- *   crearResultado( 2, 1, "¬-4", ...) -> "°2¬-4"
- *   crearResultado( 0, 0, "°2¬-4", ...) -> "|0°2¬-4"
- *
- * Los códigos >= 0 representan estados sin error fatal.
- * Los códigos < 0 representan errores.
- *
- * Devuelve una cadena nueva que pertenece al llamador.
- * Devuelve NULL si falla una conversión, el tamaño o la reserva.
- */
-char *crearResultado(
-    int codigo,
-    const char *informacion,
-    const char *resultado_anterior,
-    const char *funcion_llamante,
-    int nivel_de_profundidad
-)
-{
-    /*
-     * Ajusta GG_NUM_SEPARADORES al número real de elementos
-     * de GG_caracter_separacion.
-     */
-    const size_t cantidadSeparadores =
-        sizeof(GG_caracter_separacion) /
-        sizeof(GG_caracter_separacion[0]);
-
-    if (
-        nivel_de_profundidad < 0 ||
-        (size_t)nivel_de_profundidad >= cantidadSeparadores
-    )
-    {
-        return NULL;
-    }
-
-    const char *separador =
-        GG_caracter_separacion[nivel_de_profundidad];
-
-    if (separador == NULL)
-    {
-        return NULL;
-    }
-
-    /*
-     * La información y el nombre de la función se conservan
-     * como argumentos por compatibilidad con la interfaz actual.
-     * La traza solo contiene separador, código y resultado anterior.
-     */
-    (void)informacion;
-    (void)funcion_llamante;
-
-    const char *anterior =
-        (resultado_anterior != NULL)
-            ? resultado_anterior
-            : "";
-
-    char codigoTexto[sizeof(int) * CHAR_BIT + 2];
-
-    if (
-        enteroATexto(
-            codigo,
-            codigoTexto,
-            sizeof(codigoTexto)
-        ) == NULL
-    )
-    {
-        return NULL;
-    }
-
-    /*
-     * Calcula el espacio necesario para:
-     * separador + código + traza anterior + '\0'.
-     */
-    const size_t longitudSeparador = strlen(separador);
-    const size_t longitudCodigo = strlen(codigoTexto);
-    const size_t longitudAnterior = strlen(anterior);
-
-    size_t longitudTotal = 1;
-
-    if (
-        longitudSeparador > (size_t)-1 - longitudTotal
-    )
-    {
-        return NULL;
-    }
-    longitudTotal += longitudSeparador;
-
-    if (
-        longitudCodigo > (size_t)-1 - longitudTotal
-    )
-    {
-        return NULL;
-    }
-    longitudTotal += longitudCodigo;
-
-    if (
-        longitudAnterior > (size_t)-1 - longitudTotal
-    )
-    {
-        return NULL;
-    }
-    longitudTotal += longitudAnterior;
-
-    /* Reserva una cadena independiente. */
-    char *resultado = sistema_memoria_reservar(longitudTotal);
-
-    if (resultado == NULL)
-    {
-        return NULL;
-    }
-
-    /* Construye: separador + código actual + traza anterior. */
-    char *destino = resultado;
-
-    memcpy(destino, separador, longitudSeparador);
-    destino += longitudSeparador;
-
-    memcpy(destino, codigoTexto, longitudCodigo);
-    destino += longitudCodigo;
-
-    memcpy(destino, anterior, longitudAnterior);
-    destino += longitudAnterior;
-
-    *destino = '\0';
-
-    return resultado;
-}
 
  #pragma endregion FUNCIONES OPERACIONES DE TEXTO
  
@@ -2526,3 +2261,286 @@ static int sistema_consola_escribir_texto(const char *texto)
 #endif
 
 #pragma endregion FUNCIONES_ARCHIVOS
+
+#pragma region FUNCIONES_DE_DEPURACION
+
+/*
+ * Agrega el código de estado actual al inicio de la traza acumulada.
+ *
+ * Separadores según la profundidad:
+ *   0 -> '|'
+ *   1 -> '°'
+ *   2 -> '¬'
+ *
+ * Ejemplo:
+ *   crearResultado(-4, 2, ...) -> "¬-4"
+ *   crearResultado( 2, 1, "¬-4", ...) -> "°2¬-4"
+ *   crearResultado( 0, 0, "°2¬-4", ...) -> "|0°2¬-4"
+ *
+ * Los códigos >= 0 representan estados sin error fatal.
+ * Los códigos < 0 representan errores.
+ *
+ * Devuelve una cadena nueva que pertenece al llamador.
+ * Devuelve NULL si falla una conversión, el tamaño o la reserva.
+ */
+char *crearResultado(
+    int codigo,
+    const char *informacion,
+    const char *resultado_anterior,
+    const char *funcion_llamante,
+    int nivel_de_profundidad
+)
+{
+    /*
+     * Ajusta GG_NUM_SEPARADORES al número real de elementos
+     * de GG_caracter_separacion.
+     */
+    const size_t cantidadSeparadores =
+        sizeof(GG_caracter_separacion) /
+        sizeof(GG_caracter_separacion[0]);
+
+    if (
+        nivel_de_profundidad < 0 ||
+        (size_t)nivel_de_profundidad >= cantidadSeparadores
+    )
+    {
+        return NULL;
+    }
+
+    const char *separador =
+        GG_caracter_separacion[nivel_de_profundidad];
+
+    if (separador == NULL)
+    {
+        return NULL;
+    }
+
+    /*
+     * La información y el nombre de la función se conservan
+     * como argumentos por compatibilidad con la interfaz actual.
+     * La traza solo contiene separador, código y resultado anterior.
+     */
+    (void)informacion;
+    (void)funcion_llamante;
+
+    const char *anterior =
+        (resultado_anterior != NULL)
+            ? resultado_anterior
+            : "";
+
+    char codigoTexto[sizeof(int) * CHAR_BIT + 2];
+
+    if (
+        enteroATexto(
+            codigo,
+            codigoTexto,
+            sizeof(codigoTexto)
+        ) == NULL
+    )
+    {
+        return NULL;
+    }
+
+    /*
+     * Calcula el espacio necesario para:
+     * separador + código + traza anterior + '\0'.
+     */
+    const size_t longitudSeparador = strlen(separador);
+    const size_t longitudCodigo = strlen(codigoTexto);
+    const size_t longitudAnterior = strlen(anterior);
+
+    size_t longitudTotal = 1;
+
+    if (
+        longitudSeparador > (size_t)-1 - longitudTotal
+    )
+    {
+        return NULL;
+    }
+    longitudTotal += longitudSeparador;
+
+    if (
+        longitudCodigo > (size_t)-1 - longitudTotal
+    )
+    {
+        return NULL;
+    }
+    longitudTotal += longitudCodigo;
+
+    if (
+        longitudAnterior > (size_t)-1 - longitudTotal
+    )
+    {
+        return NULL;
+    }
+    longitudTotal += longitudAnterior;
+
+    /* Reserva una cadena independiente. */
+    char *resultado = sistema_memoria_reservar(longitudTotal);
+
+    if (resultado == NULL)
+    {
+        return NULL;
+    }
+
+    /* Construye: separador + código actual + traza anterior. */
+    char *destino = resultado;
+
+    memcpy(destino, separador, longitudSeparador);
+    destino += longitudSeparador;
+
+    memcpy(destino, codigoTexto, longitudCodigo);
+    destino += longitudCodigo;
+
+    memcpy(destino, anterior, longitudAnterior);
+    destino += longitudAnterior;
+
+    *destino = '\0';
+
+    return resultado;
+}
+
+
+
+
+/*
+ * Imprime un mensaje de depuración con formato printf.
+ * En PIC16F, el mensaje se limita al tamaño del buffer.
+ */
+void imprimirMensaje_para_depurar(const char *format, ...)
+{
+	if(format == NULL) return;
+
+	va_list args;
+	va_start(args, format);
+
+#ifdef PIC16F
+	char buffer[80];
+	int longitud = vsnprintf(buffer, sizeof(buffer), format, args);
+	va_end(args);
+
+	if(longitud < 0)
+	{
+		printf("[error al formatear mensaje de depuracion]\n");
+		return;
+	}
+	printf("%s", buffer);
+#elif defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
+	vprintf(format, args);
+	va_end(args);
+#else
+	va_end(args);
+	sistema_consola_escribir_texto(
+		"[formato de depuracion no disponible en este backend]\n"
+	);
+#endif
+}
+
+/*
+ * Imprime un arreglo de cadenas. Si total <= 0, contenido debe terminar
+ * en NULL; de lo contrario se imprimen exactamente total elementos.
+ */
+void imprimirMensaje_para_depurar_arreglo(
+	char **contenido,
+	const char *texto,
+	int total
+)
+{
+	const char *prefijo = (texto != NULL) ? texto : "celda";
+
+	if(contenido == NULL)
+	{
+#if defined(PIC16F) || defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
+		printf("%s[0]: (null)\n", prefijo);
+#else
+		sistema_consola_escribir_formato("%s[0]: (null)\n", prefijo);
+#endif
+		return;
+	}
+
+	if(total > 0)
+	{
+		for(int i = 0; i < total; ++i)
+		{
+			const char *valor =
+				(contenido[i] != NULL) ? contenido[i] : "(null)";
+
+#ifdef PIC16F
+			char buffer[120];
+			int longitud = snprintf(
+				buffer,
+				sizeof(buffer),
+				"\n%s[%d]: %s",
+				prefijo,
+				i,
+				valor
+			);
+			if(longitud >= 0)
+			{
+				printf("%s", buffer);
+			}
+			else
+			{
+				printf("[error al formatear elemento de depuracion]\n");
+			}
+#elif defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
+			printf("\n%s[%d]: %s", prefijo, i, valor);
+#else
+			sistema_consola_escribir_formato(
+				"\n%s[%d]: %s",
+				prefijo,
+				i,
+				valor
+			);
+#endif
+		}
+		return;
+	}
+
+	int i = 0;
+	while(contenido[i] != NULL)
+	{
+		const char *valor = contenido[i];
+
+#ifdef PIC16F
+		char buffer[120];
+		int longitud = snprintf(
+			buffer,
+			sizeof(buffer),
+			"%s[%d]: %s\n",
+			prefijo,
+			i,
+			valor
+		);
+		if(longitud >= 0)
+		{
+			printf("%s", buffer);
+		}
+		else
+		{
+			printf("[error al formatear elemento de depuracion]\n");
+		}
+#elif defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
+		printf("%s[%d]: %s\n", prefijo, i, valor);
+#else
+		sistema_consola_escribir_formato(
+			"%s[%d]: %s\n",
+			prefijo,
+			i,
+			valor
+		);
+#endif
+		++i;
+	}
+
+	if(i == 0)
+	{
+#if defined(PIC16F) || defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
+		printf("%s[0]: (null)\n", prefijo);
+#else
+		sistema_consola_escribir_formato("%s[0]: (null)\n", prefijo);
+#endif
+	}
+}
+
+#pragma endregion FUNCIONES_DE_DEPURACION
