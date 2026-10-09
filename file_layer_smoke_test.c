@@ -15,14 +15,14 @@ static int result_code(char *result)
 int main(void)
 {
     const char *path = "file_layer_smoke_unique.tmp";
-    FILE *existing = sistema_archivo_abrir(path, "r");
+    SistemaArchivo *existing = sistema_archivo_abrir(path, "r");
     assert(existing == NULL);
 
     assert(result_code(escribirLinea(path, "uno,rojo", 0)) == 1);
     assert(result_code(escribirLinea(path, "dos,azul", 0)) == 1);
     assert(result_code(editarColumna(path, 1, 2, "verde", 0)) == 1);
 
-    FILE *file = sistema_archivo_abrir(path, "r");
+    SistemaArchivo *file = sistema_archivo_abrir(path, "r");
     assert(file != NULL);
     char *first = leerLineaDinamica(file, 0);
     char *second = leerLineaDinamica(file, 0);
@@ -38,8 +38,14 @@ int main(void)
     assert(result_code(leerArchivo(path, 0)) == 1);
     assert(sistema_archivo_eliminar(path) == 0);
 
-    char *initial = crearResultado(200, "test", NULL, "main", 1);
+    char *initial = crearResultado(200, "test", NULL, "main", 0);
     assert(initial != NULL);
+    assert(strcmp(initial, "200|test||main|0") == 0);
     sistema_memoria_liberar(initial);
+
+    char *empty_previous = crearResultado(200, "test", "", "main", 0);
+    assert(empty_previous != NULL);
+    assert(strcmp(empty_previous, "200|test||main|0") == 0);
+    sistema_memoria_liberar(empty_previous);
     return 0;
 }

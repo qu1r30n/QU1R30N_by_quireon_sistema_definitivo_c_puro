@@ -52,10 +52,13 @@
 
  #include <limits.h>     /* INT_MIN, INT_MAX y CHAR_BIT para conversiones con límites seguros. */
 
+
+
 /*
  * Selección del backend. SEMICONDUCTOR tiene prioridad aunque el compilador
  * también defina macros del host; esto facilita revisar los stubs desde PC.
  */
+ #pragma region plataforma
  #if defined(SEMICONDUCTOR)
  #define PLATAFORMA_SEMICONDUCTOR
  /*
@@ -72,6 +75,9 @@
  #else
  #error "Plataforma no soportada"
  #endif
+#pragma endregion plataforma
+
+#pragma region RUTAS_DE_ARCHIVOS
 
 #if defined(PLATAFORMA_WINDOWS)
 /* Rutas relativas o físicas elegidas para el backend de Windows. */
@@ -101,19 +107,22 @@
 #define RUTA_MENSAJES_CONTACTOS "mensajes_contactos.txt"
 #define RUTA_MENSAJES_PRIMERO "mensajes_primero.txt"
 
+/* Archivo que usa el menú de operaciones básicas de texto. */
+ #define NOMBRE_ARCHIVO "datos.txt"
+
+#pragma endregion RUTAS_DE_ARCHIVOS
+
  /*
   * Tamaño de arranque, no límite máximo: las líneas largas se amplían mediante
   * la capa de memoria. Ejemplo: una línea de 80 caracteres crece desde 16.
   */
  #define TAMANO_INICIAL_LINEA 16
-/* Archivo que usa el menú de operaciones básicas de texto. */
- #define NOMBRE_ARCHIVO "datos.txt"
+
  /*
   * ============================================================================
   * CONFIGURACIÓN DE CONSOLA UTF-8
   * ============================================================================
   */
-#pragma region "CONFIGURACIÓN DE CONSOLA UTF-8"
 /*
  * Activa la configuración regional de escritorio para mostrar texto UTF-8.
  * En el backend semiconductor no se llama setlocale ni se presupone una consola.
@@ -124,15 +133,16 @@
 	setlocale(LC_ALL, "");
 #endif
  }
- #pragma endregion
  /* ---------------------------------------------------------------------------
     CAPA DE MEMORIA, ARCHIVOS Y CONSOLA
     --------------------------------------------------------------------------- */
- #pragma region "CAPA DE MEMORIA, ARCHIVOS Y CONSOLA"
+#pragma region CAPA DE MEMORIA, ARCHIVOS Y CONSOLA
+
 /*
  * Contrato de fin de lectura compartido por consola y archivos.
  * Las implementaciones de escritorio traducen EOF a este valor.
  */
+
  typedef struct SistemaArchivo SistemaArchivo;
  #define SISTEMA_ARCHIVO_FIN_LECTURA (-1)
 /* La aplicación superior no ve FILE*, malloc ni los periféricos de consola. */
@@ -154,12 +164,14 @@
  static int sistema_consola_escribir_caracter(int caracter);
  static int sistema_consola_escribir_texto(const char *texto);
  static int sistema_consola_escribir_formato(const char *formato, ...);
- #pragma endregion
+ 
+ #pragma endregion CAPA DE MEMORIA, ARCHIVOS Y CONSOLA
+
  // ============================================================================
  // IDENTIDAD, SEPARADORES Y CONFIGURACIÓN GLOBAL
  // ============================================================================
- #pragma region "FUNCIONES DECLARACIÓN VARIABLES GLOBALES"
-/* Índice inicial usado por la lógica general; actualmente empieza en 1. */
+#pragma region IDENTIDAD, SEPARADORES Y CONFIGURACIÓN GLOBAL
+ /* Índice inicial usado por la lógica general; actualmente empieza en 1. */
  int GG_indice_donde_comensar = 1;
 /* Buffer global reservado para resultados si un flujo lo necesita. */
  char * GG_resultados_de_funciones = NULL;
@@ -223,57 +235,100 @@
  	/* 2 - respuestas */
  	RUTA_TRANSFERENCIA_RESPUESTAS
  };
- #pragma endregion
+ 
+ #pragma endregion IDENTIDAD, SEPARADORES Y CONFIGURACIÓN GLOBAL
+ 
  // ============================================================================
  // DECLARACIÓN DE FUNCIONES TEX_BASE
  // ============================================================================
+ #pragma region DECLARACIÓN DE FUNCIONES TEX_BASE
+ 
  /*
   * API de texto y archivos usada por el menú. Cada char* devuelto es memoria
   * propiedad del llamador y debe liberarse con sistema_memoria_liberar().
   */
- #pragma region "FUNCIONES TEX_BASE"
  static char * leerLineaDinamica(SistemaArchivo * flujo, int nivel_de_profundidad);
  static char * leerLineaConsola(int nivel_de_profundidad);
  char * modificarColumna(const char * lineaOriginal,int columnaTarget,const char * nuevoValor,int nivel_de_profundidad);
  char * ejecutarEjemplosPrueba(int nivel_de_profundidad);
- char * submenu_tex_base(char * parametros_en_texto_a_splitear, int nivel_de_profundidad);
- char * submenu_enlasador_mandar_mensajes(char * parametros_en_texto_a_splitear, int nivel_de_profundidad);
- char * submenu_operaciones_de_texto(char * parametros_en_texto_a_splitear, int nivel_de_profundidad);
+ char * submenu_tex_base(const char * parametros_en_texto_a_splitear, int nivel_de_profundidad);
+ char * submenu_enlasador_mandar_mensajes(const char * parametros_en_texto_a_splitear, int nivel_de_profundidad);
+ char * submenu_operaciones_de_texto(const char * parametros_en_texto_a_splitear, int nivel_de_profundidad);
  char * leerArchivo(const char * ruta,int nivel_de_profundidad);
  char * escribirLinea(const char * ruta,const char * nuevaLinea,int nivel_de_profundidad);
  char * editarLinea(const char * ruta,int idLinea,const char * nuevoTexto,int nivel_de_profundidad);
  char * editarColumna(const char * ruta,int idLinea,int idColumna,const char * nuevoValor,int nivel_de_profundidad);
  char * eliminarLinea(const char * ruta,int idLinea,int nivel_de_profundidad);
  char * vaciarLinea(const char * ruta,int idLinea,int nivel_de_profundidad);
- #pragma endregion
+ #pragma endregion DECLARACIÓN DE FUNCIONES TEX_BASE
  // ============================================================================
  // DECLARACIÓN DE FUNCIONES DE MENSAJERÍA
  // ============================================================================
+ #pragma region DECLARACIÓN DE FUNCIONES DE MENSAJERÍA
  /* API de mensajería: resultados con el formato definido por crearResultado(). */
- #pragma region "FUNCIONES MENSAJERÍA"
  char * mandar_mensje_a_todos(const char * mensaje,int nivel_de_profundidad);
  char * mandar_mensje_a_contacto(const char * mensaje,const char * contactos,int id_opcional,int nivel_de_profundidad);
  char * mandar_mensje_al_primero_que_responda(const char * mensaje_pregunta,const char * mensaje_de_que_ya_alguien_lo_acepto,const char * menaje_respuesta_al_quien_lo_logro,int nivel_de_profundidad);
  char * checar_si_hay_mensajes_no_leido(int nivel_de_profundidad);
- #pragma endregion
+ #pragma endregion DECLARACIÓN DE FUNCIONES DE MENSAJERÍA
  // ============================================================================
  // DECLARACIÓN DE FUNCIONES DE OPERACIONES DE TEXTO
  // ============================================================================
+ #pragma region DECLARACIÓN DE FUNCIONES DE OPERACIONES DE TEXTO
  /*
   * Primitivas de cadenas y resultados. Las cadenas devueltas dinámicamente
   * pertenecen al llamador; split() se libera con liberarSplit().
   */
- #pragma region "FUNCIONES OPERACIONES DE TEXTO"
  char ** split(const char * texto,const char * delimitador,int * cantidad,int nivel_de_profundidad);
  void liberarSplit(char ** partes, int cantidad, int nivel_de_profundidad);
  char * join(char ** arreglo, int cantidad,const char * carcter_separacion,int nivel_de_profundidad);
  char * crearResultado(int codigo,const char * informacion,const char * resultado_anterior,const char * funcion_llamante,int nivel_de_profundidad);
- #pragma endregion
- int prueba(void);
+ 
+ #pragma endregion DECLARACIÓN DE FUNCIONES DE OPERACIONES DE TEXTO
+ 
  // ============================================================================
  // MAIN
  // ============================================================================
-/*
+
+ /*
+  * Prueba mínima de la interfaz abstracta de consola.
+  * Ejemplo: se recibe "Ana" y se escribe "Hola Ana".
+  * La longitud queda limitada por la memoria que pueda entregar el backend.
+  * Devuelve 0 si la interacción se completa y -1 ante EOF, nombre vacío
+  * o fallo de lectura/escritura.
+  */
+ int prueba(void);
+  int prueba(void)
+ {
+ 	char *nombre; /* La línea se reserva mediante sistema_memoria_* y se libera aquí. */
+
+ 	if(sistema_consola_escribir_texto(
+ 		"\n=== PRUEBA DEL SISTEMA ===\n\nEscribe tu nombre:\n> ") != 0)
+ 	{
+ 		return -1;
+ 	}
+
+ 	nombre = leerLineaConsola(0);
+ 	if(nombre == NULL || nombre[0] == '\0')
+ 	{
+ 		sistema_memoria_liberar(nombre);
+ 		sistema_consola_escribir_texto("\nNo se pudo leer un nombre desde la consola.\n");
+ 		return -1;
+ 	}
+
+ 	if(sistema_consola_escribir_texto("\nHola ") != 0 ||
+ 		sistema_consola_escribir_texto(nombre) != 0 ||
+ 		sistema_consola_escribir_texto("\n\nPrueba completada correctamente.\n") != 0)
+ 	{
+ 		sistema_memoria_liberar(nombre);
+ 		return -1;
+ 	}
+
+ 	sistema_memoria_liberar(nombre);
+ 	return 0;
+ }
+
+ /*
   * Punto de entrada de escritorio: muestra el menú y distribuye las opciones.
   * En SEMICONDUCTOR ejecuta directamente prueba(), para no depender del menú
   * que requiere consola interactiva y memoria dinámica.
@@ -286,7 +341,7 @@
  #else
  	for(int i = 0; i < 3; i++)
  	{
- 		char *resultadoInicial = crearResultado(200, "prueba", NULL, "main", 2);
+ 		char *resultadoInicial = crearResultado(200, "prueba", "", "main", 0);
  		if(resultadoInicial == NULL)
  		{
  			sistema_consola_escribir_formato("No se pudo crear el resultado inicial.\n");
@@ -319,7 +374,7 @@
  		{
  			case 1:
  			{
- 				char * parametros = "l";
+ 				const char *parametros = "l";
  				sistema_memoria_liberar(resultado);
  				resultado = submenu_tex_base(parametros, 1);
  				char * resultadoMain = crearResultado(1, "", "1", __func__, 1);
@@ -329,7 +384,7 @@
  			}
  			case 2:
  			{
- 				char * parametros = "mandar_todos,mandar_contacto,mandar_primero";
+ 				const char *parametros = "mandar_todos,mandar_contacto,mandar_primero";
  				sistema_memoria_liberar(resultado);
  				resultado = submenu_enlasador_mandar_mensajes(parametros, 1);
  				char * resultadoMain = crearResultado(1, "", "1", __func__, 1);
@@ -339,7 +394,7 @@
  			}
  			case 3:
  			{
- 				char * parametros = "split,modificar_columna,leer_linea";
+ 				const char *parametros = "split,modificar_columna,leer_linea";
  				sistema_memoria_liberar(resultado);
  				resultado = submenu_operaciones_de_texto(parametros, 1);
  				char * resultadoMain = crearResultado(1, "", "1", __func__, 1);
@@ -377,74 +432,19 @@
 #endif
  }
  
- /*
-  * Prueba mínima de la interfaz abstracta de consola.
-  * Ejemplo: se recibe "Ana" y se escribe "Hola Ana".
-  * El límite es de 32 bytes (un carácter UTF-8 puede ocupar varios bytes).
-  * Devuelve 0 si la interacción se completa; -1 ante EOF, nombre vacío/largo
-  * o error de salida.
-  */
- int prueba(void)
- {
- 	enum { TAMANO_NOMBRE_PRUEBA = 32 };
- 	char nombre[TAMANO_NOMBRE_PRUEBA + 1]; /* Entrada local, más el '\0' final. */
- 	size_t longitud = 0;                    /* Bytes del nombre ya almacenados. */
- 	int caracter;                           /* Último byte leído o FIN_LECTURA. */
- 	int nombreDemasiadoLargo = 0;           /* Se activa si llegan más de 32 bytes. */
 
- 	if(sistema_consola_escribir_texto(
- 		"\n=== PRUEBA DEL SISTEMA ===\n\nEscribe tu nombre:\n> ") != 0)
- 	{
- 		return -1;
- 	}
-
- 	while((caracter = sistema_consola_leer_caracter()) != SISTEMA_ARCHIVO_FIN_LECTURA)
- 	{
- 		/* Enter termina la entrada; CR también cubre terminales con retorno de carro. */
- 		if(caracter == '\n' || caracter == '\r') break;
- 		if(longitud < TAMANO_NOMBRE_PRUEBA)
- 		{
- 			nombre[longitud++] = (char)caracter;
- 		}
- 		else
- 		{
- 			nombreDemasiadoLargo = 1;
- 		}
- 	}
-
- 	if(caracter == SISTEMA_ARCHIVO_FIN_LECTURA || nombreDemasiadoLargo || longitud == 0)
- 	{
- 		sistema_consola_escribir_texto(
- 			nombreDemasiadoLargo
- 				? "\nEl nombre es demasiado largo para esta prueba.\n"
- 				: "\nNo se pudo leer un nombre desde la consola.\n"
- 		);
- 		return -1;
- 	}
-
- 	nombre[longitud] = '\0';
-
- 	if(sistema_consola_escribir_texto("\nHola ") != 0 ||
- 		sistema_consola_escribir_texto(nombre) != 0 ||
- 		sistema_consola_escribir_texto(
- 			"\n\nPrueba completada correctamente.\n") != 0)
- 	{
- 		return -1;
- 	}
-
- 	return 0;
- }
 
  // ============================================================================
  // FUNCIONES SUBMENÚS
  // ============================================================================
- #pragma region "FUNCIONES SUBMENÚS"
-/*
+#pragma region FUNCIONES SUBMENÚS
+
+ /*
  * Menú de lectura y CRUD del archivo datos.txt.
  * Ejemplo: una entrada "3" solicita ID y texto y reemplaza la línea 3.
  * Devuelve una cadena de resultado codificada; el llamador debe liberarla.
  */
- char * submenu_tex_base(char * parametros_en_texto_a_splitear, int nivel_de_profundidad)
+ char * submenu_tex_base(const char * parametros_en_texto_a_splitear, int nivel_de_profundidad)
  {
  	nivel_de_profundidad++;
  	int opcion = 0;                       /* Opción seleccionada en este submenú. */
@@ -592,7 +592,7 @@
  * Ejemplo: "Hola" a todos agrega la línea "Hola" al archivo de mensajes.
  * Cada resultado devuelto usa el protocolo crearResultado() y pertenece al llamador.
  */
- char * submenu_enlasador_mandar_mensajes(char * parametros_en_texto_a_splitear, int nivel_de_profundidad)
+ char * submenu_enlasador_mandar_mensajes(const char * parametros_en_texto_a_splitear, int nivel_de_profundidad)
  {
  	int opcion = 0;                        /* Acción elegida: 1=todos, 2=contactos, 3=primero, 4=volver. */
  	char * resultado = NULL;               /* Resultado de mensajería, por ejemplo "1|mensaje_enviado|...". */
@@ -696,7 +696,7 @@
  * Menú de demostración de split(), modificarColumna() y lectura de consola.
  * Ejemplo: "a,b,c", columna 2 y "B" produce "a,B,c".
  */
- char * submenu_operaciones_de_texto(char * parametros_en_texto_a_splitear, int nivel_de_profundidad)
+ char * submenu_operaciones_de_texto(const char * parametros_en_texto_a_splitear, int nivel_de_profundidad)
  {
  	int opcion = 0;                        /* 1=split, 2=editar columna, 3=leer consola, 4=volver. */
  	int cantidad = 0;                      /* Número de argumentos de ejemplo divididos. */
@@ -820,11 +820,13 @@
  	sistema_memoria_liberar(estado);
  	return crearResultado(1, "informacionMain", "1", __func__, 1);
  }
- #pragma endregion
+ 
+ #pragma endregion FUNCIONES SUBMENÚS
+
  // ============================================================================
  // FUNCIONES OPERACIONES DE TEXTO
  // ============================================================================
- #pragma region "FUNCIONES OPERACIONES DE TEXTO"
+ #pragma region FUNCIONES OPERACIONES DE TEXTO
  
  /* ============================================================================
     SPLIT
@@ -914,11 +916,6 @@
  		}
 
  		size_t longitud_parte = posicion - inicio; /* Bytes del campo, incluso si el campo está vacío. */
- 		if(longitud_parte == (size_t)-1)
- 		{
- 			liberarSplit(partes, (int)contador, nivel_de_profundidad);
- 			return NULL;
- 		}
  		partes[contador] = sistema_memoria_reservar(longitud_parte + 1);
  		if(partes[contador] == NULL)
  		{
@@ -1137,6 +1134,7 @@
  	va_list argumentos;
  	const char *cursor;
  	const char *inicio;
+ 	int error = 0;
 
  	if(formato == NULL) return -1;
 
@@ -1144,7 +1142,7 @@
  	cursor = formato;
  	inicio = formato;
 
- 	while(*cursor != '\0')
+ 	while(*cursor != '\0' && !error)
  	{
  		char numero[sizeof(int) * CHAR_BIT + 2]; /* Espacio suficiente para signo, dígitos y '\0'. */
  		const char *texto;                        /* Siguiente argumento para una conversión %s. */
@@ -1157,44 +1155,49 @@
 
  		while(inicio < cursor)
  		{
- 			if(sistema_consola_escribir_caracter((unsigned char)*inicio++) != 0) goto error;
+ 			if(sistema_consola_escribir_caracter((unsigned char)*inicio++) != 0)
+ 			{
+ 				error = 1;
+ 				break;
+ 			}
  		}
+ 		if(error) break;
  		cursor++;
- 		if(*cursor == '\0') goto error;
+ 		if(*cursor == '\0')
+ 		{
+ 			error = 1;
+ 			break;
+ 		}
 
  		if(*cursor == 's')
  		{
  			texto = va_arg(argumentos, const char *);
- 			if(texto == NULL || sistema_consola_escribir_texto(texto) != 0) goto error;
+ 			if(texto == NULL || sistema_consola_escribir_texto(texto) != 0) error = 1;
  		}
  		else if(*cursor == 'd')
  		{
  			if(enteroATexto(va_arg(argumentos, int), numero, sizeof(numero)) == NULL ||
  				sistema_consola_escribir_texto(numero) != 0)
  			{
- 				goto error;
+ 				error = 1;
  			}
  		}
  		else if(*cursor == '%')
  		{
- 			if(sistema_consola_escribir_caracter('%') != 0) goto error;
+ 			if(sistema_consola_escribir_caracter('%') != 0) error = 1;
  		}
  		else
  		{
- 			goto error;
+ 			error = 1;
  		}
 
  		cursor++;
  		inicio = cursor;
  	}
 
- 	if(sistema_consola_escribir_texto(inicio) != 0) goto error;
+ 	if(!error && sistema_consola_escribir_texto(inicio) != 0) error = 1;
  	va_end(argumentos);
- 	return 0;
-
- error:
- 	va_end(argumentos);
- 	return -1;
+ 	return error ? -1 : 0;
  }
 
 /* Escribe un entero decimal en archivo como texto; 0 significa éxito. */
@@ -1213,69 +1216,148 @@
  }
 
 /*
- * Construye una cadena de estado propiedad del llamador.
- * Ejemplo: (1,"escritura_ok","","escribirLinea",1) produce
- * "1|escritura_ok||escribirLinea|1".
- * codigo >= 0 representa éxito/estado; código negativo representa error.
- * Devuelve NULL ante desbordamiento de tamaño o fallo de reserva.
+ * Agrega el código de estado actual al inicio de la traza acumulada.
+ *
+ * Separadores según la profundidad:
+ *   0 -> '|'
+ *   1 -> '°'
+ *   2 -> '¬'
+ *
+ * Ejemplo:
+ *   crearResultado(-4, 2, ...) -> "¬-4"
+ *   crearResultado( 2, 1, "¬-4", ...) -> "°2¬-4"
+ *   crearResultado( 0, 0, "°2¬-4", ...) -> "|0°2¬-4"
+ *
+ * Los códigos >= 0 representan estados sin error fatal.
+ * Los códigos < 0 representan errores.
+ *
+ * Devuelve una cadena nueva que pertenece al llamador.
+ * Devuelve NULL si falla una conversión, el tamaño o la reserva.
  */
-  char * crearResultado(int codigo,
- 	const char * informacion,
- 		const char * resultado_anterior,
- 			const char * funcion_llamante,
- 				int nivel_de_profundidad)
- {
- 	const char *separador = GG_caracter_separacion[0]; /* "|" separa los cinco campos. */
- 	const char *info = (informacion != NULL) ? informacion : ""; /* Texto descriptivo o vacío. */
- 	const char *anterior = (resultado_anterior != NULL) ? resultado_anterior : ""; /* Campo encadenado. */
- 	const char *funcion = (funcion_llamante != NULL) ? funcion_llamante : ""; /* Origen del resultado. */
- 	char codigoTexto[sizeof(int) * CHAR_BIT + 2];
- 	char profundidadTexto[sizeof(int) * CHAR_BIT + 2];
- 	const char *partes[9]; /* Secuencia alternada para ensamblar los cinco campos. */
+char *crearResultado(
+    int codigo,
+    const char *informacion,
+    const char *resultado_anterior,
+    const char *funcion_llamante,
+    int nivel_de_profundidad
+)
+{
+    /*
+     * Ajusta GG_NUM_SEPARADORES al número real de elementos
+     * de GG_caracter_separacion.
+     */
+    const size_t cantidadSeparadores =
+        sizeof(GG_caracter_separacion) /
+        sizeof(GG_caracter_separacion[0]);
 
- 	if(enteroATexto(codigo, codigoTexto, sizeof(codigoTexto)) == NULL ||
- 		enteroATexto(nivel_de_profundidad, profundidadTexto, sizeof(profundidadTexto)) == NULL)
- 	{
- 		return NULL;
- 	}
+    if (
+        nivel_de_profundidad < 0 ||
+        (size_t)nivel_de_profundidad >= cantidadSeparadores
+    )
+    {
+        return NULL;
+    }
 
- 	partes[0] = codigoTexto;
- 	partes[1] = separador;
- 	partes[2] = info;
- 	partes[3] = separador;
- 	partes[4] = anterior;
- 	partes[5] = separador;
- 	partes[6] = funcion;
- 	partes[7] = separador;
- 	partes[8] = profundidadTexto;
+    const char *separador =
+        GG_caracter_separacion[nivel_de_profundidad];
 
- 	size_t longitudTotal = 1; /* El byte final '\0' también requiere espacio. */
- 	for(size_t i = 0; i < sizeof(partes) / sizeof(partes[0]); i++)
- 	{
- 		size_t longitudParte = strlen(partes[i]);
- 		if(longitudParte > (size_t)-1 - longitudTotal) return NULL;
- 		longitudTotal += longitudParte;
- 	}
+    if (separador == NULL)
+    {
+        return NULL;
+    }
 
- 	char *resultado = sistema_memoria_reservar(longitudTotal); /* Memoria que el llamador debe liberar. */
- 	if(resultado == NULL) return NULL;
+    /*
+     * La información y el nombre de la función se conservan
+     * como argumentos por compatibilidad con la interfaz actual.
+     * La traza solo contiene separador, código y resultado anterior.
+     */
+    (void)informacion;
+    (void)funcion_llamante;
 
- 	char *destino = resultado; /* Cursor de escritura que avanza a través del buffer. */
- 	for(size_t i = 0; i < sizeof(partes) / sizeof(partes[0]); i++)
- 	{
- 		size_t longitudParte = strlen(partes[i]);
- 		memcpy(destino, partes[i], longitudParte);
- 		destino += longitudParte;
- 	}
- 	*destino = '\0';
- 	return resultado;
- }
+    const char *anterior =
+        (resultado_anterior != NULL)
+            ? resultado_anterior
+            : "";
+
+    char codigoTexto[sizeof(int) * CHAR_BIT + 2];
+
+    if (
+        enteroATexto(
+            codigo,
+            codigoTexto,
+            sizeof(codigoTexto)
+        ) == NULL
+    )
+    {
+        return NULL;
+    }
+
+    /*
+     * Calcula el espacio necesario para:
+     * separador + código + traza anterior + '\0'.
+     */
+    const size_t longitudSeparador = strlen(separador);
+    const size_t longitudCodigo = strlen(codigoTexto);
+    const size_t longitudAnterior = strlen(anterior);
+
+    size_t longitudTotal = 1;
+
+    if (
+        longitudSeparador > (size_t)-1 - longitudTotal
+    )
+    {
+        return NULL;
+    }
+    longitudTotal += longitudSeparador;
+
+    if (
+        longitudCodigo > (size_t)-1 - longitudTotal
+    )
+    {
+        return NULL;
+    }
+    longitudTotal += longitudCodigo;
+
+    if (
+        longitudAnterior > (size_t)-1 - longitudTotal
+    )
+    {
+        return NULL;
+    }
+    longitudTotal += longitudAnterior;
+
+    /* Reserva una cadena independiente. */
+    char *resultado = sistema_memoria_reservar(longitudTotal);
+
+    if (resultado == NULL)
+    {
+        return NULL;
+    }
+
+    /* Construye: separador + código actual + traza anterior. */
+    char *destino = resultado;
+
+    memcpy(destino, separador, longitudSeparador);
+    destino += longitudSeparador;
+
+    memcpy(destino, codigoTexto, longitudCodigo);
+    destino += longitudCodigo;
+
+    memcpy(destino, anterior, longitudAnterior);
+    destino += longitudAnterior;
+
+    *destino = '\0';
+
+    return resultado;
+}
+
+ #pragma endregion FUNCIONES OPERACIONES DE TEXTO
  
-  #pragma endregion
  // ============================================================================
  // FUNCIONES OPERACIONES DE TEX_BASE
  // ============================================================================
- #pragma region "FUNCIONES OPERACIONES_DE_TEX_BASE"
+ #pragma region FUNCIONES OPERACIONES_DE_TEX_BASE
+ 
  /* ============================================================================
    LEER LINEA DINAMICA
    ============================================================================ */
@@ -1670,7 +1752,8 @@ static int aplicarOperacionLinea(
  	}
  	return crearResultado(1, "escritura_ok", "", __func__, nivel_de_profundidad);
  }
-/* Reemplaza por completo la línea idLinea; el ID comienza en 1. */
+
+ /* Reemplaza por completo la línea idLinea; el ID comienza en 1. */
  char * editarLinea(const char * ruta,
  	int idLinea,
  	const char * nuevoTexto,
@@ -1692,7 +1775,8 @@ static int aplicarOperacionLinea(
  	}
  	return crearResultado(1, "edicion_ok", "", __func__, nivel_de_profundidad);
  }
-/*
+
+ /*
  * Cambia una columna de una línea delimitada por comas.
  * Ejemplo: línea 1, columna 2, "30" convierte "Ana,25,QA" en "Ana,30,QA".
  */
@@ -1718,7 +1802,8 @@ static int aplicarOperacionLinea(
  	}
  	return crearResultado(1, "columna_editada_ok", "", __func__, nivel_de_profundidad);
  }
-/* Elimina el registro idLinea; las líneas posteriores cambian de número. */
+
+ /* Elimina el registro idLinea; las líneas posteriores cambian de número. */
  char * eliminarLinea(const char * ruta,
  	int idLinea,
  	int nivel_de_profundidad)
@@ -1739,7 +1824,8 @@ static int aplicarOperacionLinea(
  	}
  	return crearResultado(1, "eliminacion_ok", "", __func__, nivel_de_profundidad);
  }
-/* Conserva la posición idLinea, pero escribe una línea vacía en su lugar. */
+
+ /* Conserva la posición idLinea, pero escribe una línea vacía en su lugar. */
  char * vaciarLinea(const char * ruta,
  	int idLinea,
  	int nivel_de_profundidad)
@@ -1760,12 +1846,16 @@ static int aplicarOperacionLinea(
  	}
  	return crearResultado(1, "vaciado_ok", "", __func__, nivel_de_profundidad);
  }
- #pragma endregion
+
+ #pragma endregion FUNCIONES OPERACIONES_DE_TEX_BASE
+ 
  // ============================================================================
  // FUNCIONES OPERACIONES DE MENSAJERÍA
  // ============================================================================
- #pragma region "FUNCIONES OPERACIONES_DE_MENSAJERIA"
-/*
+
+ #pragma region FUNCIONES_OPERACIONES_DE_MENSAJERIA
+
+ /*
  * Comprueba si alguno de los tres archivos de mensajes contiene al menos un byte.
  * Devuelve código 1 si encuentra contenido, 0 si todos están vacíos/no existen,
  * o -1 si un archivo abierto da error de lectura o cierre.
@@ -1816,58 +1906,51 @@ static int aplicarOperacionLinea(
  		return crearResultado(-1, "archivo_de_prueba_ya_existe", "", __func__, nivel_de_profundidad);
  	}
 
- 	int exito = 0; /* Solo pasa a 1 después de que toda la secuencia termina bien. */
+ 	int exito = 1; /* Se pone en 0 al primer fallo y entonces se omiten pruebas restantes. */
  	char *lineaModificada = modificarColumna("Ana,25,Programador", 2, "30", nivel_de_profundidad);
  	if(lineaModificada == NULL || strcmp(lineaModificada, "Ana,30,Programador") != 0)
  	{
- 		sistema_memoria_liberar(lineaModificada);
- 		goto limpieza;
+ 		exito = 0;
  	}
  	sistema_memoria_liberar(lineaModificada);
 
- 	char *resultadoOperacion = escribirLinea(rutaPrueba, "Luis,10,Desarrollador", nivel_de_profundidad); /* Resultado codificado. */
- 	if(resultadoTieneError(resultadoOperacion))
+ 	char *resultadoOperacion = NULL; /* Cada operación devuelve un resultado que se libera aquí. */
+ 	if(exito)
  	{
+ 		resultadoOperacion = escribirLinea(rutaPrueba, "Luis,10,Desarrollador", nivel_de_profundidad);
+ 		if(resultadoTieneError(resultadoOperacion)) exito = 0;
  		sistema_memoria_liberar(resultadoOperacion);
- 		goto limpieza;
  	}
- 	sistema_memoria_liberar(resultadoOperacion);
 
- 	resultadoOperacion = escribirLinea(rutaPrueba, "Marta,20,QA", nivel_de_profundidad);
- 	if(resultadoTieneError(resultadoOperacion))
+ 	if(exito)
  	{
+ 		resultadoOperacion = escribirLinea(rutaPrueba, "Marta,20,QA", nivel_de_profundidad);
+ 		if(resultadoTieneError(resultadoOperacion)) exito = 0;
  		sistema_memoria_liberar(resultadoOperacion);
- 		goto limpieza;
  	}
- 	sistema_memoria_liberar(resultadoOperacion);
 
- 	resultadoOperacion = editarColumna(rutaPrueba, 1, 2, "15", nivel_de_profundidad);
- 	if(resultadoTieneError(resultadoOperacion))
+ 	if(exito)
  	{
+ 		resultadoOperacion = editarColumna(rutaPrueba, 1, 2, "15", nivel_de_profundidad);
+ 		if(resultadoTieneError(resultadoOperacion)) exito = 0;
  		sistema_memoria_liberar(resultadoOperacion);
- 		goto limpieza;
  	}
- 	sistema_memoria_liberar(resultadoOperacion);
 
- 	resultadoOperacion = eliminarLinea(rutaPrueba, 2, nivel_de_profundidad);
- 	if(resultadoTieneError(resultadoOperacion))
+ 	if(exito)
  	{
+ 		resultadoOperacion = eliminarLinea(rutaPrueba, 2, nivel_de_profundidad);
+ 		if(resultadoTieneError(resultadoOperacion)) exito = 0;
  		sistema_memoria_liberar(resultadoOperacion);
- 		goto limpieza;
  	}
- 	sistema_memoria_liberar(resultadoOperacion);
 
- 	sistema_consola_escribir_formato("\n--- ARCHIVO DE PRUEBA RESULTANTE ---\n");
- 	resultadoOperacion = leerArchivo(rutaPrueba, nivel_de_profundidad);
- 	if(resultadoTieneError(resultadoOperacion))
+ 	if(exito)
  	{
+ 		sistema_consola_escribir_formato("\n--- ARCHIVO DE PRUEBA RESULTANTE ---\n");
+ 		resultadoOperacion = leerArchivo(rutaPrueba, nivel_de_profundidad);
+ 		if(resultadoTieneError(resultadoOperacion)) exito = 0;
  		sistema_memoria_liberar(resultadoOperacion);
- 		goto limpieza;
  	}
- 	sistema_memoria_liberar(resultadoOperacion);
- 	exito = 1;
 
- limpieza:
  	{
  		SistemaArchivo *archivoPrueba = sistema_archivo_abrir(rutaPrueba, "r"); /* NULL si el temporal no existe. */
  		int errorLimpieza = 0; /* Se activa ante fallo al cerrar o borrar el archivo. */
@@ -1986,11 +2069,13 @@ static int aplicarOperacionLinea(
  	if(error) return crearResultado(-1, "error_al_guardar_mensaje", "", __func__, nivel_de_profundidad);
  	return crearResultado(1, "mensaje_enviado", "", __func__, nivel_de_profundidad);
  }
- #pragma endregion
+ #pragma endregion FUNCIONES_OPERACIONES_DE_MENSAJERIA
+
  /* ============================================================================
     MEMORIA
     ============================================================================ */
- #pragma region "MEMORIA"
+#pragma region FUNCIONES_MEMORIA
+
 #if defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
 
 /*
@@ -2042,11 +2127,15 @@ static void sistema_memoria_liberar(void *memoria)
 }
 
 #endif
- #pragma endregion
+
+#pragma endregion FUNCIONES_MEMORIA
+
  /* ============================================================================
     ARCHIVOS
     ============================================================================ */
- #pragma region "ARCHIVOS"
+#pragma region FUNCIONES_ARCHIVOS
+
+
 #if defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
  /*
   * Implementación escritorio del tipo opaco. FILE* queda confinado a esta capa;
@@ -2055,6 +2144,8 @@ static void sistema_memoria_liberar(void *memoria)
   struct SistemaArchivo
  {
   	FILE *flujo;
+	int caracterPendiente;
+	int tieneCaracterPendiente;
   };
 
 /*
@@ -2075,6 +2166,8 @@ static void sistema_memoria_liberar(void *memoria)
  		return NULL;
  	}
  	archivo->flujo = flujo;
+	archivo->caracterPendiente = 0;
+	archivo->tieneCaracterPendiente = 0;
  	return archivo;
  }
 
@@ -2108,8 +2201,29 @@ static int sistema_archivo_leer_caracter(SistemaArchivo *archivo)
 {
 	if(archivo == NULL || archivo->flujo == NULL) return SISTEMA_ARCHIVO_FIN_LECTURA;
 
-	int caracter = fgetc(archivo->flujo);
-	return (caracter == EOF) ? SISTEMA_ARCHIVO_FIN_LECTURA : caracter;
+	int caracter;
+	if(archivo->tieneCaracterPendiente)
+	{
+		caracter = archivo->caracterPendiente;
+		archivo->tieneCaracterPendiente = 0;
+	}
+	else
+	{
+		caracter = fgetc(archivo->flujo);
+	}
+
+	if(caracter == EOF) return SISTEMA_ARCHIVO_FIN_LECTURA;
+	if(caracter == '\r')
+	{
+		int siguiente = fgetc(archivo->flujo);
+		if(siguiente != '\n' && siguiente != EOF)
+		{
+			archivo->caracterPendiente = siguiente;
+			archivo->tieneCaracterPendiente = 1;
+		}
+		return '\n';
+	}
+	return caracter;
 }
 
 /* Escribe un byte; 0=éxito, -1=flujo inválido o fallo de escritura. */
@@ -2132,6 +2246,7 @@ static int sistema_archivo_escribir_texto(SistemaArchivo *archivo, const char *t
 	size_t longitud = strlen(texto);
 	return fwrite(texto, 1, longitud, archivo->flujo) == longitud ? 0 : -1;
 }
+
 
 #elif defined(PLATAFORMA_SEMICONDUCTOR)
 
@@ -2204,8 +2319,32 @@ static int sistema_archivo_hay_error(SistemaArchivo *archivo)
 /* Backends de consola de escritorio; aquí, y solo aquí, se usa stdio. */
 static int sistema_consola_leer_caracter(void)
 {
-	int caracter = getchar();
-	return caracter == EOF ? SISTEMA_ARCHIVO_FIN_LECTURA : caracter;
+	static int caracterPendiente;
+	static int tieneCaracterPendiente;
+	int caracter;
+
+	if(tieneCaracterPendiente)
+	{
+		caracter = caracterPendiente;
+		tieneCaracterPendiente = 0;
+	}
+	else
+	{
+		caracter = getchar();
+	}
+
+	if(caracter == EOF) return SISTEMA_ARCHIVO_FIN_LECTURA;
+	if(caracter == '\r')
+	{
+		int siguiente = getchar();
+		if(siguiente != '\n' && siguiente != EOF)
+		{
+			caracterPendiente = siguiente;
+			tieneCaracterPendiente = 1;
+		}
+		return '\n';
+	}
+	return caracter;
 }
 
 /* Escribe un carácter a salida estándar; 0=éxito y -1=fallo. */
@@ -2242,4 +2381,4 @@ static int sistema_consola_escribir_texto(const char *texto)
 }
 #endif
 
-#pragma endregion
+#pragma endregion FUNCIONES_ARCHIVOS
