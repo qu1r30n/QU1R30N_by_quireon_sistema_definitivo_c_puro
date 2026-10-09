@@ -39,8 +39,11 @@
   */
  #include <stdarg.h>     /* Permite recibir argumentos variables en el formateador común. */
 
-#if !defined(SEMICONDUCTOR)
+#if !defined(SEMICONDUCTOR) || defined(PIC16F)
  #include <stdio.h>
+#endif
+
+#if !defined(SEMICONDUCTOR)
  #include <locale.h>
 #endif
 
@@ -286,6 +289,146 @@
  
  #pragma endregion DECLARACIÓN DE FUNCIONES DE OPERACIONES DE TEXTO
  
+/*
+ * Imprime un mensaje de depuración con formato printf.
+ * En PIC16F, el mensaje se limita al tamaño del buffer.
+ */
+void imprimirMensaje_para_depurar(const char *format, ...)
+{
+	if(format == NULL) return;
+
+	va_list args;
+	va_start(args, format);
+
+#ifdef PIC16F
+	char buffer[80];
+	int longitud = vsnprintf(buffer, sizeof(buffer), format, args);
+	va_end(args);
+
+	if(longitud < 0)
+	{
+		printf("[error al formatear mensaje de depuracion]\n");
+		return;
+	}
+	printf("%s", buffer);
+#elif defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
+	vprintf(format, args);
+	va_end(args);
+#else
+	va_end(args);
+	sistema_consola_escribir_texto(
+		"[formato de depuracion no disponible en este backend]\n"
+	);
+#endif
+}
+
+/*
+ * Imprime un arreglo de cadenas. Si total <= 0, contenido debe terminar
+ * en NULL; de lo contrario se imprimen exactamente total elementos.
+ */
+void imprimirMensaje_para_depurar_arreglo(
+	char **contenido,
+	const char *texto,
+	int total
+)
+{
+	const char *prefijo = (texto != NULL) ? texto : "celda";
+
+	if(contenido == NULL)
+	{
+#if defined(PIC16F) || defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
+		printf("%s[0]: (null)\n", prefijo);
+#else
+		sistema_consola_escribir_formato("%s[0]: (null)\n", prefijo);
+#endif
+		return;
+	}
+
+	if(total > 0)
+	{
+		for(int i = 0; i < total; ++i)
+		{
+			const char *valor =
+				(contenido[i] != NULL) ? contenido[i] : "(null)";
+
+#ifdef PIC16F
+			char buffer[120];
+			int longitud = snprintf(
+				buffer,
+				sizeof(buffer),
+				"\n%s[%d]: %s",
+				prefijo,
+				i,
+				valor
+			);
+			if(longitud >= 0)
+			{
+				printf("%s", buffer);
+			}
+			else
+			{
+				printf("[error al formatear elemento de depuracion]\n");
+			}
+#elif defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
+			printf("\n%s[%d]: %s", prefijo, i, valor);
+#else
+			sistema_consola_escribir_formato(
+				"\n%s[%d]: %s",
+				prefijo,
+				i,
+				valor
+			);
+#endif
+		}
+		return;
+	}
+
+	int i = 0;
+	while(contenido[i] != NULL)
+	{
+		const char *valor = contenido[i];
+
+#ifdef PIC16F
+		char buffer[120];
+		int longitud = snprintf(
+			buffer,
+			sizeof(buffer),
+			"%s[%d]: %s\n",
+			prefijo,
+			i,
+			valor
+		);
+		if(longitud >= 0)
+		{
+			printf("%s", buffer);
+		}
+		else
+		{
+			printf("[error al formatear elemento de depuracion]\n");
+		}
+#elif defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
+		printf("%s[%d]: %s\n", prefijo, i, valor);
+#else
+		sistema_consola_escribir_formato(
+			"%s[%d]: %s\n",
+			prefijo,
+			i,
+			valor
+		);
+#endif
+		++i;
+	}
+
+	if(i == 0)
+	{
+#if defined(PIC16F) || defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
+		printf("%s[0]: (null)\n", prefijo);
+#else
+		sistema_consola_escribir_formato("%s[0]: (null)\n", prefijo);
+#endif
+	}
+}
+
  // ============================================================================
  // MAIN
  // ============================================================================
@@ -342,6 +485,7 @@
  	for(int i = 0; i < 3; i++)
  	{
  		char *resultadoInicial = crearResultado(200, "prueba", "", "main", 0);
+		imprimirMensaje_para_depurar("[main] resultadoInicial: %s\n", resultadoInicial);
  		if(resultadoInicial == NULL)
  		{
  			sistema_consola_escribir_formato("No se pudo crear el resultado inicial.\n");
