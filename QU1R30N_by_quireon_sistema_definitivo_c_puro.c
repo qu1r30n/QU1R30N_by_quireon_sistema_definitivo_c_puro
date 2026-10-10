@@ -156,9 +156,7 @@
  static int sistema_archivo_cerrar(SistemaArchivo *archivo);
  static int sistema_archivo_eliminar(const char * ruta);
  static int sistema_archivo_renombrar(const char * origen,const char * destino);
- static int textoAEntero(const char *texto, int *resultado);
- static int leerCodigoResultado(const char *texto, int *codigo);
- static int resultadoTieneError(const char *texto);
+ 
  static int sistema_archivo_leer_caracter(SistemaArchivo *archivo);
  static int sistema_archivo_escribir_caracter(SistemaArchivo *archivo, int caracter);
  static int sistema_archivo_escribir_texto(SistemaArchivo *archivo, const char *texto);
@@ -286,6 +284,9 @@
  void liberarSplit(char ** partes, int cantidad, int nivel_de_profundidad);
  char * join(char ** arreglo, int cantidad,const char * carcter_separacion,int nivel_de_profundidad);
  
+  static int textoAEntero(const char *texto, int *resultado);
+
+
  #pragma endregion DECLARACIÓN DE FUNCIONES DE OPERACIONES DE TEXTO
  
 // ============================================================================
@@ -296,7 +297,10 @@
  char * crearResultado(int codigo,const char * informacion,const char * resultado_anterior,const char * funcion_llamante,int nivel_de_profundidad);
  void imprimirMensaje_para_depurar(const char *format, ...);
  void imprimirMensaje_para_depurar_arreglo(char **contenido, const char *texto, int total);
- 
+ static int submenu_pruebas_auxiliares(void);
+ static int leerCodigoResultado(const char *texto, int *codigo);
+ static int resultadoTieneError(const char *texto);
+
  #pragma endregion FUNCIONES_DE_DEPURACION
 
  // ============================================================================
@@ -304,66 +308,98 @@
  // ============================================================================
 
  /*
-  * Prueba mínima de la interfaz abstracta de consola.
-  * Ejemplo: se recibe "Ana" y se escribe "Hola Ana".
-  * La longitud queda limitada por la memoria que pueda entregar el backend.
-  * Devuelve 0 si la interacción se completa y -1 ante EOF, nombre vacío
-  * o fallo de lectura/escritura.
+  * Menú interactivo para probar las opciones de los submenús.
+  * Cada submenú solicita los parámetros requeridos por la operación elegida.
+  * Devuelve 0 al regresar al menú principal y -1 si no puede continuar.
   */
  int prueba(void);
-  int prueba(void)
+int prueba(void)
  {
- 	char *nombre; /* La línea se reserva mediante sistema_memoria_* y se libera aquí. */
+	int opcion = 0;
 
- 	if(sistema_consola_escribir_texto(
- 		"\n=== PRUEBA DEL SISTEMA ===\n\nEscribe tu nombre:\n> ") != 0)
- 	{
- 		return -1;
- 	}
+	for(;;)
+	{
+		sistema_consola_escribir_formato("\n=== MENÚ DE PRUEBAS ===\n");
+		sistema_consola_escribir_formato("1. Probar comandos de texto y archivos\n");
+		sistema_consola_escribir_formato("2. Probar envío y consulta de mensajes\n");
+		sistema_consola_escribir_formato("3. Probar operaciones de texto\n");
+		sistema_consola_escribir_formato("4. Probar funciones auxiliares e infraestructura\n");
+		sistema_consola_escribir_formato("5. Volver al menú principal\n");
+		sistema_consola_escribir_formato("Seleccione una opción: ");
 
- 	nombre = leerLineaConsola(0);
- 	if(nombre == NULL || nombre[0] == '\0')
- 	{
- 		sistema_memoria_liberar(nombre);
- 		sistema_consola_escribir_texto("\nNo se pudo leer un nombre desde la consola.\n");
- 		return -1;
- 	}
+		char *entrada = leerLineaConsola(1);
+		if(entrada == NULL)
+		{
+			sistema_consola_escribir_formato(
+				"No se pudo leer la opción del menú de pruebas.\n"
+			);
+			return -1;
+		}
 
- 	if(sistema_consola_escribir_texto("\nHola ") != 0 ||
- 		sistema_consola_escribir_texto(nombre) != 0 ||
- 		sistema_consola_escribir_texto("\n\nPrueba completada correctamente.\n") != 0)
- 	{
- 		sistema_memoria_liberar(nombre);
- 		return -1;
- 	}
+		int entradaValida = textoAEntero(entrada, &opcion);
+		sistema_memoria_liberar(entrada);
+		if(!entradaValida)
+		{
+			opcion = 0;
+		}
 
- 	sistema_memoria_liberar(nombre);
- 	return 0;
+		char *resultadoPrueba = NULL;
+		switch(opcion)
+		{
+			case 1:
+				resultadoPrueba = submenu_tex_base(
+					"leer,escribir,editar,eliminar,vaciar,ejemplos",
+					1
+				);
+				break;
+			case 2:
+				resultadoPrueba = submenu_enlasador_mandar_mensajes(
+					"mandar_todos,mandar_contacto,mandar_primero",
+					1
+				);
+				break;
+			case 3:
+				resultadoPrueba = submenu_operaciones_de_texto(
+					"split,modificar_columna,leer_linea",
+					1
+				);
+				break;
+			case 4:
+				if(submenu_pruebas_auxiliares() != 0)
+				{
+					sistema_consola_escribir_formato(
+						"Una prueba auxiliar no pudo completarse.\n"
+					);
+				}
+				continue;
+			case 5:
+				sistema_consola_escribir_formato(
+					"Volviendo al menú principal...\n"
+				);
+				return 0;
+			default:
+				sistema_consola_escribir_formato("Opción no válida.\n");
+				continue;
+		}
+
+		if(resultadoPrueba == NULL)
+		{
+			sistema_consola_escribir_formato(
+				"No se pudo completar la opción del submenú.\n"
+			);
+			return -1;
+		}
+
+		sistema_memoria_liberar(resultadoPrueba);
+	}
  }
 
  /*
-  * Punto de entrada de escritorio: muestra el menú y distribuye las opciones.
-  * En SEMICONDUCTOR ejecuta directamente prueba(), para no depender del menú
-  * que requiere consola interactiva y memoria dinámica.
+  * Punto de entrada: muestra el menú y distribuye las opciones.
   */
   int main(void)
  {
   	configurarConsolaUTF8();
- #if defined(PLATAFORMA_SEMICONDUCTOR)
- 	return prueba() == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
- #else
- 	for(int i = 0; i < 3; i++)
- 	{
- 		char *resultadoInicial = crearResultado(200, "prueba", "", "main", 0);
-		imprimirMensaje_para_depurar("[main] resultadoInicial: %s\n", resultadoInicial);
- 		if(resultadoInicial == NULL)
- 		{
- 			sistema_consola_escribir_formato("No se pudo crear el resultado inicial.\n");
- 			return EXIT_FAILURE;
- 		}
- 		sistema_consola_escribir_formato("%s\n", resultadoInicial);
- 		sistema_memoria_liberar(resultadoInicial);
- 	}
  	int opcion = 0;             /* Opción numérica elegida en el menú principal. */
  	char * resultado = NULL;    /* Último resultado codificado; se libera antes de reemplazarlo. */
  	do {
@@ -426,7 +462,33 @@
  			}
 			case 5:
 			{
-				prueba();
+				int codigoPrueba = prueba();
+				sistema_memoria_liberar(resultado);
+				resultado = crearResultado(
+					codigoPrueba == 0 ? 1 : -1,
+					codigoPrueba == 0 ? "prueba_ok" : "prueba_fallida",
+					"",
+					__func__,
+					1
+				);
+				if(resultado == NULL)
+				{
+					sistema_consola_escribir_formato(
+						"No se pudo crear el resultado de la prueba.\n"
+					);
+				}
+				else
+				{
+					sistema_consola_escribir_formato("%s\n", resultado);
+					if(codigoPrueba == 0)
+					{
+						sistema_consola_escribir_formato("Prueba superada.\n");
+					}
+					else
+					{
+						sistema_consola_escribir_formato("Prueba fallida.\n");
+					}
+				}
 				break;
 			}
  			default:
@@ -443,7 +505,6 @@
  	leerCodigoResultado(resultado, &codigoFinal);
  	sistema_memoria_liberar(resultado);
  	return codigoFinal;
-#endif
  }
  
 
@@ -486,7 +547,7 @@
  	sistema_consola_escribir_formato("5. Eliminar línea por ID\n");
  	sistema_consola_escribir_formato("6. Vaciar línea por ID\n");
  	sistema_consola_escribir_formato("7. Ejecutar ejemplos de prueba\n");
- 	sistema_consola_escribir_formato("8. Volver al menú principal\n");
+ 	sistema_consola_escribir_formato("8. Volver al menú anterior\n");
  	sistema_consola_escribir_formato("Seleccione una opción: ");
  	char * optStr = leerLineaConsola(nivel_de_profundidad);
  	if(!textoAEntero(optStr, &opcion)) opcion = 0;
@@ -580,7 +641,7 @@
  		}
  		case 8:
  		{
- 			sistema_consola_escribir_formato("Volviendo al menú principal...\n");
+ 			sistema_consola_escribir_formato("Volviendo al menú anterior...\n");
  			sistema_memoria_liberar(estado);
  			sistema_memoria_liberar(resultado);
  			return crearResultado(1, "informacionMain", "1", __func__, 1);
@@ -629,7 +690,8 @@
  	sistema_consola_escribir_formato("3. mandar_mensje_al_primero_que_responda("
  		"mensaje_pregunta, mensaje_de_que_ya_alguien_lo_acepto, "
  		"menaje_respuesta_al_quien_lo_logro)\n");
- 	sistema_consola_escribir_formato("4. Volver al menú principal\n");
+ 	sistema_consola_escribir_formato("4. Consultar si hay mensajes no leídos\n");
+ 	sistema_consola_escribir_formato("5. Volver al menú anterior\n");
  	sistema_consola_escribir_formato("Seleccione una opción: ");
  	char * optStr = leerLineaConsola(nivel_de_profundidad);
  	if(!textoAEntero(optStr, &opcion)) opcion = 0;
@@ -683,9 +745,41 @@
  			estado = crearResultado(1, "informacionMain", "1", __func__, 1);
  			break;
  		}
- 		case 4:
+		case 4:
+		{
+			sistema_memoria_liberar(resultado);
+			resultado = checar_si_hay_mensajes_no_leido(nivel_de_profundidad);
+			if(resultado == NULL)
+			{
+				sistema_consola_escribir_formato(
+					"No se pudo crear el resultado de la consulta.\n"
+				);
+			}
+			else
+			{
+				sistema_consola_escribir_formato("%s\n", resultado);
+				int codigoConsulta = 0;
+				if(leerCodigoResultado(resultado, &codigoConsulta))
+				{
+					if(codigoConsulta > 0)
+					{
+						sistema_consola_escribir_formato("Hay mensajes sin leer.\n");
+					}
+					else if(codigoConsulta == 0)
+					{
+						sistema_consola_escribir_formato("No hay mensajes sin leer.\n");
+					}
+					else
+					{
+						sistema_consola_escribir_formato("Falló la consulta de mensajes.\n");
+					}
+				}
+			}
+			break;
+		}
+ 		case 5:
  		{
- 			sistema_consola_escribir_formato("Volviendo al menú principal...\n");
+ 			sistema_consola_escribir_formato("Volviendo al menú anterior...\n");
  			sistema_memoria_liberar(estado);
  			sistema_memoria_liberar(resultado);
  			return crearResultado(1, "informacionMain", "1", __func__, 1);
@@ -730,7 +824,7 @@
  	sistema_consola_escribir_formato("1. split(texto, delimitador)\n");
  	sistema_consola_escribir_formato("2. modificarColumna(linea, columna, nuevoValor)\n");
  	sistema_consola_escribir_formato("3. leerLineaDinamica(consola)\n");
- 	sistema_consola_escribir_formato("4. Volver al menú principal\n");
+ 	sistema_consola_escribir_formato("4. Volver al menú anterior\n");
  	sistema_consola_escribir_formato("Seleccione una opción: ");
  	char * optStr = leerLineaConsola(nivel_de_profundidad);
  	if(!textoAEntero(optStr, &opcion)) opcion = 0;
@@ -810,7 +904,7 @@
  		}
  		case 4:
  		{
- 			sistema_consola_escribir_formato("Volviendo al menú principal...\n");
+ 			sistema_consola_escribir_formato("Volviendo al menú anterior...\n");
  			if(estado != NULL)
  			{
  				char * tmp = estado;
@@ -1114,28 +1208,6 @@
  	return texto != NULL
  		? textoAEnteroN(texto, strlen(texto), resultado)
  		: 0;
- }
-
-/*
- * Extrae el primer campo del protocolo de resultado.
- * Ejemplo: "-2|error||editarLinea|3" guarda -2 y devuelve 1.
- */
- static int leerCodigoResultado(const char *texto, int *codigo)
- {
- 	const char *separador;
-
- 	if(texto == NULL || codigo == NULL) return 0;
- 	separador = strchr(texto, GG_caracter_separacion[0][0]);
- 	return separador != NULL
- 		? textoAEnteroN(texto, (size_t)(separador - texto), codigo)
- 		: 0;
- }
-
-/* Interpreta como error un código negativo o una cadena de resultado inválida. */
- static int resultadoTieneError(const char *texto)
- {
- 	int codigo;
- 	return !leerCodigoResultado(texto, &codigo) || codigo < 0;
  }
 
 /*
@@ -2542,5 +2614,450 @@ void imprimirMensaje_para_depurar_arreglo(
 #endif
 	}
 }
+
+/*
+ * Menú de pruebas manuales para primitivas y funciones auxiliares.
+ * Las pruebas de archivos se limitan a nombres temporales de esta prueba.
+ */
+static int submenu_pruebas_auxiliares(void)
+{
+	int opcion = 0;
+
+	for(;;)
+	{
+		sistema_consola_escribir_formato("\n=== FUNCIONES AUXILIARES ===\n");
+		sistema_consola_escribir_formato("1. Probar split, liberarSplit y join\n");
+		sistema_consola_escribir_formato("2. Probar conversiones y lectura de resultados\n");
+		sistema_consola_escribir_formato("3. Probar crearResultado\n");
+		sistema_consola_escribir_formato("4. Probar reserva, redimensionamiento y liberación\n");
+		sistema_consola_escribir_formato("5. Probar primitivas de archivos\n");
+		sistema_consola_escribir_formato("6. Probar consola, configuración UTF-8 y depuración\n");
+		sistema_consola_escribir_formato("7. Volver al menú de pruebas\n");
+		sistema_consola_escribir_formato("Seleccione una opción: ");
+
+		char *entrada = leerLineaConsola(1);
+		if(entrada == NULL) return -1;
+		int entradaValida = textoAEntero(entrada, &opcion);
+		sistema_memoria_liberar(entrada);
+		if(!entradaValida) opcion = 0;
+
+		switch(opcion)
+		{
+			case 1:
+			{
+				sistema_consola_escribir_formato("Texto para dividir: ");
+				char *texto = leerLineaConsola(1);
+				sistema_consola_escribir_formato("Separador: ");
+				char *separador = leerLineaConsola(1);
+				if(texto == NULL || separador == NULL)
+				{
+					sistema_memoria_liberar(texto);
+					sistema_memoria_liberar(separador);
+					return -1;
+				}
+
+				int cantidad = 0;
+				char **partes = split(texto, separador, &cantidad, 1);
+				if(partes == NULL)
+				{
+					sistema_consola_escribir_formato("split fallo.\n");
+					sistema_memoria_liberar(texto);
+					sistema_memoria_liberar(separador);
+					break;
+				}
+
+				sistema_consola_escribir_formato("Elementos: %d\n", cantidad);
+				imprimirMensaje_para_depurar_arreglo(partes, "parte", cantidad);
+				sistema_consola_escribir_formato("\nSeparador para unir: ");
+				char *separadorUnion = leerLineaConsola(1);
+				if(separadorUnion == NULL)
+				{
+					liberarSplit(partes, cantidad, 1);
+					sistema_memoria_liberar(texto);
+					sistema_memoria_liberar(separador);
+					return -1;
+				}
+
+				char *unido = join(partes, cantidad, separadorUnion, 1);
+				if(unido == NULL)
+				{
+					sistema_consola_escribir_formato("join fallo.\n");
+				}
+				else
+				{
+					sistema_consola_escribir_formato("Resultado de join: %s\n", unido);
+				}
+				sistema_memoria_liberar(unido);
+				sistema_memoria_liberar(separadorUnion);
+				liberarSplit(partes, cantidad, 1);
+				sistema_memoria_liberar(texto);
+				sistema_memoria_liberar(separador);
+				break;
+			}
+			case 2:
+			{
+				sistema_consola_escribir_formato("Entero decimal para convertir: ");
+				char *entradaEntero = leerLineaConsola(1);
+				if(entradaEntero == NULL) return -1;
+
+				int valor = 0;
+				if(!textoAEntero(entradaEntero, &valor))
+				{
+					sistema_consola_escribir_formato("No es un entero válido.\n");
+				}
+				else
+				{
+					char buffer[sizeof(int) * CHAR_BIT + 2];
+					if(enteroATexto(valor, buffer, sizeof(buffer)) == NULL)
+					{
+						sistema_consola_escribir_formato("enteroATexto fallo.\n");
+					}
+					else
+					{
+						sistema_consola_escribir_formato("enteroATexto: %s\n", buffer);
+					}
+					int valorPorTramo = 0;
+					if(textoAEnteroN(
+						entradaEntero,
+						strlen(entradaEntero),
+						&valorPorTramo
+					))
+					{
+						sistema_consola_escribir_formato(
+							"textoAEnteroN: %d\n",
+							valorPorTramo
+						);
+					}
+				}
+				sistema_memoria_liberar(entradaEntero);
+
+				sistema_consola_escribir_formato("Traza para analizar: ");
+				char *traza = leerLineaConsola(1);
+				if(traza == NULL) return -1;
+				int codigo = 0;
+				if(leerCodigoResultado(traza, &codigo))
+				{
+					sistema_consola_escribir_formato(
+						"Código=%d; resultadoTieneError=%d\n",
+						codigo,
+						resultadoTieneError(traza)
+					);
+				}
+				else
+				{
+					sistema_consola_escribir_formato(
+						"leerCodigoResultado no pudo analizar la traza.\n"
+					);
+				}
+				sistema_memoria_liberar(traza);
+				break;
+			}
+			case 3:
+			{
+				int codigo = 0;
+				int profundidad = 0;
+				sistema_consola_escribir_formato("Código entero: ");
+				char *codigoTexto = leerLineaConsola(1);
+				sistema_consola_escribir_formato("Información (si aplica): ");
+				char *informacion = leerLineaConsola(1);
+				sistema_consola_escribir_formato("Resultado anterior (vacío si ninguno): ");
+				char *anterior = leerLineaConsola(1);
+				sistema_consola_escribir_formato("Nombre de función (si aplica): ");
+				char *funcion = leerLineaConsola(1);
+				sistema_consola_escribir_formato("Nivel de profundidad: ");
+				char *nivelTexto = leerLineaConsola(1);
+				if(codigoTexto == NULL || informacion == NULL || anterior == NULL ||
+					funcion == NULL || nivelTexto == NULL)
+				{
+					sistema_memoria_liberar(codigoTexto);
+					sistema_memoria_liberar(informacion);
+					sistema_memoria_liberar(anterior);
+					sistema_memoria_liberar(funcion);
+					sistema_memoria_liberar(nivelTexto);
+					return -1;
+				}
+
+				if(!textoAEntero(codigoTexto, &codigo) ||
+					!textoAEntero(nivelTexto, &profundidad))
+				{
+					sistema_consola_escribir_formato(
+						"Código o profundidad inválidos.\n"
+					);
+				}
+				else
+				{
+					char *resultado = crearResultado(
+						codigo,
+						informacion,
+						anterior,
+						funcion,
+						profundidad
+					);
+					if(resultado == NULL)
+					{
+						sistema_consola_escribir_formato(
+							"crearResultado devolvió NULL.\n"
+						);
+					}
+					else
+					{
+						sistema_consola_escribir_formato(
+							"Resultado creado: %s\n",
+							resultado
+						);
+					}
+					sistema_memoria_liberar(resultado);
+				}
+				sistema_memoria_liberar(codigoTexto);
+				sistema_memoria_liberar(informacion);
+				sistema_memoria_liberar(anterior);
+				sistema_memoria_liberar(funcion);
+				sistema_memoria_liberar(nivelTexto);
+				break;
+			}
+			case 4:
+			{
+				int tamano = 0;
+				sistema_consola_escribir_formato("Tamaño inicial (>0): ");
+				char *tamanoTexto = leerLineaConsola(1);
+				if(tamanoTexto == NULL) return -1;
+				if(!textoAEntero(tamanoTexto, &tamano) || tamano <= 0)
+				{
+					sistema_consola_escribir_formato("Tamaño inválido.\n");
+					sistema_memoria_liberar(tamanoTexto);
+					break;
+				}
+				sistema_memoria_liberar(tamanoTexto);
+
+				unsigned char *bloque = sistema_memoria_reservar((size_t)tamano);
+				if(bloque == NULL)
+				{
+					sistema_consola_escribir_formato(
+						"Reserva no disponible en este backend.\n"
+					);
+					break;
+				}
+
+				memset(bloque, 0x5A, (size_t)tamano);
+				unsigned char *redimensionado = sistema_memoria_redimensionar(
+					bloque,
+					(size_t)tamano + 1
+				);
+				if(redimensionado == NULL)
+				{
+					sistema_memoria_liberar(bloque);
+					sistema_consola_escribir_formato(
+						"Redimensionamiento no disponible o fallido.\n"
+					);
+					break;
+				}
+				sistema_consola_escribir_formato(
+					"Bloque redimensionado; bytes iniciales conservados=%s\n",
+					(redimensionado[0] == 0x5A) ? "sí" : "no"
+				);
+				sistema_memoria_liberar(redimensionado);
+				break;
+			}
+			case 5:
+			{
+				const char *rutaOriginal = "qu1ron_backend_test.tmp";
+				const char *rutaRenombrada = "qu1ron_backend_test_renamed.tmp";
+				SistemaArchivo *preexistenteOriginal =
+					sistema_archivo_abrir(rutaOriginal, "r");
+				SistemaArchivo *preexistenteRenombrado =
+					sistema_archivo_abrir(rutaRenombrada, "r");
+				if(preexistenteOriginal != NULL || preexistenteRenombrado != NULL)
+				{
+					if(preexistenteOriginal != NULL)
+					{
+						sistema_archivo_cerrar(preexistenteOriginal);
+					}
+					if(preexistenteRenombrado != NULL)
+					{
+						sistema_archivo_cerrar(preexistenteRenombrado);
+					}
+					sistema_consola_escribir_formato(
+						"Los archivos temporales de prueba ya existen; no se modificaron.\n"
+					);
+					break;
+				}
+				sistema_consola_escribir_formato("Texto que se escribirá: ");
+				char *texto = leerLineaConsola(1);
+				sistema_consola_escribir_formato("Entero que se agregará: ");
+				char *enteroTexto = leerLineaConsola(1);
+				int entero = 0;
+				if(texto == NULL || enteroTexto == NULL ||
+					!textoAEntero(enteroTexto, &entero))
+				{
+					sistema_consola_escribir_formato(
+						"Entradas inválidas; no se ejecutó la prueba de archivo.\n"
+					);
+					sistema_memoria_liberar(texto);
+					sistema_memoria_liberar(enteroTexto);
+					break;
+				}
+				sistema_memoria_liberar(enteroTexto);
+
+				SistemaArchivo *archivo = sistema_archivo_abrir(
+					rutaOriginal,
+					"w"
+				);
+				int archivoOriginalCreado = archivo != NULL;
+				int archivoRenombradoCreado = 0;
+				int error = archivo == NULL;
+				if(!error)
+				{
+					error = sistema_archivo_escribir_texto(archivo, texto) != 0 ||
+						sistema_archivo_escribir_caracter(archivo, '|') != 0 ||
+						sistema_archivo_escribir_entero(archivo, entero) != 0 ||
+						escribirLineaArchivo(archivo, "") != 0;
+					if(sistema_archivo_cerrar(archivo) != 0) error = 1;
+				}
+				if(!error &&
+					sistema_archivo_renombrar(rutaOriginal, rutaRenombrada) != 0)
+				{
+					error = 1;
+				}
+				else if(!error)
+				{
+					archivoOriginalCreado = 0;
+					archivoRenombradoCreado = 1;
+				}
+
+				if(!error)
+				{
+					archivo = sistema_archivo_abrir(rutaRenombrada, "r");
+					if(archivo == NULL)
+					{
+						error = 1;
+					}
+					else
+					{
+						sistema_consola_escribir_formato("Contenido leído: ");
+						int caracter;
+						while((caracter = sistema_archivo_leer_caracter(archivo)) !=
+							SISTEMA_ARCHIVO_FIN_LECTURA)
+						{
+							if(sistema_consola_escribir_caracter(caracter) != 0)
+							{
+								error = 1;
+								break;
+							}
+						}
+						if(sistema_archivo_hay_error(archivo)) error = 1;
+						if(sistema_archivo_cerrar(archivo) != 0) error = 1;
+					}
+				}
+
+				if(archivoOriginalCreado &&
+					sistema_archivo_eliminar(rutaOriginal) != 0)
+				{
+					error = 1;
+				}
+				if(archivoRenombradoCreado &&
+					sistema_archivo_eliminar(rutaRenombrada) != 0)
+				{
+					error = 1;
+				}
+				sistema_consola_escribir_formato(
+					"\nPrueba de primitivas de archivo: %s\n",
+					error ? "fallida" : "correcta"
+				);
+				sistema_memoria_liberar(texto);
+				break;
+			}
+			case 6:
+			{
+				configurarConsolaUTF8();
+				sistema_consola_escribir_formato("Texto para imprimir: ");
+				char *texto = leerLineaConsola(1);
+				if(texto == NULL) return -1;
+				sistema_consola_escribir_caracter('[');
+				sistema_consola_escribir_texto(texto);
+				sistema_consola_escribir_caracter(']');
+				sistema_consola_escribir_caracter('\n');
+				imprimirMensaje_para_depurar(
+					"Formato de depuración: texto=%s longitud=%d\n",
+					texto,
+					(int)strlen(texto)
+				);
+				char *elementos[] = { texto, NULL };
+				imprimirMensaje_para_depurar_arreglo(elementos, "dato", 1);
+				sistema_consola_escribir_caracter('\n');
+				sistema_memoria_liberar(texto);
+				break;
+			}
+			case 7:
+				return 0;
+			default:
+				sistema_consola_escribir_formato("Opción no válida.\n");
+				break;
+		}
+	}
+}
+
+
+
+/*
+ * Extrae el código inicial de una traza, con o sin separador inicial.
+ * Ejemplos: "°-2¬1" y "-2|error" guardan -2 y devuelven 1.
+ */
+ static int leerCodigoResultado(const char *texto, int *codigo)
+ {
+	const char *inicio;
+	const char *fin;
+	int separadorEncontrado = 0;
+
+	if(texto == NULL || codigo == NULL) return 0;
+
+	inicio = texto;
+	for(size_t i = 0;
+		i < sizeof(GG_caracter_separacion) / sizeof(GG_caracter_separacion[0]);
+		i++)
+	{
+		size_t longitud = strlen(GG_caracter_separacion[i]);
+		if(strncmp(inicio, GG_caracter_separacion[i], longitud) == 0)
+		{
+			inicio += longitud;
+			break;
+		}
+	}
+
+	fin = inicio;
+	if(*fin == '-' || *fin == '+') fin++;
+	while(*fin >= '0' && *fin <= '9') fin++;
+	if(fin == inicio || (fin == inicio + 1 &&
+		(*inicio == '-' || *inicio == '+')))
+	{
+		return 0;
+	}
+
+	if(*fin != '\0')
+	{
+		for(size_t i = 0;
+			i < sizeof(GG_caracter_separacion) / sizeof(GG_caracter_separacion[0]);
+			i++)
+		{
+			size_t longitud = strlen(GG_caracter_separacion[i]);
+			if(strncmp(fin, GG_caracter_separacion[i], longitud) == 0)
+			{
+				separadorEncontrado = 1;
+				break;
+			}
+		}
+		if(!separadorEncontrado) return 0;
+	}
+
+	return textoAEnteroN(inicio, (size_t)(fin - inicio), codigo);
+ }
+
+/* Interpreta como error un código negativo o una cadena de resultado inválida. */
+ static int resultadoTieneError(const char *texto)
+ {
+ 	int codigo;
+ 	return !leerCodigoResultado(texto, &codigo) || codigo < 0;
+ }
+
+
 
 #pragma endregion FUNCIONES_DE_DEPURACION
