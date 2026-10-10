@@ -151,7 +151,7 @@
 /* La aplicación superior no ve FILE*, malloc ni los periféricos de consola. */
  static void * sistema_memoria_reservar(size_t cantidad);
  static void * sistema_memoria_redimensionar(void * memoria, size_t cantidad);
- static void sistema_memoria_liberar(void * memoria);
+ static void sistema_memoria_liberar(void * memoria, /* #sym:sistema_memoria_liberar */ int nivel_de_profundidad);
  static SistemaArchivo * sistema_archivo_abrir(const char * ruta,const char * modo);
  static int sistema_archivo_cerrar(SistemaArchivo *archivo);
  static int sistema_archivo_eliminar(const char * ruta);
@@ -164,7 +164,7 @@
  static int sistema_consola_leer_caracter(void);
  static int sistema_consola_escribir_caracter(int caracter);
  static int sistema_consola_escribir_texto(const char *texto);
- static int sistema_consola_escribir_formato(const char *formato, ...);
+ static int sistema_consola_escribir_formato(/* #sym:sistema_consola_escribir_formato */ int nivel_de_profundidad, const char *formato, ...);
  
  #pragma endregion CAPA DE MEMORIA, ARCHIVOS Y CONSOLA
 
@@ -284,7 +284,7 @@
  void liberarSplit(char ** partes, int cantidad, int nivel_de_profundidad);
  char * join(char ** arreglo, int cantidad,const char * carcter_separacion,int nivel_de_profundidad);
  
-  static int textoAEntero(const char *texto, int *resultado);
+  static int textoAEntero(const char *texto, int *resultado, /* #sym:textoAEntero */ int nivel_de_profundidad);
 
 
  #pragma endregion DECLARACIÓN DE FUNCIONES DE OPERACIONES DE TEXTO
@@ -319,25 +319,25 @@ int prueba(void)
 
 	for(;;)
 	{
-		sistema_consola_escribir_formato("\n=== MENÚ DE PRUEBAS ===\n");
-		sistema_consola_escribir_formato("1. Probar comandos de texto y archivos\n");
-		sistema_consola_escribir_formato("2. Probar envío y consulta de mensajes\n");
-		sistema_consola_escribir_formato("3. Probar operaciones de texto\n");
-		sistema_consola_escribir_formato("4. Probar funciones auxiliares e infraestructura\n");
-		sistema_consola_escribir_formato("5. Volver al menú principal\n");
-		sistema_consola_escribir_formato("Seleccione una opción: ");
+		sistema_consola_escribir_formato(0, "\n=== MENÚ DE PRUEBAS ===\n");
+		sistema_consola_escribir_formato(0, "1. Probar comandos de texto y archivos\n");
+		sistema_consola_escribir_formato(0, "2. Probar envío y consulta de mensajes\n");
+		sistema_consola_escribir_formato(0, "3. Probar operaciones de texto\n");
+		sistema_consola_escribir_formato(0, "4. Probar funciones auxiliares e infraestructura\n");
+		sistema_consola_escribir_formato(0, "5. Volver al menú principal\n");
+		sistema_consola_escribir_formato(0, "Seleccione una opción: ");
 
 		char *entrada = leerLineaConsola(1);
 		if(entrada == NULL)
 		{
-			sistema_consola_escribir_formato(
+			sistema_consola_escribir_formato(0, 
 				"No se pudo leer la opción del menú de pruebas.\n"
 			);
 			return -1;
 		}
 
-		int entradaValida = textoAEntero(entrada, &opcion);
-		sistema_memoria_liberar(entrada);
+		int entradaValida = textoAEntero(entrada, &opcion, 1);
+		sistema_memoria_liberar(entrada, 0);
 		if(!entradaValida)
 		{
 			opcion = 0;
@@ -367,30 +367,30 @@ int prueba(void)
 			case 4:
 				if(submenu_pruebas_auxiliares() != 0)
 				{
-					sistema_consola_escribir_formato(
+					sistema_consola_escribir_formato(0, 
 						"Una prueba auxiliar no pudo completarse.\n"
 					);
 				}
 				continue;
 			case 5:
-				sistema_consola_escribir_formato(
+				sistema_consola_escribir_formato(0, 
 					"Volviendo al menú principal...\n"
 				);
 				return 0;
 			default:
-				sistema_consola_escribir_formato("Opción no válida.\n");
+				sistema_consola_escribir_formato(0, "Opción no válida.\n");
 				continue;
 		}
 
 		if(resultadoPrueba == NULL)
 		{
-			sistema_consola_escribir_formato(
+			sistema_consola_escribir_formato(0, 
 				"No se pudo completar la opción del submenú.\n"
 			);
 			return -1;
 		}
 
-		sistema_memoria_liberar(resultadoPrueba);
+		sistema_memoria_liberar(resultadoPrueba, 0);
 	}
  }
 
@@ -403,67 +403,67 @@ int prueba(void)
  	int opcion = 0;             /* Opción numérica elegida en el menú principal. */
  	char * resultado = NULL;    /* Último resultado codificado; se libera antes de reemplazarlo. */
  	do {
- 		sistema_consola_escribir_formato("\n=== MENÚ PRINCIPAL ===\n");
- 		sistema_consola_escribir_formato("1. comandos_tex_base\n");
- 		sistema_consola_escribir_formato("2. enlasador_mandar_mensajes\n");
- 		sistema_consola_escribir_formato("3. operaciones_de_texto\n");
- 		sistema_consola_escribir_formato("4. Salir\n");
-		sistema_consola_escribir_formato("5. Ejecutar prueba del sistema\n");
- 		sistema_consola_escribir_formato("Seleccione una opción: ");
- 		char * optStr = leerLineaConsola(1);
+ 		sistema_consola_escribir_formato(0, "\n=== MENÚ PRINCIPAL ===\n");
+ 		sistema_consola_escribir_formato(0, "1. comandos_tex_base\n");
+ 		sistema_consola_escribir_formato(0, "2. enlasador_mandar_mensajes\n");
+ 		sistema_consola_escribir_formato(0, "3. operaciones_de_texto\n");
+ 		sistema_consola_escribir_formato(0, "4. Salir\n");
+		sistema_consola_escribir_formato(0, "5. Ejecutar prueba del sistema\n");
+ 		sistema_consola_escribir_formato(0, "Seleccione una opción: ");
+ 		char * optStr = leerLineaConsola(0);
  		if(optStr == NULL)
  		{
  			opcion = 4;
- 			sistema_memoria_liberar(resultado);
+ 			sistema_memoria_liberar(resultado, 0);
  			resultado = crearResultado(0, "entrada_finalizada", "", "main", 1);
  			break;
  		}
- 		if(!textoAEntero(optStr, &opcion)) opcion = 0;
- 		sistema_memoria_liberar(optStr);
+ 		if(!textoAEntero(optStr, &opcion, 0)) opcion = 0;
+ 		sistema_memoria_liberar(optStr, 0);
  		switch(opcion)
  		{
  			case 1:
  			{
  				const char *parametros = "l";
- 				sistema_memoria_liberar(resultado);
+ 				sistema_memoria_liberar(resultado, 0);
  				resultado = submenu_tex_base(parametros, 1);
  				char * resultadoMain = crearResultado(1, "", "1", __func__, 1);
- 				sistema_consola_escribir_formato("%s\n", resultadoMain);
- 				sistema_memoria_liberar(resultadoMain);
+ 				sistema_consola_escribir_formato(0, "%s\n", resultadoMain);
+ 				sistema_memoria_liberar(resultadoMain, 0);
  				break;
  			}
  			case 2:
  			{
  				const char *parametros = "mandar_todos,mandar_contacto,mandar_primero";
- 				sistema_memoria_liberar(resultado);
+ 				sistema_memoria_liberar(resultado, 0);
  				resultado = submenu_enlasador_mandar_mensajes(parametros, 1);
  				char * resultadoMain = crearResultado(1, "", "1", __func__, 1);
- 				sistema_consola_escribir_formato("%s\n", resultadoMain);
- 				sistema_memoria_liberar(resultadoMain);
+ 				sistema_consola_escribir_formato(0, "%s\n", resultadoMain);
+ 				sistema_memoria_liberar(resultadoMain, 0);
  				break;
  			}
  			case 3:
  			{
  				const char *parametros = "split,modificar_columna,leer_linea";
- 				sistema_memoria_liberar(resultado);
+ 				sistema_memoria_liberar(resultado, 0);
  				resultado = submenu_operaciones_de_texto(parametros, 1);
  				char * resultadoMain = crearResultado(1, "", "1", __func__, 1);
- 				sistema_consola_escribir_formato("%s\n", resultadoMain);
- 				sistema_memoria_liberar(resultadoMain);
+ 				sistema_consola_escribir_formato(0, "%s\n", resultadoMain);
+ 				sistema_memoria_liberar(resultadoMain, 0);
  				break;
  			}
  			case 4:
  			{
- 				sistema_consola_escribir_formato("Saliendo...\n");
- 				sistema_memoria_liberar(resultado);
+ 				sistema_consola_escribir_formato(0, "Saliendo...\n");
+ 				sistema_memoria_liberar(resultado, 0);
  				resultado = crearResultado(0, "salida_ok", "", "main", 1);
- 				sistema_consola_escribir_formato("%s\n", resultado);
+ 				sistema_consola_escribir_formato(0, "%s\n", resultado);
  				break;
  			}
 			case 5:
 			{
 				int codigoPrueba = prueba();
-				sistema_memoria_liberar(resultado);
+				sistema_memoria_liberar(resultado, 0);
 				resultado = crearResultado(
 					codigoPrueba == 0 ? 1 : -1,
 					codigoPrueba == 0 ? "prueba_ok" : "prueba_fallida",
@@ -473,37 +473,37 @@ int prueba(void)
 				);
 				if(resultado == NULL)
 				{
-					sistema_consola_escribir_formato(
+					sistema_consola_escribir_formato(0, 
 						"No se pudo crear el resultado de la prueba.\n"
 					);
 				}
 				else
 				{
-					sistema_consola_escribir_formato("%s\n", resultado);
+					sistema_consola_escribir_formato(0, "%s\n", resultado);
 					if(codigoPrueba == 0)
 					{
-						sistema_consola_escribir_formato("Prueba superada.\n");
+						sistema_consola_escribir_formato(0, "Prueba superada.\n");
 					}
 					else
 					{
-						sistema_consola_escribir_formato("Prueba fallida.\n");
+						sistema_consola_escribir_formato(0, "Prueba fallida.\n");
 					}
 				}
 				break;
 			}
  			default:
  			{
- 				sistema_consola_escribir_formato("Opción no válida.\n");
- 				sistema_memoria_liberar(resultado);
+ 				sistema_consola_escribir_formato(0, "Opción no válida.\n");
+ 				sistema_memoria_liberar(resultado, 0);
  				resultado = crearResultado(-2, "opcion_no_valida", "", "main", 1);
- 				sistema_consola_escribir_formato("%s\n", resultado);
+ 				sistema_consola_escribir_formato(0, "%s\n", resultado);
  				break;
  			}
  		}
  	} while(opcion != 4);
  	int codigoFinal = -1;
  	leerCodigoResultado(resultado, &codigoFinal);
- 	sistema_memoria_liberar(resultado);
+ 	sistema_memoria_liberar(resultado, 0);
  	return codigoFinal;
  }
  
@@ -532,134 +532,134 @@ int prueba(void)
  	if(parametros_en_texto_a_splitear != NULL)
  	{
  		parametros_espliteados = split(parametros_en_texto_a_splitear, ",", & cantidad, nivel_de_profundidad);
- 		sistema_consola_escribir_formato("[split tex_base] elementos: %d\n", cantidad);
+ 		sistema_consola_escribir_formato(0, "[split tex_base] elementos: %d\n", cantidad);
  		for(int i = 0; i < cantidad; i++)
  		{
- 			sistema_consola_escribir_formato("  [%d] %s\n", i, parametros_espliteados[i]);
+ 			sistema_consola_escribir_formato(0, "  [%d] %s\n", i, parametros_espliteados[i]);
  		}
  		liberarSplit(parametros_espliteados, cantidad, nivel_de_profundidad);
  	}
- 	sistema_consola_escribir_formato("\n=== SUBMENÚ comandos_tex_base ===\n");
- 	sistema_consola_escribir_formato("1. Leer todo el archivo\n");
- 	sistema_consola_escribir_formato("2. Añadir nueva línea\n");
- 	sistema_consola_escribir_formato("3. Editar línea completa por ID\n");
- 	sistema_consola_escribir_formato("4. Editar columna específica de una línea\n");
- 	sistema_consola_escribir_formato("5. Eliminar línea por ID\n");
- 	sistema_consola_escribir_formato("6. Vaciar línea por ID\n");
- 	sistema_consola_escribir_formato("7. Ejecutar ejemplos de prueba\n");
- 	sistema_consola_escribir_formato("8. Volver al menú anterior\n");
- 	sistema_consola_escribir_formato("Seleccione una opción: ");
+ 	sistema_consola_escribir_formato(0, "\n=== SUBMENÚ comandos_tex_base ===\n");
+ 	sistema_consola_escribir_formato(0, "1. Leer todo el archivo\n");
+ 	sistema_consola_escribir_formato(0, "2. Añadir nueva línea\n");
+ 	sistema_consola_escribir_formato(0, "3. Editar línea completa por ID\n");
+ 	sistema_consola_escribir_formato(0, "4. Editar columna específica de una línea\n");
+ 	sistema_consola_escribir_formato(0, "5. Eliminar línea por ID\n");
+ 	sistema_consola_escribir_formato(0, "6. Vaciar línea por ID\n");
+ 	sistema_consola_escribir_formato(0, "7. Ejecutar ejemplos de prueba\n");
+ 	sistema_consola_escribir_formato(0, "8. Volver al menú anterior\n");
+ 	sistema_consola_escribir_formato(0, "Seleccione una opción: ");
  	char * optStr = leerLineaConsola(nivel_de_profundidad);
- 	if(!textoAEntero(optStr, &opcion)) opcion = 0;
- 	sistema_memoria_liberar(optStr);
+ 	if(!textoAEntero(optStr, &opcion, nivel_de_profundidad)) opcion = 0;
+ 	sistema_memoria_liberar(optStr, 0);
  	switch(opcion)
  	{
  		case 1:
  		{
- 			sistema_memoria_liberar(resultado);
+ 			sistema_memoria_liberar(resultado, 0);
  			resultado = leerArchivo(NOMBRE_ARCHIVO, nivel_de_profundidad);
- 			sistema_memoria_liberar(estado);
+ 			sistema_memoria_liberar(estado, 0);
 			estado = crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  			break;
  		}
  		case 2:
  		{
- 			sistema_consola_escribir_formato("Ingrese el texto/línea a añadir: ");
+ 			sistema_consola_escribir_formato(0, "Ingrese el texto/línea a añadir: ");
  			char * texto = leerLineaConsola(nivel_de_profundidad);
- 			sistema_memoria_liberar(resultado);
+ 			sistema_memoria_liberar(resultado, 0);
  			resultado = escribirLinea(NOMBRE_ARCHIVO, texto, nivel_de_profundidad);
- 			sistema_memoria_liberar(texto);
- 			sistema_memoria_liberar(estado);
+ 			sistema_memoria_liberar(texto, 0);
+ 			sistema_memoria_liberar(estado, 0);
 			estado = crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  			break;
  		}
  		case 3:
  		{
- 			sistema_consola_escribir_formato("Ingrese ID de línea a editar: ");
+ 			sistema_consola_escribir_formato(0, "Ingrese ID de línea a editar: ");
  			char * inId = leerLineaConsola(nivel_de_profundidad);
- 			if(!textoAEntero(inId, &idLinea)) idLinea = 0;
- 			sistema_memoria_liberar(inId);
- 			sistema_consola_escribir_formato("Ingrese el nuevo contenido completo: ");
+ 			if(!textoAEntero(inId, &idLinea, nivel_de_profundidad)) idLinea = 0;
+ 			sistema_memoria_liberar(inId, 0);
+ 			sistema_consola_escribir_formato(0, "Ingrese el nuevo contenido completo: ");
  			char * texto = leerLineaConsola(nivel_de_profundidad);
- 			sistema_memoria_liberar(resultado);
+ 			sistema_memoria_liberar(resultado, 0);
  			resultado = editarLinea(NOMBRE_ARCHIVO, idLinea, texto, nivel_de_profundidad);
- 			sistema_memoria_liberar(texto);
- 			sistema_memoria_liberar(estado);
+ 			sistema_memoria_liberar(texto, 0);
+ 			sistema_memoria_liberar(estado, 0);
 			estado = crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  			break;
  		}
  		case 4:
  		{
- 			sistema_consola_escribir_formato("Ingrese ID de línea a editar: ");
+ 			sistema_consola_escribir_formato(0, "Ingrese ID de línea a editar: ");
  			char * inId = leerLineaConsola(nivel_de_profundidad);
- 			if(!textoAEntero(inId, &idLinea)) idLinea = 0;
- 			sistema_memoria_liberar(inId);
- 			sistema_consola_escribir_formato("Ingrese el número de columna a editar (1, 2, ...): ");
+ 			if(!textoAEntero(inId, &idLinea, nivel_de_profundidad)) idLinea = 0;
+ 			sistema_memoria_liberar(inId, 0);
+ 			sistema_consola_escribir_formato(0, "Ingrese el número de columna a editar (1, 2, ...): ");
  			char * inCol = leerLineaConsola(nivel_de_profundidad);
- 			if(!textoAEntero(inCol, &idColumna)) idColumna = 0;
- 			sistema_memoria_liberar(inCol);
- 			sistema_consola_escribir_formato("Ingrese el nuevo valor para esa columna: ");
+ 			if(!textoAEntero(inCol, &idColumna, nivel_de_profundidad)) idColumna = 0;
+ 			sistema_memoria_liberar(inCol, 0);
+ 			sistema_consola_escribir_formato(0, "Ingrese el nuevo valor para esa columna: ");
  			char * valor = leerLineaConsola(nivel_de_profundidad);
- 			sistema_memoria_liberar(resultado);
+ 			sistema_memoria_liberar(resultado, 0);
  			resultado = editarColumna(NOMBRE_ARCHIVO, idLinea, idColumna, valor, nivel_de_profundidad);
- 			sistema_memoria_liberar(valor);
- 			sistema_memoria_liberar(estado);
+ 			sistema_memoria_liberar(valor, 0);
+ 			sistema_memoria_liberar(estado, 0);
 			estado = crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  			break;
  		}
  		case 5:
  		{
- 			sistema_consola_escribir_formato("Ingrese ID de línea a eliminar: ");
+ 			sistema_consola_escribir_formato(0, "Ingrese ID de línea a eliminar: ");
  			char * inId = leerLineaConsola(nivel_de_profundidad);
- 			if(!textoAEntero(inId, &idLinea)) idLinea = 0;
- 			sistema_memoria_liberar(inId);
- 			sistema_memoria_liberar(resultado);
+ 			if(!textoAEntero(inId, &idLinea, nivel_de_profundidad)) idLinea = 0;
+ 			sistema_memoria_liberar(inId, 0);
+ 			sistema_memoria_liberar(resultado, 0);
  			resultado = eliminarLinea(NOMBRE_ARCHIVO, idLinea, nivel_de_profundidad);
- 			sistema_memoria_liberar(estado);
+ 			sistema_memoria_liberar(estado, 0);
 			estado = crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  			break;
  		}
  		case 6:
  		{
- 			sistema_consola_escribir_formato("Ingrese ID de línea a vaciar: ");
+ 			sistema_consola_escribir_formato(0, "Ingrese ID de línea a vaciar: ");
  			char * inId = leerLineaConsola(nivel_de_profundidad);
- 			if(!textoAEntero(inId, &idLinea)) idLinea = 0;
- 			sistema_memoria_liberar(inId);
- 			sistema_memoria_liberar(resultado);
+ 			if(!textoAEntero(inId, &idLinea, nivel_de_profundidad)) idLinea = 0;
+ 			sistema_memoria_liberar(inId, 0);
+ 			sistema_memoria_liberar(resultado, 0);
  			resultado = vaciarLinea(NOMBRE_ARCHIVO, idLinea, nivel_de_profundidad);
- 			sistema_memoria_liberar(estado);
+ 			sistema_memoria_liberar(estado, 0);
 			estado = crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  			break;
  		}
  		case 7:
  		{
- 			sistema_memoria_liberar(resultado);
+ 			sistema_memoria_liberar(resultado, 0);
  			resultado = ejecutarEjemplosPrueba(nivel_de_profundidad);
- 			sistema_memoria_liberar(estado);
+ 			sistema_memoria_liberar(estado, 0);
 			estado = crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  			break;
  		}
  		case 8:
  		{
- 			sistema_consola_escribir_formato("Volviendo al menú anterior...\n");
- 			sistema_memoria_liberar(estado);
- 			sistema_memoria_liberar(resultado);
+ 			sistema_consola_escribir_formato(0, "Volviendo al menú anterior...\n");
+ 			sistema_memoria_liberar(estado, 0);
+ 			sistema_memoria_liberar(resultado, 0);
 			return crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  		}
  		default:
  		{
- 			sistema_consola_escribir_formato("Opción no válida.\n");
- 			sistema_memoria_liberar(estado);
+ 			sistema_consola_escribir_formato(0, "Opción no válida.\n");
+ 			sistema_memoria_liberar(estado, 0);
 			estado = crearResultado(-2, "opcion_no_valida", "", __func__, nivel_de_profundidad);
  			break;
  		}
  	}
  	if(estado != NULL)
  	{
- 		sistema_consola_escribir_formato("%s\n", estado);
+ 		sistema_consola_escribir_formato(0, "%s\n", estado);
  	}
- 	sistema_memoria_liberar(estado);
- 	sistema_memoria_liberar(resultado);
+ 	sistema_memoria_liberar(estado, 0);
+ 	sistema_memoria_liberar(resultado, 0);
 	return crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  }
 /*
@@ -678,101 +678,101 @@ int prueba(void)
  	if(parametros_en_texto_a_splitear != NULL)
  	{
  		parametros_espliteados = split(parametros_en_texto_a_splitear, ",", & cantidad, nivel_de_profundidad);
- 		sistema_consola_escribir_formato("[split mensajes] elementos: %d\n", cantidad);
+ 		sistema_consola_escribir_formato(0, "[split mensajes] elementos: %d\n", cantidad);
  		for(int i = 0; i < cantidad; i++)
  		{
- 			sistema_consola_escribir_formato("  [%d] %s\n", i, parametros_espliteados[i]);
+ 			sistema_consola_escribir_formato(0, "  [%d] %s\n", i, parametros_espliteados[i]);
  		}
  		liberarSplit(parametros_espliteados, cantidad, nivel_de_profundidad);
  	}
- 	sistema_consola_escribir_formato("\n=== SUBMENÚ enlasador_mandar_mensajes ===\n");
- 	sistema_consola_escribir_formato("1. mandar_mensje_a_todos(mensaje)\n");
- 	sistema_consola_escribir_formato("2. mandar_mensje_a_contacto(mensaje, contactos, id_opcional)\n");
- 	sistema_consola_escribir_formato("3. mandar_mensje_al_primero_que_responda("
+ 	sistema_consola_escribir_formato(0, "\n=== SUBMENÚ enlasador_mandar_mensajes ===\n");
+ 	sistema_consola_escribir_formato(0, "1. mandar_mensje_a_todos(mensaje)\n");
+ 	sistema_consola_escribir_formato(0, "2. mandar_mensje_a_contacto(mensaje, contactos, id_opcional)\n");
+ 	sistema_consola_escribir_formato(0, "3. mandar_mensje_al_primero_que_responda("
  		"mensaje_pregunta, mensaje_de_que_ya_alguien_lo_acepto, "
  		"menaje_respuesta_al_quien_lo_logro)\n");
- 	sistema_consola_escribir_formato("4. Consultar si hay mensajes no leídos\n");
- 	sistema_consola_escribir_formato("5. Volver al menú anterior\n");
- 	sistema_consola_escribir_formato("Seleccione una opción: ");
+ 	sistema_consola_escribir_formato(0, "4. Consultar si hay mensajes no leídos\n");
+ 	sistema_consola_escribir_formato(0, "5. Volver al menú anterior\n");
+ 	sistema_consola_escribir_formato(0, "Seleccione una opción: ");
  	char * optStr = leerLineaConsola(nivel_de_profundidad);
- 	if(!textoAEntero(optStr, &opcion)) opcion = 0;
- 	sistema_memoria_liberar(optStr);
+ 	if(!textoAEntero(optStr, &opcion, nivel_de_profundidad)) opcion = 0;
+ 	sistema_memoria_liberar(optStr, 0);
  	switch(opcion)
  	{
  		case 1:
  		{
- 			sistema_consola_escribir_formato("Ingrese el mensaje para todos: ");
+ 			sistema_consola_escribir_formato(0, "Ingrese el mensaje para todos: ");
  			char * mensaje = leerLineaConsola(nivel_de_profundidad);
- 			sistema_memoria_liberar(resultado);
+ 			sistema_memoria_liberar(resultado, 0);
  			resultado = mandar_mensje_a_todos(mensaje, nivel_de_profundidad);
- 			sistema_memoria_liberar(mensaje);
- 			sistema_memoria_liberar(estado);
+ 			sistema_memoria_liberar(mensaje, 0);
+ 			sistema_memoria_liberar(estado, 0);
 			estado = crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  			break;
  		}
  		case 2:
  		{
- 			sistema_consola_escribir_formato("Ingrese el mensaje: ");
+ 			sistema_consola_escribir_formato(0, "Ingrese el mensaje: ");
  			char * mensaje = leerLineaConsola(nivel_de_profundidad);
- 			sistema_consola_escribir_formato("Ingrese la lista de contactos: ");
+ 			sistema_consola_escribir_formato(0, "Ingrese la lista de contactos: ");
  			char * contactos = leerLineaConsola(nivel_de_profundidad);
- 			sistema_consola_escribir_formato("Ingrese id opcional: ");
+ 			sistema_consola_escribir_formato(0, "Ingrese id opcional: ");
  			char * idStr = leerLineaConsola(nivel_de_profundidad);
  			int id_opcional = 0;
- 			textoAEntero(idStr, &id_opcional);
- 			sistema_memoria_liberar(idStr);
- 			sistema_memoria_liberar(resultado);
+ 			textoAEntero(idStr, &id_opcional, nivel_de_profundidad);
+ 			sistema_memoria_liberar(idStr, 0);
+ 			sistema_memoria_liberar(resultado, 0);
  			resultado = mandar_mensje_a_contacto(mensaje, contactos, id_opcional, nivel_de_profundidad);
- 			sistema_memoria_liberar(mensaje);
- 			sistema_memoria_liberar(contactos);
- 			sistema_memoria_liberar(estado);
+ 			sistema_memoria_liberar(mensaje, 0);
+ 			sistema_memoria_liberar(contactos, 0);
+ 			sistema_memoria_liberar(estado, 0);
 			estado = crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  			break;
  		}
  		case 3:
  		{
- 			sistema_consola_escribir_formato("Ingrese el mensaje de pregunta: ");
+ 			sistema_consola_escribir_formato(0, "Ingrese el mensaje de pregunta: ");
  			char * pregunta = leerLineaConsola(nivel_de_profundidad);
- 			sistema_consola_escribir_formato("Ingrese el mensaje de que alguien ya lo aceptó: ");
+ 			sistema_consola_escribir_formato(0, "Ingrese el mensaje de que alguien ya lo aceptó: ");
  			char * aceptado = leerLineaConsola(nivel_de_profundidad);
- 			sistema_consola_escribir_formato("Ingrese la respuesta a quien lo logró: ");
+ 			sistema_consola_escribir_formato(0, "Ingrese la respuesta a quien lo logró: ");
  			char * respuesta = leerLineaConsola(nivel_de_profundidad);
- 			sistema_memoria_liberar(resultado);
+ 			sistema_memoria_liberar(resultado, 0);
  			resultado = mandar_mensje_al_primero_que_responda(pregunta, aceptado, respuesta, nivel_de_profundidad);
- 			sistema_memoria_liberar(pregunta);
- 			sistema_memoria_liberar(aceptado);
- 			sistema_memoria_liberar(respuesta);
- 			sistema_memoria_liberar(estado);
+ 			sistema_memoria_liberar(pregunta, 0);
+ 			sistema_memoria_liberar(aceptado, 0);
+ 			sistema_memoria_liberar(respuesta, 0);
+ 			sistema_memoria_liberar(estado, 0);
 			estado = crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  			break;
  		}
 		case 4:
 		{
-			sistema_memoria_liberar(resultado);
+			sistema_memoria_liberar(resultado, 0);
 			resultado = checar_si_hay_mensajes_no_leido(nivel_de_profundidad);
 			if(resultado == NULL)
 			{
-				sistema_consola_escribir_formato(
+				sistema_consola_escribir_formato(0, 
 					"No se pudo crear el resultado de la consulta.\n"
 				);
 			}
 			else
 			{
-				sistema_consola_escribir_formato("%s\n", resultado);
+				sistema_consola_escribir_formato(0, "%s\n", resultado);
 				int codigoConsulta = 0;
 				if(leerCodigoResultado(resultado, &codigoConsulta))
 				{
 					if(codigoConsulta > 0)
 					{
-						sistema_consola_escribir_formato("Hay mensajes sin leer.\n");
+						sistema_consola_escribir_formato(0, "Hay mensajes sin leer.\n");
 					}
 					else if(codigoConsulta == 0)
 					{
-						sistema_consola_escribir_formato("No hay mensajes sin leer.\n");
+						sistema_consola_escribir_formato(0, "No hay mensajes sin leer.\n");
 					}
 					else
 					{
-						sistema_consola_escribir_formato("Falló la consulta de mensajes.\n");
+						sistema_consola_escribir_formato(0, "Falló la consulta de mensajes.\n");
 					}
 				}
 			}
@@ -780,25 +780,25 @@ int prueba(void)
 		}
  		case 5:
  		{
- 			sistema_consola_escribir_formato("Volviendo al menú anterior...\n");
- 			sistema_memoria_liberar(estado);
- 			sistema_memoria_liberar(resultado);
+ 			sistema_consola_escribir_formato(0, "Volviendo al menú anterior...\n");
+ 			sistema_memoria_liberar(estado, 0);
+ 			sistema_memoria_liberar(resultado, 0);
 				return crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  		}
  		default:
  		{
- 			sistema_consola_escribir_formato("Opción no válida.\n");
- 			sistema_memoria_liberar(estado);
+ 			sistema_consola_escribir_formato(0, "Opción no válida.\n");
+ 			sistema_memoria_liberar(estado, 0);
 			estado = crearResultado(-2, "opcion_no_valida", "", __func__, nivel_de_profundidad);
  			break;
  		}
  	}
  	if(estado != NULL)
  	{
- 		sistema_consola_escribir_formato("%s\n", estado);
+ 		sistema_consola_escribir_formato(0, "%s\n", estado);
  	}
- 	sistema_memoria_liberar(estado);
- 	sistema_memoria_liberar(resultado);
+ 	sistema_memoria_liberar(estado, 0);
+ 	sistema_memoria_liberar(resultado, 0);
 	return crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  }
 /*
@@ -815,98 +815,98 @@ int prueba(void)
  	if(parametros_en_texto_a_splitear != NULL)
  	{
  		parametros_espliteados = split(parametros_en_texto_a_splitear, ",", & cantidad, nivel_de_profundidad);
- 		sistema_consola_escribir_formato("[split operaciones_texto] elementos: %d\n", cantidad);
+ 		sistema_consola_escribir_formato(0, "[split operaciones_texto] elementos: %d\n", cantidad);
  		for(int i = 0; i < cantidad; i++)
  		{
- 			sistema_consola_escribir_formato("  [%d] %s\n", i, parametros_espliteados[i]);
+ 			sistema_consola_escribir_formato(0, "  [%d] %s\n", i, parametros_espliteados[i]);
  		}
  		liberarSplit(parametros_espliteados, cantidad, nivel_de_profundidad);
  	}
- 	sistema_consola_escribir_formato("\n=== SUBMENÚ operaciones_de_texto ===\n");
- 	sistema_consola_escribir_formato("1. split(texto, delimitador)\n");
- 	sistema_consola_escribir_formato("2. modificarColumna(linea, columna, nuevoValor)\n");
- 	sistema_consola_escribir_formato("3. leerLineaDinamica(consola)\n");
- 	sistema_consola_escribir_formato("4. Volver al menú anterior\n");
- 	sistema_consola_escribir_formato("Seleccione una opción: ");
+ 	sistema_consola_escribir_formato(0, "\n=== SUBMENÚ operaciones_de_texto ===\n");
+ 	sistema_consola_escribir_formato(0, "1. split(texto, delimitador)\n");
+ 	sistema_consola_escribir_formato(0, "2. modificarColumna(linea, columna, nuevoValor)\n");
+ 	sistema_consola_escribir_formato(0, "3. leerLineaDinamica(consola)\n");
+ 	sistema_consola_escribir_formato(0, "4. Volver al menú anterior\n");
+ 	sistema_consola_escribir_formato(0, "Seleccione una opción: ");
  	char * optStr = leerLineaConsola(nivel_de_profundidad);
- 	if(!textoAEntero(optStr, &opcion)) opcion = 0;
- 	sistema_memoria_liberar(optStr);
+ 	if(!textoAEntero(optStr, &opcion, nivel_de_profundidad)) opcion = 0;
+ 	sistema_memoria_liberar(optStr, 0);
  	switch(opcion)
  	{
  		case 1:
  		{
- 			sistema_consola_escribir_formato("Ingrese el texto a partir: ");
+ 			sistema_consola_escribir_formato(0, "Ingrese el texto a partir: ");
  			char * texto = leerLineaConsola(nivel_de_profundidad);
- 			sistema_consola_escribir_formato("Ingrese el delimitador: ");
+ 			sistema_consola_escribir_formato(0, "Ingrese el delimitador: ");
  			char * delimitador = leerLineaConsola(nivel_de_profundidad);
  			int total = 0; /* Número de segmentos obtenidos del texto ingresado. */
  			char ** partes = split(texto, delimitador, & total, nivel_de_profundidad);
  			if(partes == NULL)
  			{
- 				sistema_memoria_liberar(texto);
- 				sistema_memoria_liberar(delimitador);
- 				sistema_memoria_liberar(estado);
+ 				sistema_memoria_liberar(texto, 0);
+ 				sistema_memoria_liberar(delimitador, 0);
+ 				sistema_memoria_liberar(estado, 0);
 				estado = crearResultado(-1, "error_split", "", __func__, nivel_de_profundidad);
  				break;
  			}
  			for(int i = 0; i < total; i++)
  			{
- 				sistema_consola_escribir_formato("  parte[%d] = %s\n", i, partes[i]);
+ 				sistema_consola_escribir_formato(0, "  parte[%d] = %s\n", i, partes[i]);
  			}
  			liberarSplit(partes, total, nivel_de_profundidad);
- 			sistema_memoria_liberar(texto);
- 			sistema_memoria_liberar(delimitador);
- 			sistema_memoria_liberar(estado);
+ 			sistema_memoria_liberar(texto, 0);
+ 			sistema_memoria_liberar(delimitador, 0);
+ 			sistema_memoria_liberar(estado, 0);
 			estado = crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  			break;
  		}
  		case 2:
  		{
- 			sistema_consola_escribir_formato("Ingrese la línea original: ");
+ 			sistema_consola_escribir_formato(0, "Ingrese la línea original: ");
  			char * linea = leerLineaConsola(nivel_de_profundidad);
- 			sistema_consola_escribir_formato("Ingrese la columna a cambiar: ");
+ 			sistema_consola_escribir_formato(0, "Ingrese la columna a cambiar: ");
  			char * colStr = leerLineaConsola(nivel_de_profundidad);
  			int columna = 0;
- 			textoAEntero(colStr, &columna);
- 			sistema_memoria_liberar(colStr);
- 			sistema_consola_escribir_formato("Ingrese el nuevo valor: ");
+ 			textoAEntero(colStr, &columna, nivel_de_profundidad);
+ 			sistema_memoria_liberar(colStr, 0);
+ 			sistema_consola_escribir_formato(0, "Ingrese el nuevo valor: ");
  			char * nuevo = leerLineaConsola(nivel_de_profundidad);
  			char * resultadoMod = modificarColumna(linea, columna, nuevo, nivel_de_profundidad); /* Cadena nueva, p. ej. "a,B,c". */
  			if(resultadoMod == NULL)
  			{
- 				sistema_memoria_liberar(linea);
- 				sistema_memoria_liberar(nuevo);
- 				sistema_memoria_liberar(estado);
+ 				sistema_memoria_liberar(linea, 0);
+ 				sistema_memoria_liberar(nuevo, 0);
+ 				sistema_memoria_liberar(estado, 0);
 				estado = crearResultado(-1, "error_modificar_columna", "", __func__, nivel_de_profundidad);
  				break;
  			}
- 			sistema_consola_escribir_formato("Resultado: %s\n", resultadoMod);
- 			sistema_memoria_liberar(resultadoMod);
- 			sistema_memoria_liberar(linea);
- 			sistema_memoria_liberar(nuevo);
- 			sistema_memoria_liberar(estado);
+ 			sistema_consola_escribir_formato(0, "Resultado: %s\n", resultadoMod);
+ 			sistema_memoria_liberar(resultadoMod, 0);
+ 			sistema_memoria_liberar(linea, 0);
+ 			sistema_memoria_liberar(nuevo, 0);
+ 			sistema_memoria_liberar(estado, 0);
 			estado = crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  			break;
  		}
  		case 3:
  		{
- 			sistema_consola_escribir_formato("Ingrese una línea de texto: ");
+ 			sistema_consola_escribir_formato(0, "Ingrese una línea de texto: ");
  			char * linea = leerLineaConsola(nivel_de_profundidad);
  			if(linea == NULL)
  			{
- 				sistema_memoria_liberar(estado);
+ 				sistema_memoria_liberar(estado, 0);
 				estado = crearResultado(-1, "error_lectura", "", __func__, nivel_de_profundidad);
  				break;
  			}
- 			sistema_consola_escribir_formato("Línea recibida: %s\n", linea);
- 			sistema_memoria_liberar(linea);
- 			sistema_memoria_liberar(estado);
+ 			sistema_consola_escribir_formato(0, "Línea recibida: %s\n", linea);
+ 			sistema_memoria_liberar(linea, 0);
+ 			sistema_memoria_liberar(estado, 0);
 			estado = crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  			break;
  		}
  		case 4:
  		{
- 			sistema_consola_escribir_formato("Volviendo al menú anterior...\n");
+ 			sistema_consola_escribir_formato(0, "Volviendo al menú anterior...\n");
  			if(estado != NULL)
  			{
  				char * tmp = estado;
@@ -917,17 +917,17 @@ int prueba(void)
  		}
  		default:
  		{
- 			sistema_consola_escribir_formato("Opción no válida.\n");
- 			sistema_memoria_liberar(estado);
+ 			sistema_consola_escribir_formato(0, "Opción no válida.\n");
+ 			sistema_memoria_liberar(estado, 0);
 			estado = crearResultado(-2, "opcion_no_valida", "", __func__, nivel_de_profundidad);
  			break;
  		}
  	}
  	if(estado != NULL)
  	{
- 		sistema_consola_escribir_formato("%s\n", estado);
+ 		sistema_consola_escribir_formato(0, "%s\n", estado);
  	}
- 	sistema_memoria_liberar(estado);
+ 	sistema_memoria_liberar(estado, 0);
 	return crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  }
  
@@ -1054,8 +1054,8 @@ int prueba(void)
  {
 	nivel_de_profundidad++;
  	if(partes == NULL) return;
- 	for(int i = 0; i < cantidad; i++) sistema_memoria_liberar(partes[i]);
- 	sistema_memoria_liberar(partes);
+ 	for(int i = 0; i < cantidad; i++) sistema_memoria_liberar(partes[i], 0);
+ 	sistema_memoria_liberar(partes, 0);
  }
 /*
  * Une cantidad elementos con un separador y reserva la cadena resultante.
@@ -1205,8 +1205,9 @@ int prueba(void)
  }
 
 /* Atajo para cadenas C: strlen() obtiene longitud y delega validación/rango. */
- static int textoAEntero(const char *texto, int *resultado)
+ static int textoAEntero(const char *texto, int *resultado, /* #sym:textoAEntero */ int nivel_de_profundidad)
  {
+	(void)nivel_de_profundidad;
  	return texto != NULL
  		? textoAEnteroN(texto, strlen(texto), resultado)
  		: 0;
@@ -1217,13 +1218,15 @@ int prueba(void)
  * Ejemplo: ("línea %d: %s\n", 2, "Ana") escribe "línea 2: Ana".
  * Devuelve 0 al escribir todo y -1 si el formato o backend falla.
  */
- static int sistema_consola_escribir_formato(const char *formato, ...)
+ static int sistema_consola_escribir_formato(int nivel_de_profundidad, const char *formato, ...)
  {
+	nivel_de_profundidad++;
  	va_list argumentos;
  	const char *cursor;
  	const char *inicio;
  	int error = 0;
 
+ 	(void)nivel_de_profundidad;
  	if(formato == NULL) return -1;
 
  	va_start(argumentos, formato);
@@ -1391,7 +1394,7 @@ static char *leerLineaDesde(
 
             if (capacidad > (size_t)-1 / 2)
             {
-                sistema_memoria_liberar(linea);
+                sistema_memoria_liberar(linea, 0);
                 return NULL;
             }
             capacidad *= 2;
@@ -1406,7 +1409,7 @@ static char *leerLineaDesde(
 
             if (temporal == NULL)
             {
-                sistema_memoria_liberar(linea);
+                sistema_memoria_liberar(linea, 0);
                 return NULL;
             }
 
@@ -1433,7 +1436,7 @@ static char *leerLineaDesde(
     if (longitud == 0 &&
         caracter == SISTEMA_ARCHIVO_FIN_LECTURA)
     {
-        sistema_memoria_liberar(linea);
+        sistema_memoria_liberar(linea, 0);
         return NULL;
     }
 
@@ -1500,7 +1503,7 @@ char * modificarColumna(const char * lineaOriginal,
  	}
 
  	size_t longitud = strlen(nuevoValor) + 1; /* Incluye el '\0' que memcpy también copiará. */
- 	sistema_memoria_liberar(partes[columnaTarget - 1]);
+ 	sistema_memoria_liberar(partes[columnaTarget - 1], 0);
  	partes[columnaTarget - 1] = sistema_memoria_reservar(longitud);
  	if(partes[columnaTarget - 1] == NULL)
  	{
@@ -1612,7 +1615,7 @@ static int aplicarOperacionLinea(
 							/* La copia modificada se libera tras escribirla o ante error. */
 							char * modificada = modificarColumna(linea, columna, contenido, nivel_de_profundidad);
 				if(modificada == NULL || escribirLineaArchivo(temporal, modificada) != 0) error = 1;
-				sistema_memoria_liberar(modificada);
+				sistema_memoria_liberar(modificada, 0);
 			}
 		}
 		else if(escribirLineaArchivo(temporal, linea) != 0)
@@ -1620,7 +1623,7 @@ static int aplicarOperacionLinea(
 			error = 1;
 		}
 
-		sistema_memoria_liberar(linea);
+		sistema_memoria_liberar(linea, 0);
 		actual++;
 	}
 
@@ -1662,15 +1665,15 @@ static int aplicarOperacionLinea(
  	}
  	int numeroLinea = 1; /* Número que se muestra junto a cada línea. */
  	char *linea;          /* Línea dinámica leída; se libera inmediatamente tras mostrarla. */
- 	sistema_consola_escribir_formato("\n--- CONTENIDO DE [%s] ---\n", ruta);
+ 	sistema_consola_escribir_formato(0, "\n--- CONTENIDO DE [%s] ---\n", ruta);
  	while((linea = leerLineaDinamica(archivo, nivel_de_profundidad)) != NULL)
  	{
- 		sistema_consola_escribir_formato("%d: %s\n", numeroLinea++, linea);
- 		sistema_memoria_liberar(linea);
+ 		sistema_consola_escribir_formato(0, "%d: %s\n", numeroLinea++, linea);
+ 		sistema_memoria_liberar(linea, 0);
  	}
  	int errorLectura = sistema_archivo_hay_error(archivo);
  	int errorCierre = sistema_archivo_cerrar(archivo);
- 	sistema_consola_escribir_formato("-----------------------------------\n");
+ 	sistema_consola_escribir_formato(0, "-----------------------------------\n");
  	if(errorLectura || errorCierre != 0)
  	{
  		return crearResultado(-1, "error_al_leer_archivo", "", __func__, nivel_de_profundidad);
@@ -1865,43 +1868,43 @@ static int aplicarOperacionLinea(
  	{
  		exito = 0;
  	}
- 	sistema_memoria_liberar(lineaModificada);
+ 	sistema_memoria_liberar(lineaModificada, 0);
 
  	char *resultadoOperacion = NULL; /* Cada operación devuelve un resultado que se libera aquí. */
  	if(exito)
  	{
  		resultadoOperacion = escribirLinea(rutaPrueba, "Luis,10,Desarrollador", nivel_de_profundidad);
  		if(resultadoTieneError(resultadoOperacion)) exito = 0;
- 		sistema_memoria_liberar(resultadoOperacion);
+ 		sistema_memoria_liberar(resultadoOperacion, 0);
  	}
 
  	if(exito)
  	{
  		resultadoOperacion = escribirLinea(rutaPrueba, "Marta,20,QA", nivel_de_profundidad);
  		if(resultadoTieneError(resultadoOperacion)) exito = 0;
- 		sistema_memoria_liberar(resultadoOperacion);
+ 		sistema_memoria_liberar(resultadoOperacion, 0);
  	}
 
  	if(exito)
  	{
  		resultadoOperacion = editarColumna(rutaPrueba, 1, 2, "15", nivel_de_profundidad);
  		if(resultadoTieneError(resultadoOperacion)) exito = 0;
- 		sistema_memoria_liberar(resultadoOperacion);
+ 		sistema_memoria_liberar(resultadoOperacion, 0);
  	}
 
  	if(exito)
  	{
  		resultadoOperacion = eliminarLinea(rutaPrueba, 2, nivel_de_profundidad);
  		if(resultadoTieneError(resultadoOperacion)) exito = 0;
- 		sistema_memoria_liberar(resultadoOperacion);
+ 		sistema_memoria_liberar(resultadoOperacion, 0);
  	}
 
  	if(exito)
  	{
- 		sistema_consola_escribir_formato("\n--- ARCHIVO DE PRUEBA RESULTANTE ---\n");
+ 		sistema_consola_escribir_formato(0, "\n--- ARCHIVO DE PRUEBA RESULTANTE ---\n");
  		resultadoOperacion = leerArchivo(rutaPrueba, nivel_de_profundidad);
  		if(resultadoTieneError(resultadoOperacion)) exito = 0;
- 		sistema_memoria_liberar(resultadoOperacion);
+ 		sistema_memoria_liberar(resultadoOperacion, 0);
  	}
 
  	{
@@ -2047,8 +2050,9 @@ static int aplicarOperacionLinea(
  	return realloc(memoria, cantidad);
  }
 /* Libera un bloque obtenido con reservar/redimensionar; NULL es seguro en free(). */
- static void sistema_memoria_liberar(void * memoria)
+ static void sistema_memoria_liberar(void * memoria, /* #sym:sistema_memoria_liberar */ int nivel_de_profundidad)
  {
+	(void)nivel_de_profundidad;
  	free(memoria);
  }
 
@@ -2074,9 +2078,10 @@ static void * sistema_memoria_redimensionar(void *memoria, size_t cantidad)
 }
 
 /* Stub de liberación: no hay bloque asignado mientras reservar() falle. */
-static void sistema_memoria_liberar(void *memoria)
+static void sistema_memoria_liberar(void *memoria, /* #sym:sistema_memoria_liberar */ int nivel_de_profundidad)
 {
 	(void)memoria;
+	(void)nivel_de_profundidad;
 }
 
 #endif
@@ -2130,7 +2135,7 @@ static void sistema_memoria_liberar(void *memoria)
  	if(archivo == NULL) return -1;
 
  	int resultado = fclose(archivo->flujo);
- 	sistema_memoria_liberar(archivo);
+ 	sistema_memoria_liberar(archivo, 0);
  	return resultado;
 }
 
@@ -2527,7 +2532,7 @@ void imprimirMensaje_para_depurar_arreglo(
 #if defined(PIC16F) || defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
 		printf("%s[0]: (null)\n", prefijo);
 #else
-		sistema_consola_escribir_formato("%s[0]: (null)\n", prefijo);
+		sistema_consola_escribir_formato(0, "%s[0]: (null)\n", prefijo);
 #endif
 		return;
 	}
@@ -2560,7 +2565,7 @@ void imprimirMensaje_para_depurar_arreglo(
 #elif defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
 			printf("\n%s[%d]: %s", prefijo, i, valor);
 #else
-			sistema_consola_escribir_formato(
+			sistema_consola_escribir_formato(0, 
 				"\n%s[%d]: %s",
 				prefijo,
 				i,
@@ -2597,7 +2602,7 @@ void imprimirMensaje_para_depurar_arreglo(
 #elif defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
 		printf("%s[%d]: %s\n", prefijo, i, valor);
 #else
-		sistema_consola_escribir_formato(
+		sistema_consola_escribir_formato(0, 
 			"%s[%d]: %s\n",
 			prefijo,
 			i,
@@ -2612,7 +2617,7 @@ void imprimirMensaje_para_depurar_arreglo(
 #if defined(PIC16F) || defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
 		printf("%s[0]: (null)\n", prefijo);
 #else
-		sistema_consola_escribir_formato("%s[0]: (null)\n", prefijo);
+		sistema_consola_escribir_formato(0, "%s[0]: (null)\n", prefijo);
 #endif
 	}
 }
@@ -2627,34 +2632,34 @@ static int submenu_pruebas_auxiliares(void)
 
 	for(;;)
 	{
-		sistema_consola_escribir_formato("\n=== FUNCIONES AUXILIARES ===\n");
-		sistema_consola_escribir_formato("1. Probar split, liberarSplit y join\n");
-		sistema_consola_escribir_formato("2. Probar conversiones y lectura de resultados\n");
-		sistema_consola_escribir_formato("3. Probar crearResultado\n");
-		sistema_consola_escribir_formato("4. Probar reserva, redimensionamiento y liberación\n");
-		sistema_consola_escribir_formato("5. Probar primitivas de archivos\n");
-		sistema_consola_escribir_formato("6. Probar consola, configuración UTF-8 y depuración\n");
-		sistema_consola_escribir_formato("7. Volver al menú de pruebas\n");
-		sistema_consola_escribir_formato("Seleccione una opción: ");
+		sistema_consola_escribir_formato(0, "\n=== FUNCIONES AUXILIARES ===\n");
+		sistema_consola_escribir_formato(0, "1. Probar split, liberarSplit y join\n");
+		sistema_consola_escribir_formato(0, "2. Probar conversiones y lectura de resultados\n");
+		sistema_consola_escribir_formato(0, "3. Probar crearResultado\n");
+		sistema_consola_escribir_formato(0, "4. Probar reserva, redimensionamiento y liberación\n");
+		sistema_consola_escribir_formato(0, "5. Probar primitivas de archivos\n");
+		sistema_consola_escribir_formato(0, "6. Probar consola, configuración UTF-8 y depuración\n");
+		sistema_consola_escribir_formato(0, "7. Volver al menú de pruebas\n");
+		sistema_consola_escribir_formato(0, "Seleccione una opción: ");
 
 		char *entrada = leerLineaConsola(1);
 		if(entrada == NULL) return -1;
-		int entradaValida = textoAEntero(entrada, &opcion);
-		sistema_memoria_liberar(entrada);
+		int entradaValida = textoAEntero(entrada, &opcion, 1);
+		sistema_memoria_liberar(entrada, 0);
 		if(!entradaValida) opcion = 0;
 
 		switch(opcion)
 		{
 			case 1:
 			{
-				sistema_consola_escribir_formato("Texto para dividir: ");
+				sistema_consola_escribir_formato(0, "Texto para dividir: ");
 				char *texto = leerLineaConsola(1);
-				sistema_consola_escribir_formato("Separador: ");
+				sistema_consola_escribir_formato(0, "Separador: ");
 				char *separador = leerLineaConsola(1);
 				if(texto == NULL || separador == NULL)
 				{
-					sistema_memoria_liberar(texto);
-					sistema_memoria_liberar(separador);
+					sistema_memoria_liberar(texto, 0);
+					sistema_memoria_liberar(separador, 0);
 					return -1;
 				}
 
@@ -2662,61 +2667,61 @@ static int submenu_pruebas_auxiliares(void)
 				char **partes = split(texto, separador, &cantidad, 1);
 				if(partes == NULL)
 				{
-					sistema_consola_escribir_formato("split fallo.\n");
-					sistema_memoria_liberar(texto);
-					sistema_memoria_liberar(separador);
+					sistema_consola_escribir_formato(0, "split fallo.\n");
+					sistema_memoria_liberar(texto, 0);
+					sistema_memoria_liberar(separador, 0);
 					break;
 				}
 
-				sistema_consola_escribir_formato("Elementos: %d\n", cantidad);
+				sistema_consola_escribir_formato(0, "Elementos: %d\n", cantidad);
 				imprimirMensaje_para_depurar_arreglo(partes, "parte", cantidad);
-				sistema_consola_escribir_formato("\nSeparador para unir: ");
+				sistema_consola_escribir_formato(0, "\nSeparador para unir: ");
 				char *separadorUnion = leerLineaConsola(1);
 				if(separadorUnion == NULL)
 				{
 					liberarSplit(partes, cantidad, 1);
-					sistema_memoria_liberar(texto);
-					sistema_memoria_liberar(separador);
+					sistema_memoria_liberar(texto, 0);
+					sistema_memoria_liberar(separador, 0);
 					return -1;
 				}
 
 				char *unido = join(partes, cantidad, separadorUnion, 1);
 				if(unido == NULL)
 				{
-					sistema_consola_escribir_formato("join fallo.\n");
+					sistema_consola_escribir_formato(0, "join fallo.\n");
 				}
 				else
 				{
-					sistema_consola_escribir_formato("Resultado de join: %s\n", unido);
+					sistema_consola_escribir_formato(0, "Resultado de join: %s\n", unido);
 				}
-				sistema_memoria_liberar(unido);
-				sistema_memoria_liberar(separadorUnion);
+				sistema_memoria_liberar(unido, 0);
+				sistema_memoria_liberar(separadorUnion, 0);
 				liberarSplit(partes, cantidad, 1);
-				sistema_memoria_liberar(texto);
-				sistema_memoria_liberar(separador);
+				sistema_memoria_liberar(texto, 0);
+				sistema_memoria_liberar(separador, 0);
 				break;
 			}
 			case 2:
 			{
-				sistema_consola_escribir_formato("Entero decimal para convertir: ");
+				sistema_consola_escribir_formato(0, "Entero decimal para convertir: ");
 				char *entradaEntero = leerLineaConsola(1);
 				if(entradaEntero == NULL) return -1;
 
 				int valor = 0;
-				if(!textoAEntero(entradaEntero, &valor))
+				if(!textoAEntero(entradaEntero, &valor, 1))
 				{
-					sistema_consola_escribir_formato("No es un entero válido.\n");
+					sistema_consola_escribir_formato(0, "No es un entero válido.\n");
 				}
 				else
 				{
 					char buffer[sizeof(int) * CHAR_BIT + 2];
 					if(enteroATexto(valor, buffer, sizeof(buffer)) == NULL)
 					{
-						sistema_consola_escribir_formato("enteroATexto fallo.\n");
+						sistema_consola_escribir_formato(0, "enteroATexto fallo.\n");
 					}
 					else
 					{
-						sistema_consola_escribir_formato("enteroATexto: %s\n", buffer);
+						sistema_consola_escribir_formato(0, "enteroATexto: %s\n", buffer);
 					}
 					int valorPorTramo = 0;
 					if(textoAEnteroN(
@@ -2725,21 +2730,21 @@ static int submenu_pruebas_auxiliares(void)
 						&valorPorTramo
 					))
 					{
-						sistema_consola_escribir_formato(
+						sistema_consola_escribir_formato(0, 
 							"textoAEnteroN: %d\n",
 							valorPorTramo
 						);
 					}
 				}
-				sistema_memoria_liberar(entradaEntero);
+				sistema_memoria_liberar(entradaEntero, 0);
 
-				sistema_consola_escribir_formato("Traza para analizar: ");
+				sistema_consola_escribir_formato(0, "Traza para analizar: ");
 				char *traza = leerLineaConsola(1);
 				if(traza == NULL) return -1;
 				int codigo = 0;
 				if(leerCodigoResultado(traza, &codigo))
 				{
-					sistema_consola_escribir_formato(
+					sistema_consola_escribir_formato(0, 
 						"Código=%d; resultadoTieneError=%d\n",
 						codigo,
 						resultadoTieneError(traza)
@@ -2747,42 +2752,42 @@ static int submenu_pruebas_auxiliares(void)
 				}
 				else
 				{
-					sistema_consola_escribir_formato(
+					sistema_consola_escribir_formato(0, 
 						"leerCodigoResultado no pudo analizar la traza.\n"
 					);
 				}
-				sistema_memoria_liberar(traza);
+				sistema_memoria_liberar(traza, 0);
 				break;
 			}
 			case 3:
 			{
 				int codigo = 0;
 				int profundidad = 0;
-				sistema_consola_escribir_formato("Código entero: ");
+				sistema_consola_escribir_formato(0, "Código entero: ");
 				char *codigoTexto = leerLineaConsola(1);
-				sistema_consola_escribir_formato("Información (si aplica): ");
+				sistema_consola_escribir_formato(0, "Información (si aplica): ");
 				char *informacion = leerLineaConsola(1);
-				sistema_consola_escribir_formato("Resultado anterior (vacío si ninguno): ");
+				sistema_consola_escribir_formato(0, "Resultado anterior (vacío si ninguno): ");
 				char *anterior = leerLineaConsola(1);
-				sistema_consola_escribir_formato("Nombre de función (si aplica): ");
+				sistema_consola_escribir_formato(0, "Nombre de función (si aplica): ");
 				char *funcion = leerLineaConsola(1);
-				sistema_consola_escribir_formato("Nivel de profundidad: ");
+				sistema_consola_escribir_formato(0, "Nivel de profundidad: ");
 				char *nivelTexto = leerLineaConsola(1);
 				if(codigoTexto == NULL || informacion == NULL || anterior == NULL ||
 					funcion == NULL || nivelTexto == NULL)
 				{
-					sistema_memoria_liberar(codigoTexto);
-					sistema_memoria_liberar(informacion);
-					sistema_memoria_liberar(anterior);
-					sistema_memoria_liberar(funcion);
-					sistema_memoria_liberar(nivelTexto);
+					sistema_memoria_liberar(codigoTexto, 0);
+					sistema_memoria_liberar(informacion, 0);
+					sistema_memoria_liberar(anterior, 0);
+					sistema_memoria_liberar(funcion, 0);
+					sistema_memoria_liberar(nivelTexto, 0);
 					return -1;
 				}
 
-				if(!textoAEntero(codigoTexto, &codigo) ||
-					!textoAEntero(nivelTexto, &profundidad))
+				if(!textoAEntero(codigoTexto, &codigo, 1) ||
+					!textoAEntero(nivelTexto, &profundidad, 1))
 				{
-					sistema_consola_escribir_formato(
+					sistema_consola_escribir_formato(0, 
 						"Código o profundidad inválidos.\n"
 					);
 				}
@@ -2797,44 +2802,44 @@ static int submenu_pruebas_auxiliares(void)
 					);
 					if(resultado == NULL)
 					{
-						sistema_consola_escribir_formato(
+						sistema_consola_escribir_formato(0, 
 							"crearResultado devolvió NULL.\n"
 						);
 					}
 					else
 					{
-						sistema_consola_escribir_formato(
+						sistema_consola_escribir_formato(0, 
 							"Resultado creado: %s\n",
 							resultado
 						);
 					}
-					sistema_memoria_liberar(resultado);
+					sistema_memoria_liberar(resultado, 0);
 				}
-				sistema_memoria_liberar(codigoTexto);
-				sistema_memoria_liberar(informacion);
-				sistema_memoria_liberar(anterior);
-				sistema_memoria_liberar(funcion);
-				sistema_memoria_liberar(nivelTexto);
+				sistema_memoria_liberar(codigoTexto, 0);
+				sistema_memoria_liberar(informacion, 0);
+				sistema_memoria_liberar(anterior, 0);
+				sistema_memoria_liberar(funcion, 0);
+				sistema_memoria_liberar(nivelTexto, 0);
 				break;
 			}
 			case 4:
 			{
 				int tamano = 0;
-				sistema_consola_escribir_formato("Tamaño inicial (>0): ");
+				sistema_consola_escribir_formato(0, "Tamaño inicial (>0): ");
 				char *tamanoTexto = leerLineaConsola(1);
 				if(tamanoTexto == NULL) return -1;
-				if(!textoAEntero(tamanoTexto, &tamano) || tamano <= 0)
+				if(!textoAEntero(tamanoTexto, &tamano, 1) || tamano <= 0)
 				{
-					sistema_consola_escribir_formato("Tamaño inválido.\n");
-					sistema_memoria_liberar(tamanoTexto);
+					sistema_consola_escribir_formato(0, "Tamaño inválido.\n");
+					sistema_memoria_liberar(tamanoTexto, 0);
 					break;
 				}
-				sistema_memoria_liberar(tamanoTexto);
+				sistema_memoria_liberar(tamanoTexto, 0);
 
 				unsigned char *bloque = sistema_memoria_reservar((size_t)tamano);
 				if(bloque == NULL)
 				{
-					sistema_consola_escribir_formato(
+					sistema_consola_escribir_formato(0, 
 						"Reserva no disponible en este backend.\n"
 					);
 					break;
@@ -2847,17 +2852,17 @@ static int submenu_pruebas_auxiliares(void)
 				);
 				if(redimensionado == NULL)
 				{
-					sistema_memoria_liberar(bloque);
-					sistema_consola_escribir_formato(
+					sistema_memoria_liberar(bloque, 0);
+					sistema_consola_escribir_formato(0, 
 						"Redimensionamiento no disponible o fallido.\n"
 					);
 					break;
 				}
-				sistema_consola_escribir_formato(
+				sistema_consola_escribir_formato(0, 
 					"Bloque redimensionado; bytes iniciales conservados=%s\n",
 					(redimensionado[0] == 0x5A) ? "sí" : "no"
 				);
-				sistema_memoria_liberar(redimensionado);
+				sistema_memoria_liberar(redimensionado, 0);
 				break;
 			}
 			case 5:
@@ -2878,27 +2883,27 @@ static int submenu_pruebas_auxiliares(void)
 					{
 						sistema_archivo_cerrar(preexistenteRenombrado);
 					}
-					sistema_consola_escribir_formato(
+					sistema_consola_escribir_formato(0, 
 						"Los archivos temporales de prueba ya existen; no se modificaron.\n"
 					);
 					break;
 				}
-				sistema_consola_escribir_formato("Texto que se escribirá: ");
+				sistema_consola_escribir_formato(0, "Texto que se escribirá: ");
 				char *texto = leerLineaConsola(1);
-				sistema_consola_escribir_formato("Entero que se agregará: ");
+				sistema_consola_escribir_formato(0, "Entero que se agregará: ");
 				char *enteroTexto = leerLineaConsola(1);
 				int entero = 0;
 				if(texto == NULL || enteroTexto == NULL ||
-					!textoAEntero(enteroTexto, &entero))
+					!textoAEntero(enteroTexto, &entero, 1))
 				{
-					sistema_consola_escribir_formato(
+					sistema_consola_escribir_formato(0, 
 						"Entradas inválidas; no se ejecutó la prueba de archivo.\n"
 					);
-					sistema_memoria_liberar(texto);
-					sistema_memoria_liberar(enteroTexto);
+					sistema_memoria_liberar(texto, 0);
+					sistema_memoria_liberar(enteroTexto, 0);
 					break;
 				}
-				sistema_memoria_liberar(enteroTexto);
+				sistema_memoria_liberar(enteroTexto, 0);
 
 				SistemaArchivo *archivo = sistema_archivo_abrir(
 					rutaOriginal,
@@ -2935,7 +2940,7 @@ static int submenu_pruebas_auxiliares(void)
 					}
 					else
 					{
-						sistema_consola_escribir_formato("Contenido leído: ");
+						sistema_consola_escribir_formato(0, "Contenido leído: ");
 						int caracter;
 						while((caracter = sistema_archivo_leer_caracter(archivo)) !=
 							SISTEMA_ARCHIVO_FIN_LECTURA)
@@ -2961,17 +2966,17 @@ static int submenu_pruebas_auxiliares(void)
 				{
 					error = 1;
 				}
-				sistema_consola_escribir_formato(
+				sistema_consola_escribir_formato(0, 
 					"\nPrueba de primitivas de archivo: %s\n",
 					error ? "fallida" : "correcta"
 				);
-				sistema_memoria_liberar(texto);
+				sistema_memoria_liberar(texto, 0);
 				break;
 			}
 			case 6:
 			{
 				configurarConsolaUTF8();
-				sistema_consola_escribir_formato("Texto para imprimir: ");
+				sistema_consola_escribir_formato(0, "Texto para imprimir: ");
 				char *texto = leerLineaConsola(1);
 				if(texto == NULL) return -1;
 				sistema_consola_escribir_caracter('[');
@@ -2986,13 +2991,13 @@ static int submenu_pruebas_auxiliares(void)
 				char *elementos[] = { texto, NULL };
 				imprimirMensaje_para_depurar_arreglo(elementos, "dato", 1);
 				sistema_consola_escribir_caracter('\n');
-				sistema_memoria_liberar(texto);
+				sistema_memoria_liberar(texto, 0);
 				break;
 			}
 			case 7:
 				return 0;
 			default:
-				sistema_consola_escribir_formato("Opción no válida.\n");
+				sistema_consola_escribir_formato(0, "Opción no válida.\n");
 				break;
 		}
 	}
