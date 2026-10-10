@@ -149,22 +149,22 @@
  typedef struct SistemaArchivo SistemaArchivo;
  #define SISTEMA_ARCHIVO_FIN_LECTURA (-1)
 /* La aplicación superior no ve FILE*, malloc ni los periféricos de consola. */
- static void * sistema_memoria_reservar(size_t cantidad);
- static void * sistema_memoria_redimensionar(void * memoria, size_t cantidad);
- static void sistema_memoria_liberar(void * memoria, /* #sym:sistema_memoria_liberar */ int nivel_de_profundidad);
- static SistemaArchivo * sistema_archivo_abrir(const char * ruta,const char * modo);
- static int sistema_archivo_cerrar(SistemaArchivo *archivo);
- static int sistema_archivo_eliminar(const char * ruta);
- static int sistema_archivo_renombrar(const char * origen,const char * destino);
+ static void * sistema_memoria_reservar(size_t cantidad, int nivel_de_profundidad);
+ static void * sistema_memoria_redimensionar(void * memoria, size_t cantidad, int nivel_de_profundidad);
+ static void sistema_memoria_liberar(void * memoria, int nivel_de_profundidad);
+ static SistemaArchivo * sistema_archivo_abrir(const char * ruta,const char * modo, int nivel_de_profundidad);
+ static int sistema_archivo_cerrar(SistemaArchivo *archivo, int nivel_de_profundidad);
+ static int sistema_archivo_eliminar(const char * ruta, int nivel_de_profundidad);
+ static int sistema_archivo_renombrar(const char * origen,const char * destino, int nivel_de_profundidad);
  
- static int sistema_archivo_leer_caracter(SistemaArchivo *archivo);
- static int sistema_archivo_escribir_caracter(SistemaArchivo *archivo, int caracter);
- static int sistema_archivo_escribir_texto(SistemaArchivo *archivo, const char *texto);
- static int sistema_archivo_hay_error(SistemaArchivo *archivo);
- static int sistema_consola_leer_caracter(void);
- static int sistema_consola_escribir_caracter(int caracter);
- static int sistema_consola_escribir_texto(const char *texto);
- static int sistema_consola_escribir_formato(/* #sym:sistema_consola_escribir_formato */ int nivel_de_profundidad, const char *formato, ...);
+ static int sistema_archivo_leer_caracter(SistemaArchivo *archivo, int nivel_de_profundidad);
+ static int sistema_archivo_escribir_caracter(SistemaArchivo *archivo, int caracter, int nivel_de_profundidad);
+ static int sistema_archivo_escribir_texto(SistemaArchivo *archivo, const char *texto, int nivel_de_profundidad);
+ static int sistema_archivo_hay_error(SistemaArchivo *archivo, int nivel_de_profundidad);
+ static int sistema_consola_leer_caracter(int nivel_de_profundidad);
+ static int sistema_consola_escribir_caracter(int caracter, int nivel_de_profundidad);
+ static int sistema_consola_escribir_texto(const char *texto, int nivel_de_profundidad);
+ static int sistema_consola_escribir_formato(int nivel_de_profundidad, const char *formato, ...);
  
  #pragma endregion CAPA DE MEMORIA, ARCHIVOS Y CONSOLA
 
@@ -284,7 +284,7 @@
  void liberarSplit(char ** partes, int cantidad, int nivel_de_profundidad);
  char * join(char ** arreglo, int cantidad,const char * carcter_separacion,int nivel_de_profundidad);
  
-  static int textoAEntero(const char *texto, int *resultado, /* #sym:textoAEntero */ int nivel_de_profundidad);
+  static int textoAEntero(const char *texto, int *resultado, int nivel_de_profundidad);
 
 
  #pragma endregion DECLARACIÓN DE FUNCIONES DE OPERACIONES DE TEXTO
@@ -295,11 +295,11 @@
  #pragma region FUNCIONES_DE_DEPURACION
 
  char * crearResultado(int codigo,const char * informacion,const char * resultado_anterior,const char * funcion_llamante,int nivel_de_profundidad);
- void imprimirMensaje_para_depurar(const char *format, ...);
- void imprimirMensaje_para_depurar_arreglo(char **contenido, const char *texto, int total);
- static int submenu_pruebas_auxiliares(void);
- static int leerCodigoResultado(const char *texto, int *codigo);
- static int resultadoTieneError(const char *texto);
+ void imprimirMensaje_para_depurar(int nivel_de_profundidad, const char *format, ...);
+ void imprimirMensaje_para_depurar_arreglo(int nivel_de_profundidad, char **contenido, const char *texto, int total);
+ static int submenu_pruebas_auxiliares(int nivel_de_profundidad);
+ static int leerCodigoResultado(int nivel_de_profundidad, const char *texto, int *codigo);
+ static int resultadoTieneError(int nivel_de_profundidad, const char *texto);
 
  #pragma endregion FUNCIONES_DE_DEPURACION
 
@@ -365,7 +365,7 @@ int prueba(void)
 				);
 				break;
 			case 4:
-				if(submenu_pruebas_auxiliares() != 0)
+				if(submenu_pruebas_auxiliares(0) != 0)
 				{
 					sistema_consola_escribir_formato(0, 
 						"Una prueba auxiliar no pudo completarse.\n"
@@ -502,7 +502,7 @@ int prueba(void)
  		}
  	} while(opcion != 4);
  	int codigoFinal = -1;
- 	leerCodigoResultado(resultado, &codigoFinal);
+ 	leerCodigoResultado(0, resultado, &codigoFinal);
  	sistema_memoria_liberar(resultado, 0);
  	return codigoFinal;
  }
@@ -760,7 +760,7 @@ int prueba(void)
 			{
 				sistema_consola_escribir_formato(0, "%s\n", resultado);
 				int codigoConsulta = 0;
-				if(leerCodigoResultado(resultado, &codigoConsulta))
+				if(leerCodigoResultado(nivel_de_profundidad, resultado, &codigoConsulta))
 				{
 					if(codigoConsulta > 0)
 					{
@@ -988,7 +988,7 @@ int prueba(void)
  	size_t contador = 0;                               /* Partes completas ya guardadas. */
  	size_t inicio = 0;                                 /* Primer byte del campo actual. */
  	size_t posicion = 0;                               /* Byte examinado buscando el delimitador. */
- 	char **partes = sistema_memoria_reservar(capacidad * sizeof(*partes)); /* Vector dinámico. */
+ 	char **partes = sistema_memoria_reservar(capacidad * sizeof(*partes), nivel_de_profundidad); /* Vector dinámico. */
  	if(partes == NULL) return NULL;
 
  	while(posicion <= longitud_texto)
@@ -1015,7 +1015,7 @@ int prueba(void)
  				return NULL;
  			}
  			size_t nueva_capacidad = capacidad * 2; /* Duplica ranuras para amortizar realocaciones. */
- 			char **temporal = sistema_memoria_redimensionar(partes, nueva_capacidad * sizeof(*partes));
+ 			char **temporal = sistema_memoria_redimensionar(partes, nueva_capacidad * sizeof(*partes), nivel_de_profundidad);
  			if(temporal == NULL)
  			{
  				liberarSplit(partes, (int)contador, nivel_de_profundidad);
@@ -1026,7 +1026,7 @@ int prueba(void)
  		}
 
  		size_t longitud_parte = posicion - inicio; /* Bytes del campo, incluso si el campo está vacío. */
- 		partes[contador] = sistema_memoria_reservar(longitud_parte + 1);
+ 		partes[contador] = sistema_memoria_reservar(longitud_parte + 1, nivel_de_profundidad);
  		if(partes[contador] == NULL)
  		{
  			liberarSplit(partes, (int)contador, nivel_de_profundidad);
@@ -1054,8 +1054,8 @@ int prueba(void)
  {
 	nivel_de_profundidad++;
  	if(partes == NULL) return;
- 	for(int i = 0; i < cantidad; i++) sistema_memoria_liberar(partes[i], 0);
- 	sistema_memoria_liberar(partes, 0);
+ 	for(int i = 0; i < cantidad; i++) sistema_memoria_liberar(partes[i], nivel_de_profundidad);
+ 	sistema_memoria_liberar(partes, nivel_de_profundidad);
  }
 /*
  * Une cantidad elementos con un separador y reserva la cadena resultante.
@@ -1087,7 +1087,7 @@ int prueba(void)
  		}
  	}
 
- 	char *resultado = sistema_memoria_reservar(longitud_total); /* Buffer exacto que devuelve la función. */
+ 	char *resultado = sistema_memoria_reservar(longitud_total, nivel_de_profundidad); /* Buffer exacto que devuelve la función. */
  	if(resultado == NULL) return NULL;
 
  	char *destino = resultado;
@@ -1246,7 +1246,7 @@ int prueba(void)
 
  		while(inicio < cursor)
  		{
- 			if(sistema_consola_escribir_caracter((unsigned char)*inicio++) != 0)
+ 			if(sistema_consola_escribir_caracter((unsigned char)*inicio++, nivel_de_profundidad) != 0)
  			{
  				error = 1;
  				break;
@@ -1263,19 +1263,19 @@ int prueba(void)
  		if(*cursor == 's')
  		{
  			texto = va_arg(argumentos, const char *);
- 			if(texto == NULL || sistema_consola_escribir_texto(texto) != 0) error = 1;
+ 			if(texto == NULL || sistema_consola_escribir_texto(texto, nivel_de_profundidad) != 0) error = 1;
  		}
  		else if(*cursor == 'd')
  		{
  			if(enteroATexto(va_arg(argumentos, int), numero, sizeof(numero)) == NULL ||
- 				sistema_consola_escribir_texto(numero) != 0)
+ 				sistema_consola_escribir_texto(numero, nivel_de_profundidad) != 0)
  			{
  				error = 1;
  			}
  		}
  		else if(*cursor == '%')
  		{
- 			if(sistema_consola_escribir_caracter('%') != 0) error = 1;
+ 			if(sistema_consola_escribir_caracter('%', nivel_de_profundidad) != 0) error = 1;
  		}
  		else
  		{
@@ -1286,24 +1286,24 @@ int prueba(void)
  		inicio = cursor;
  	}
 
- 	if(!error && sistema_consola_escribir_texto(inicio) != 0) error = 1;
+ 	if(!error && sistema_consola_escribir_texto(inicio, nivel_de_profundidad) != 0) error = 1;
  	va_end(argumentos);
  	return error ? -1 : 0;
  }
 
 /* Escribe un entero decimal en archivo como texto; 0 significa éxito. */
- static int sistema_archivo_escribir_entero(SistemaArchivo *archivo, int valor)
+ static int sistema_archivo_escribir_entero(SistemaArchivo *archivo, int valor, int nivel_de_profundidad)
  {
  	char buffer[sizeof(int) * CHAR_BIT + 2];
  	if(enteroATexto(valor, buffer, sizeof(buffer)) == NULL) return -1;
- 	return sistema_archivo_escribir_texto(archivo, buffer);
+ 	return sistema_archivo_escribir_texto(archivo, buffer, nivel_de_profundidad);
  }
 
 /* Escribe texto seguido de '\n'; -1 señala que falló cualquiera de los dos pasos. */
- static int escribirLineaArchivo(SistemaArchivo *archivo, const char *texto)
+ static int escribirLineaArchivo(SistemaArchivo *archivo, const char *texto, int nivel_de_profundidad)
  {
- 	if(texto == NULL || sistema_archivo_escribir_texto(archivo, texto) != 0) return -1;
- 	return sistema_archivo_escribir_caracter(archivo, '\n');
+ 	if(texto == NULL || sistema_archivo_escribir_texto(archivo, texto, nivel_de_profundidad) != 0) return -1;
+ 	return sistema_archivo_escribir_caracter(archivo, '\n', nivel_de_profundidad);
  }
 
 
@@ -1325,7 +1325,7 @@ int prueba(void)
  * Ejemplo: bytes 'h','o','l','a','\n' -> cadena "hola".
  */
 static char *leerLineaDesde(
-    int (*leerCaracter)(void *contexto),
+    int (*leerCaracter)(void *contexto, int nivel_de_profundidad),
     void *contexto,
     int nivel_de_profundidad
 )
@@ -1358,7 +1358,7 @@ static char *leerLineaDesde(
      * Reservamos memoria.
      */
     linea =
-        (char *)sistema_memoria_reservar(capacidad);
+        (char *)sistema_memoria_reservar(capacidad, nivel_de_profundidad);
 
 
     if (linea == NULL)
@@ -1373,7 +1373,7 @@ static char *leerLineaDesde(
     /*
      * Leemos carácter por carácter.
      */
-    while ((caracter = leerCaracter(contexto)) != SISTEMA_ARCHIVO_FIN_LECTURA)
+    while ((caracter = leerCaracter(contexto, nivel_de_profundidad)) != SISTEMA_ARCHIVO_FIN_LECTURA)
     {
         /*
          * Final de línea.
@@ -1403,7 +1403,8 @@ static char *leerLineaDesde(
             temporal =
                 (char *)sistema_memoria_redimensionar(
                     linea,
-                    capacidad
+                    capacidad,
+                    nivel_de_profundidad
                 );
 
 
@@ -1450,17 +1451,17 @@ static char *leerLineaDesde(
     return linea;
 }
 
-static int leerCaracterArchivo(void *contexto)
+static int leerCaracterArchivo(void *contexto, int nivel_de_profundidad)
 {
 	/* El contexto es SistemaArchivo*; el backend traduce su EOF al valor común. */
-	return sistema_archivo_leer_caracter((SistemaArchivo *)contexto);
+	return sistema_archivo_leer_caracter((SistemaArchivo *)contexto, nivel_de_profundidad);
 }
 
-static int leerCaracterConsola(void *contexto)
+static int leerCaracterConsola(void *contexto, int nivel_de_profundidad)
 {
 	/* La consola no necesita objeto de contexto en la API actual. */
 	(void)contexto;
-	return sistema_consola_leer_caracter();
+	return sistema_consola_leer_caracter(nivel_de_profundidad);
 }
 
 /* Adaptador público interno: lee una línea desde un archivo ya abierto. */
@@ -1503,8 +1504,8 @@ char * modificarColumna(const char * lineaOriginal,
  	}
 
  	size_t longitud = strlen(nuevoValor) + 1; /* Incluye el '\0' que memcpy también copiará. */
- 	sistema_memoria_liberar(partes[columnaTarget - 1], 0);
- 	partes[columnaTarget - 1] = sistema_memoria_reservar(longitud);
+ 	sistema_memoria_liberar(partes[columnaTarget - 1], nivel_de_profundidad);
+ 	partes[columnaTarget - 1] = sistema_memoria_reservar(longitud, nivel_de_profundidad);
  	if(partes[columnaTarget - 1] == NULL)
  	{
  		liberarSplit(partes, cantidad, nivel_de_profundidad);
@@ -1522,7 +1523,7 @@ char * modificarColumna(const char * lineaOriginal,
  * Flujo de ejemplo: datos.txt -> temp_qu1ron.bak; temp.txt -> datos.txt;
  * finalmente elimina el respaldo. Devuelve 0 si completa todos los pasos.
  */
-static int reemplazarArchivoTemporal(const char *ruta)
+static int reemplazarArchivoTemporal(const char *ruta, int nivel_de_profundidad)
 {
 	const char *temporal = RUTA_ARCHIVO_TEMPORAL; /* Archivo nuevo construido aparte. */
 	const char *respaldo = RUTA_ARCHIVO_RESPALDO; /* Copia temporal del archivo original. */
@@ -1530,21 +1531,21 @@ static int reemplazarArchivoTemporal(const char *ruta)
 
 	if(ruta == NULL || strcmp(ruta, temporal) == 0 || strcmp(ruta, respaldo) == 0) return -1;
 
-	existente = sistema_archivo_abrir(respaldo, "r");
+	existente = sistema_archivo_abrir(respaldo, "r", nivel_de_profundidad);
 	if(existente != NULL)
 	{
-		sistema_archivo_cerrar(existente);
+		sistema_archivo_cerrar(existente, nivel_de_profundidad);
 		return -1;
 	}
 
-	if(sistema_archivo_renombrar(ruta, respaldo) != 0) return -1;
-	if(sistema_archivo_renombrar(temporal, ruta) != 0)
+	if(sistema_archivo_renombrar(ruta, respaldo, nivel_de_profundidad) != 0) return -1;
+	if(sistema_archivo_renombrar(temporal, ruta, nivel_de_profundidad) != 0)
 	{
-		sistema_archivo_renombrar(respaldo, ruta);
+		sistema_archivo_renombrar(respaldo, ruta, nivel_de_profundidad);
 		return -1;
 	}
 
-	return sistema_archivo_eliminar(respaldo);
+	return sistema_archivo_eliminar(respaldo, nivel_de_profundidad);
 }
 
 /*
@@ -1578,22 +1579,22 @@ static int aplicarOperacionLinea(
 		return -1;
 	}
 
-	archivo = sistema_archivo_abrir(ruta, "r");
+	archivo = sistema_archivo_abrir(ruta, "r", nivel_de_profundidad);
 	if(archivo == NULL) return -1;
 
 	/* Evita truncar un temporal ajeno que ya existiera antes de esta operación. */
-	SistemaArchivo *temporalExistente = sistema_archivo_abrir(RUTA_ARCHIVO_TEMPORAL, "r");
+	SistemaArchivo *temporalExistente = sistema_archivo_abrir(RUTA_ARCHIVO_TEMPORAL, "r", nivel_de_profundidad);
 	if(temporalExistente != NULL)
 	{
-		sistema_archivo_cerrar(temporalExistente);
-		sistema_archivo_cerrar(archivo);
+		sistema_archivo_cerrar(temporalExistente, nivel_de_profundidad);
+		sistema_archivo_cerrar(archivo, nivel_de_profundidad);
 		return -1;
 	}
 
-	temporal = sistema_archivo_abrir(RUTA_ARCHIVO_TEMPORAL, "w");
+	temporal = sistema_archivo_abrir(RUTA_ARCHIVO_TEMPORAL, "w", nivel_de_profundidad);
 	if(temporal == NULL)
 	{
-		sistema_archivo_cerrar(archivo);
+		sistema_archivo_cerrar(archivo, nivel_de_profundidad);
 		return -1;
 	}
 
@@ -1604,21 +1605,21 @@ static int aplicarOperacionLinea(
 			encontrada = 1;
 			if(operacion == 0)
 			{
-				if(escribirLineaArchivo(temporal, contenido) != 0) error = 1;
+				if(escribirLineaArchivo(temporal, contenido, nivel_de_profundidad) != 0) error = 1;
 			}
 			else if(operacion == 2)
 			{
-				if(sistema_archivo_escribir_caracter(temporal, '\n') < 0) error = 1;
+				if(sistema_archivo_escribir_caracter(temporal, '\n', nivel_de_profundidad) < 0) error = 1;
 			}
 			else if(operacion == 3)
 			{
 							/* La copia modificada se libera tras escribirla o ante error. */
 							char * modificada = modificarColumna(linea, columna, contenido, nivel_de_profundidad);
-				if(modificada == NULL || escribirLineaArchivo(temporal, modificada) != 0) error = 1;
+				if(modificada == NULL || escribirLineaArchivo(temporal, modificada, nivel_de_profundidad) != 0) error = 1;
 				sistema_memoria_liberar(modificada, 0);
 			}
 		}
-		else if(escribirLineaArchivo(temporal, linea) != 0)
+		else if(escribirLineaArchivo(temporal, linea, nivel_de_profundidad) != 0)
 		{
 			error = 1;
 		}
@@ -1627,19 +1628,19 @@ static int aplicarOperacionLinea(
 		actual++;
 	}
 
-	if(sistema_archivo_hay_error(archivo)) error = 1;
-	if(sistema_archivo_cerrar(archivo) != 0) error = 1;
-	if(sistema_archivo_cerrar(temporal) != 0) error = 1;
+	if(sistema_archivo_hay_error(archivo, nivel_de_profundidad)) error = 1;
+	if(sistema_archivo_cerrar(archivo, nivel_de_profundidad) != 0) error = 1;
+	if(sistema_archivo_cerrar(temporal, nivel_de_profundidad) != 0) error = 1;
 
 	if(error || !encontrada)
 	{
-		sistema_archivo_eliminar(RUTA_ARCHIVO_TEMPORAL);
+		sistema_archivo_eliminar(RUTA_ARCHIVO_TEMPORAL, nivel_de_profundidad);
 		return error ? -1 : -2;
 	}
 
-	if(reemplazarArchivoTemporal(ruta) != 0)
+	if(reemplazarArchivoTemporal(ruta, nivel_de_profundidad) != 0)
 	{
-		sistema_archivo_eliminar(RUTA_ARCHIVO_TEMPORAL);
+		sistema_archivo_eliminar(RUTA_ARCHIVO_TEMPORAL, nivel_de_profundidad);
 		return -1;
 	}
 	return 0;
@@ -1658,22 +1659,22 @@ static int aplicarOperacionLinea(
  	{
  		return crearResultado(-1, "ruta_invalida", "", __func__, nivel_de_profundidad);
  	}
- 	SistemaArchivo *archivo = sistema_archivo_abrir(ruta, "r");
+ 	SistemaArchivo *archivo = sistema_archivo_abrir(ruta, "r", nivel_de_profundidad);
  	if(archivo == NULL)
  	{
  		return crearResultado(-1, "no_se_pudo_abrir_archivo", "", __func__, nivel_de_profundidad);
  	}
  	int numeroLinea = 1; /* Número que se muestra junto a cada línea. */
  	char *linea;          /* Línea dinámica leída; se libera inmediatamente tras mostrarla. */
- 	sistema_consola_escribir_formato(0, "\n--- CONTENIDO DE [%s] ---\n", ruta);
+ 	sistema_consola_escribir_formato(nivel_de_profundidad, "\n--- CONTENIDO DE [%s] ---\n", ruta);
  	while((linea = leerLineaDinamica(archivo, nivel_de_profundidad)) != NULL)
  	{
- 		sistema_consola_escribir_formato(0, "%d: %s\n", numeroLinea++, linea);
- 		sistema_memoria_liberar(linea, 0);
+ 		sistema_consola_escribir_formato(nivel_de_profundidad, "%d: %s\n", numeroLinea++, linea);
+ 		sistema_memoria_liberar(linea, nivel_de_profundidad);
  	}
- 	int errorLectura = sistema_archivo_hay_error(archivo);
- 	int errorCierre = sistema_archivo_cerrar(archivo);
- 	sistema_consola_escribir_formato(0, "-----------------------------------\n");
+ 	int errorLectura = sistema_archivo_hay_error(archivo, nivel_de_profundidad);
+ 	int errorCierre = sistema_archivo_cerrar(archivo, nivel_de_profundidad);
+ 	sistema_consola_escribir_formato(nivel_de_profundidad, "-----------------------------------\n");
  	if(errorLectura || errorCierre != 0)
  	{
  		return crearResultado(-1, "error_al_leer_archivo", "", __func__, nivel_de_profundidad);
@@ -1695,13 +1696,13 @@ static int aplicarOperacionLinea(
  	{
  		return crearResultado(-1, "parametros_invalidos", "", __func__, nivel_de_profundidad);
  	}
- 	SistemaArchivo *archivo = sistema_archivo_abrir(ruta, "a");
+ 	SistemaArchivo *archivo = sistema_archivo_abrir(ruta, "a", nivel_de_profundidad);
  	if(archivo == NULL)
  	{
  		return crearResultado(-1, "no_se_pudo_abrir_archivo", "", __func__, nivel_de_profundidad);
  	}
- 	int errorEscritura = escribirLineaArchivo(archivo, nuevaLinea) != 0; /* Se confirma también el cierre. */
- 	if(sistema_archivo_cerrar(archivo) != 0) errorEscritura = 1;
+ 	int errorEscritura = escribirLineaArchivo(archivo, nuevaLinea, nivel_de_profundidad) != 0; /* Se confirma también el cierre. */
+ 	if(sistema_archivo_cerrar(archivo, nivel_de_profundidad) != 0) errorEscritura = 1;
  	if(errorEscritura)
  	{
  		return crearResultado(-1, "error_al_escribir_archivo", "", __func__, nivel_de_profundidad);
@@ -1827,14 +1828,14 @@ static int aplicarOperacionLinea(
  	};
  	for(size_t i = 0; i < sizeof(rutas) / sizeof(rutas[0]); i++)
  	{
- 		SistemaArchivo *archivo = sistema_archivo_abrir(rutas[i], "r");
+ 		SistemaArchivo *archivo = sistema_archivo_abrir(rutas[i], "r", nivel_de_profundidad);
  		if(archivo == NULL)
  		{
  			continue;
  		}
- 		int caracter = sistema_archivo_leer_caracter(archivo); /* Un byte basta para saber si hay contenido. */
- 		int errorLectura = sistema_archivo_hay_error(archivo); /* Distingue EOF de un fallo real. */
- 		int errorCierre = sistema_archivo_cerrar(archivo);     /* El cierre también puede fallar. */
+ 		int caracter = sistema_archivo_leer_caracter(archivo, nivel_de_profundidad); /* Un byte basta para saber si hay contenido. */
+ 		int errorLectura = sistema_archivo_hay_error(archivo, nivel_de_profundidad); /* Distingue EOF de un fallo real. */
+ 		int errorCierre = sistema_archivo_cerrar(archivo, nivel_de_profundidad);     /* El cierre también puede fallar. */
  		if(errorLectura || errorCierre != 0)
  		{
  			return crearResultado(-1, "error_al_consultar_mensajes", "", __func__, nivel_de_profundidad);
@@ -1855,10 +1856,10 @@ static int aplicarOperacionLinea(
  {
  	nivel_de_profundidad++;
  	const char *rutaPrueba = RUTA_ARCHIVO_PRUEBAS;
- 	SistemaArchivo *existente = sistema_archivo_abrir(rutaPrueba, "r");
+ 	SistemaArchivo *existente = sistema_archivo_abrir(rutaPrueba, "r", nivel_de_profundidad);
  	if(existente != NULL)
  	{
- 		sistema_archivo_cerrar(existente);
+ 		sistema_archivo_cerrar(existente, nivel_de_profundidad);
  		return crearResultado(-1, "archivo_de_prueba_ya_existe", "", __func__, nivel_de_profundidad);
  	}
 
@@ -1868,53 +1869,53 @@ static int aplicarOperacionLinea(
  	{
  		exito = 0;
  	}
- 	sistema_memoria_liberar(lineaModificada, 0);
+ 	sistema_memoria_liberar(lineaModificada, nivel_de_profundidad);
 
  	char *resultadoOperacion = NULL; /* Cada operación devuelve un resultado que se libera aquí. */
  	if(exito)
  	{
  		resultadoOperacion = escribirLinea(rutaPrueba, "Luis,10,Desarrollador", nivel_de_profundidad);
- 		if(resultadoTieneError(resultadoOperacion)) exito = 0;
- 		sistema_memoria_liberar(resultadoOperacion, 0);
+ 		if(resultadoTieneError(nivel_de_profundidad, resultadoOperacion)) exito = 0;
+ 		sistema_memoria_liberar(resultadoOperacion, nivel_de_profundidad);
  	}
 
  	if(exito)
  	{
  		resultadoOperacion = escribirLinea(rutaPrueba, "Marta,20,QA", nivel_de_profundidad);
- 		if(resultadoTieneError(resultadoOperacion)) exito = 0;
- 		sistema_memoria_liberar(resultadoOperacion, 0);
+ 		if(resultadoTieneError(nivel_de_profundidad, resultadoOperacion)) exito = 0;
+ 		sistema_memoria_liberar(resultadoOperacion, nivel_de_profundidad);
  	}
 
  	if(exito)
  	{
  		resultadoOperacion = editarColumna(rutaPrueba, 1, 2, "15", nivel_de_profundidad);
- 		if(resultadoTieneError(resultadoOperacion)) exito = 0;
- 		sistema_memoria_liberar(resultadoOperacion, 0);
+ 		if(resultadoTieneError(nivel_de_profundidad, resultadoOperacion)) exito = 0;
+ 		sistema_memoria_liberar(resultadoOperacion, nivel_de_profundidad);
  	}
 
  	if(exito)
  	{
  		resultadoOperacion = eliminarLinea(rutaPrueba, 2, nivel_de_profundidad);
- 		if(resultadoTieneError(resultadoOperacion)) exito = 0;
- 		sistema_memoria_liberar(resultadoOperacion, 0);
+ 		if(resultadoTieneError(nivel_de_profundidad, resultadoOperacion)) exito = 0;
+ 		sistema_memoria_liberar(resultadoOperacion, nivel_de_profundidad);
  	}
 
  	if(exito)
  	{
- 		sistema_consola_escribir_formato(0, "\n--- ARCHIVO DE PRUEBA RESULTANTE ---\n");
+ 		sistema_consola_escribir_formato(nivel_de_profundidad, "\n--- ARCHIVO DE PRUEBA RESULTANTE ---\n");
  		resultadoOperacion = leerArchivo(rutaPrueba, nivel_de_profundidad);
- 		if(resultadoTieneError(resultadoOperacion)) exito = 0;
- 		sistema_memoria_liberar(resultadoOperacion, 0);
+ 		if(resultadoTieneError(nivel_de_profundidad, resultadoOperacion)) exito = 0;
+ 		sistema_memoria_liberar(resultadoOperacion, nivel_de_profundidad);
  	}
 
  	{
- 		SistemaArchivo *archivoPrueba = sistema_archivo_abrir(rutaPrueba, "r"); /* NULL si el temporal no existe. */
+ 		SistemaArchivo *archivoPrueba = sistema_archivo_abrir(rutaPrueba, "r", nivel_de_profundidad); /* NULL si el temporal no existe. */
  		int errorLimpieza = 0; /* Se activa ante fallo al cerrar o borrar el archivo. */
 
  		if(archivoPrueba != NULL)
  		{
- 			if(sistema_archivo_cerrar(archivoPrueba) != 0) errorLimpieza = 1;
- 			if(sistema_archivo_eliminar(rutaPrueba) != 0) errorLimpieza = 1;
+ 			if(sistema_archivo_cerrar(archivoPrueba, nivel_de_profundidad) != 0) errorLimpieza = 1;
+ 			if(sistema_archivo_eliminar(rutaPrueba, nivel_de_profundidad) != 0) errorLimpieza = 1;
  		}
  		else if(exito)
  		{
@@ -1940,13 +1941,13 @@ static int aplicarOperacionLinea(
  	{
  		return crearResultado(-1, "mensaje_invalido", "", __func__, nivel_de_profundidad);
  	}
- 	SistemaArchivo *archivo = sistema_archivo_abrir(RUTA_MENSAJES_TODOS, "a");
+ 	SistemaArchivo *archivo = sistema_archivo_abrir(RUTA_MENSAJES_TODOS, "a", nivel_de_profundidad);
  	if(archivo == NULL)
  	{
  		return crearResultado(-1, "no_se_pudo_abrir_archivo", "", __func__, nivel_de_profundidad);
  	}
- 	int error = escribirLineaArchivo(archivo, mensaje) != 0;
- 	if(sistema_archivo_cerrar(archivo) != 0) error = 1;
+ 	int error = escribirLineaArchivo(archivo, mensaje, nivel_de_profundidad) != 0;
+ 	if(sistema_archivo_cerrar(archivo, nivel_de_profundidad) != 0) error = 1;
  	if(error) return crearResultado(-1, "error_al_guardar_mensaje", "", __func__, nivel_de_profundidad);
  	return crearResultado(1, "mensaje_enviado", "", __func__, nivel_de_profundidad);
  }
@@ -1969,20 +1970,20 @@ static int aplicarOperacionLinea(
  	{
  		return crearResultado(-1, "contactos_invalidos", "", __func__, nivel_de_profundidad);
  	}
- 	SistemaArchivo *archivo = sistema_archivo_abrir(RUTA_MENSAJES_CONTACTOS, "a");
+ 	SistemaArchivo *archivo = sistema_archivo_abrir(RUTA_MENSAJES_CONTACTOS, "a", nivel_de_profundidad);
  	if(archivo == NULL)
  	{
  		return crearResultado(-1, "no_se_pudo_abrir_archivo", "", __func__, nivel_de_profundidad);
  	}
 	int error =
-		sistema_archivo_escribir_texto(archivo, "[") != 0 ||
-		sistema_archivo_escribir_entero(archivo, id_opcional) != 0 ||
-		sistema_archivo_escribir_texto(archivo, "] ") != 0 ||
-		sistema_archivo_escribir_texto(archivo, contactos) != 0 ||
-		sistema_archivo_escribir_texto(archivo, " -> ") != 0 ||
-		sistema_archivo_escribir_texto(archivo, mensaje) != 0 ||
-		sistema_archivo_escribir_caracter(archivo, '\n') != 0;
- 	if(sistema_archivo_cerrar(archivo) != 0) error = 1;
+		sistema_archivo_escribir_texto(archivo, "[", nivel_de_profundidad) != 0 ||
+		sistema_archivo_escribir_entero(archivo, id_opcional, nivel_de_profundidad) != 0 ||
+		sistema_archivo_escribir_texto(archivo, "] ", nivel_de_profundidad) != 0 ||
+		sistema_archivo_escribir_texto(archivo, contactos, nivel_de_profundidad) != 0 ||
+		sistema_archivo_escribir_texto(archivo, " -> ", nivel_de_profundidad) != 0 ||
+		sistema_archivo_escribir_texto(archivo, mensaje, nivel_de_profundidad) != 0 ||
+		sistema_archivo_escribir_caracter(archivo, '\n', nivel_de_profundidad) != 0;
+ 	if(sistema_archivo_cerrar(archivo, nivel_de_profundidad) != 0) error = 1;
  	if(error) return crearResultado(-1, "error_al_guardar_mensaje", "", __func__, nivel_de_profundidad);
  	return crearResultado(1, "mensaje_enviado", "", __func__, nivel_de_profundidad);
  }
@@ -2009,19 +2010,19 @@ static int aplicarOperacionLinea(
  	{
  		return crearResultado(-1, "mensaje_respuesta_invalido", "", __func__, nivel_de_profundidad);
  	}
- 	SistemaArchivo *archivo = sistema_archivo_abrir(RUTA_MENSAJES_PRIMERO, "a");
+ 	SistemaArchivo *archivo = sistema_archivo_abrir(RUTA_MENSAJES_PRIMERO, "a", nivel_de_profundidad);
  	if(archivo == NULL)
  	{
  		return crearResultado(-1, "no_se_pudo_abrir_archivo", "", __func__, nivel_de_profundidad);
  	}
  	int error =
- 		sistema_archivo_escribir_texto(archivo, mensaje_pregunta) != 0 ||
- 		sistema_archivo_escribir_texto(archivo, " | ") != 0 ||
- 		sistema_archivo_escribir_texto(archivo, mensaje_de_que_ya_alguien_lo_acepto) != 0 ||
- 		sistema_archivo_escribir_texto(archivo, " | ") != 0 ||
- 		sistema_archivo_escribir_texto(archivo, menaje_respuesta_al_quien_lo_logro) != 0 ||
- 		sistema_archivo_escribir_caracter(archivo, '\n') != 0;
- 	if(sistema_archivo_cerrar(archivo) != 0) error = 1;
+ 		sistema_archivo_escribir_texto(archivo, mensaje_pregunta, nivel_de_profundidad) != 0 ||
+ 		sistema_archivo_escribir_texto(archivo, " | ", nivel_de_profundidad) != 0 ||
+ 		sistema_archivo_escribir_texto(archivo, mensaje_de_que_ya_alguien_lo_acepto, nivel_de_profundidad) != 0 ||
+ 		sistema_archivo_escribir_texto(archivo, " | ", nivel_de_profundidad) != 0 ||
+ 		sistema_archivo_escribir_texto(archivo, menaje_respuesta_al_quien_lo_logro, nivel_de_profundidad) != 0 ||
+ 		sistema_archivo_escribir_caracter(archivo, '\n', nivel_de_profundidad) != 0;
+ 	if(sistema_archivo_cerrar(archivo, nivel_de_profundidad) != 0) error = 1;
  	if(error) return crearResultado(-1, "error_al_guardar_mensaje", "", __func__, nivel_de_profundidad);
  	return crearResultado(1, "mensaje_enviado", "", __func__, nivel_de_profundidad);
  }
@@ -2040,13 +2041,15 @@ static int aplicarOperacionLinea(
  * terminar en sistema_memoria_liberar() o redimensionarse con la misma capa.
  */
 /* Solicita cantidad bytes; NULL indica que no se pudo reservar. */
- static void * sistema_memoria_reservar(size_t cantidad)
+ static void * sistema_memoria_reservar(size_t cantidad, int nivel_de_profundidad)
  {
+	(void)nivel_de_profundidad;
  	return malloc(cantidad);
  }
 /* Cambia el tamaño de un bloque existente; conserva su contenido si tiene éxito. */
- static void * sistema_memoria_redimensionar(void * memoria, size_t cantidad)
+ static void * sistema_memoria_redimensionar(void * memoria, size_t cantidad, int nivel_de_profundidad)
  {
+	(void)nivel_de_profundidad;
  	return realloc(memoria, cantidad);
  }
 /* Libera un bloque obtenido con reservar/redimensionar; NULL es seguro en free(). */
@@ -2063,17 +2066,19 @@ static int aplicarOperacionLinea(
  * Hasta entonces, las reservas fallan explícitamente en esta plataforma.
  */
 /* Stub deliberadamente fallido: aún no existe un pool físico configurado. */
-static void * sistema_memoria_reservar(size_t cantidad)
+static void * sistema_memoria_reservar(size_t cantidad, int nivel_de_profundidad)
 {
 	(void)cantidad;
+	(void)nivel_de_profundidad;
 	return NULL;
 }
 
 /* Stub de redimensionamiento; devuelve NULL hasta integrar el allocator embebido. */
-static void * sistema_memoria_redimensionar(void *memoria, size_t cantidad)
+static void * sistema_memoria_redimensionar(void *memoria, size_t cantidad, int nivel_de_profundidad)
 {
 	(void)memoria;
 	(void)cantidad;
+	(void)nivel_de_profundidad;
 	return NULL;
 }
 
@@ -2111,13 +2116,13 @@ static void sistema_memoria_liberar(void *memoria, /* #sym:sistema_memoria_liber
  * Devuelve un manejador opaco o NULL; si falla la reserva del manejador,
  * cierra el FILE* para no dejar recursos abiertos.
  */
- static SistemaArchivo *sistema_archivo_abrir(const char *ruta, const char *modo)
+ static SistemaArchivo *sistema_archivo_abrir(const char *ruta, const char *modo, int nivel_de_profundidad)
 {
  	if(ruta == NULL || modo == NULL) return NULL;
  	FILE *flujo = fopen(ruta, modo);
  	if(flujo == NULL) return NULL;
 
- 	SistemaArchivo *archivo = sistema_memoria_reservar(sizeof(*archivo));
+ 	SistemaArchivo *archivo = sistema_memoria_reservar(sizeof(*archivo), nivel_de_profundidad);
  	if(archivo == NULL)
  	{
  		fclose(flujo);
@@ -2130,24 +2135,26 @@ static void sistema_memoria_liberar(void *memoria, /* #sym:sistema_memoria_liber
  }
 
 /* Cierra el flujo y libera el objeto; devuelve 0 si fclose tuvo éxito. */
- static int sistema_archivo_cerrar(SistemaArchivo *archivo)
- {
- 	if(archivo == NULL) return -1;
+static int sistema_archivo_cerrar(SistemaArchivo *archivo, int nivel_de_profundidad)
+{
+	if(archivo == NULL) return -1;
 
  	int resultado = fclose(archivo->flujo);
- 	sistema_memoria_liberar(archivo, 0);
+ 	sistema_memoria_liberar(archivo, nivel_de_profundidad);
  	return resultado;
 }
 
 /* Elimina una ruta; por ejemplo, borra el temporal luego de una edición. */
-static int sistema_archivo_eliminar(const char *ruta)
+static int sistema_archivo_eliminar(const char *ruta, int nivel_de_profundidad)
 {
+	(void)nivel_de_profundidad;
 	return (ruta == NULL) ? -1 : remove(ruta);
 }
 
 /* Cambia el nombre de origen a destino; 0 significa que el backend lo logró. */
-static int sistema_archivo_renombrar(const char *origen, const char *destino)
+static int sistema_archivo_renombrar(const char *origen, const char *destino, int nivel_de_profundidad)
 {
+	(void)nivel_de_profundidad;
 	return (origen == NULL || destino == NULL) ? -1 : rename(origen, destino);
 }
 
@@ -2155,8 +2162,9 @@ static int sistema_archivo_renombrar(const char *origen, const char *destino)
  * Lee un byte como int o devuelve SISTEMA_ARCHIVO_FIN_LECTURA al alcanzar EOF.
  * Esta conversión evita exponer el valor EOF al código común.
  */
-static int sistema_archivo_leer_caracter(SistemaArchivo *archivo)
+static int sistema_archivo_leer_caracter(SistemaArchivo *archivo, int nivel_de_profundidad)
 {
+	(void)nivel_de_profundidad;
 	if(archivo == NULL || archivo->flujo == NULL) return SISTEMA_ARCHIVO_FIN_LECTURA;
 
 	int caracter;
@@ -2185,21 +2193,24 @@ static int sistema_archivo_leer_caracter(SistemaArchivo *archivo)
 }
 
 /* Escribe un byte; 0=éxito, -1=flujo inválido o fallo de escritura. */
-static int sistema_archivo_escribir_caracter(SistemaArchivo *archivo, int caracter)
+static int sistema_archivo_escribir_caracter(SistemaArchivo *archivo, int caracter, int nivel_de_profundidad)
 {
+	(void)nivel_de_profundidad;
 	if(archivo == NULL || archivo->flujo == NULL) return -1;
 	return (fputc(caracter, archivo->flujo) == EOF) ? -1 : 0;
 }
 
 /* Consulta el indicador de error del flujo; 0=sin error, distinto de 0=error. */
-static int sistema_archivo_hay_error(SistemaArchivo *archivo)
+static int sistema_archivo_hay_error(SistemaArchivo *archivo, int nivel_de_profundidad)
 {
+	(void)nivel_de_profundidad;
 	return (archivo == NULL || archivo->flujo == NULL) ? 1 : ferror(archivo->flujo);
 }
 
 /* Escribe todos los bytes de una cadena (sin su '\0'); 0=éxito, -1=fallo. */
-static int sistema_archivo_escribir_texto(SistemaArchivo *archivo, const char *texto)
+static int sistema_archivo_escribir_texto(SistemaArchivo *archivo, const char *texto, int nivel_de_profundidad)
 {
+	(void)nivel_de_profundidad;
 	if(archivo == NULL || archivo->flujo == NULL || texto == NULL) return -1;
 	size_t longitud = strlen(texto);
 	return fwrite(texto, 1, longitud, archivo->flujo) == longitud ? 0 : -1;
@@ -2213,70 +2224,79 @@ static int sistema_archivo_escribir_texto(SistemaArchivo *archivo, const char *t
  * (Flash, EEPROM, SD u otro). Los errores son explícitos, nunca éxito simulado.
  */
 /* Todavía no puede asociar una ruta lógica con un dispositivo físico. */
-static SistemaArchivo *sistema_archivo_abrir(const char *ruta, const char *modo)
+static SistemaArchivo *sistema_archivo_abrir(const char *ruta, const char *modo, int nivel_de_profundidad)
 {
 	(void)ruta;
 	(void)modo;
+	(void)nivel_de_profundidad;
 	return NULL;
 }
 
 /* No hay manejador real que cerrar en el stub actual. */
-static int sistema_archivo_cerrar(SistemaArchivo *archivo)
+static int sistema_archivo_cerrar(SistemaArchivo *archivo, int nivel_de_profundidad)
 {
 	(void)archivo;
+	(void)nivel_de_profundidad;
 	return -1;
 }
 
 /* El borrado requiere la política y soporte del medio que se seleccione. */
-static int sistema_archivo_eliminar(const char *ruta)
+static int sistema_archivo_eliminar(const char *ruta, int nivel_de_profundidad)
 {
 	(void)ruta;
+	(void)nivel_de_profundidad;
 	return -1;
 }
 
 /* El renombrado debe implementarse según lo que permita el almacenamiento. */
-static int sistema_archivo_renombrar(const char *origen, const char *destino)
+static int sistema_archivo_renombrar(const char *origen, const char *destino, int nivel_de_profundidad)
 {
 	(void)origen;
 	(void)destino;
+	(void)nivel_de_profundidad;
 	return -1;
 }
 
 /* Indica fin de entrada porque el stub no está conectado a un lector físico. */
-static int sistema_archivo_leer_caracter(SistemaArchivo *archivo)
+static int sistema_archivo_leer_caracter(SistemaArchivo *archivo, int nivel_de_profundidad)
 {
 	(void)archivo;
+	(void)nivel_de_profundidad;
 	return SISTEMA_ARCHIVO_FIN_LECTURA;
 }
 
 /* El stub no acepta escrituras hasta contar con backend real. */
-static int sistema_archivo_escribir_caracter(SistemaArchivo *archivo, int caracter)
+static int sistema_archivo_escribir_caracter(SistemaArchivo *archivo, int caracter, int nivel_de_profundidad)
 {
 	(void)archivo;
 	(void)caracter;
+	(void)nivel_de_profundidad;
 	return -1;
 }
 
 /* El stub no persiste texto hasta contar con backend real. */
-static int sistema_archivo_escribir_texto(SistemaArchivo *archivo, const char *texto)
+static int sistema_archivo_escribir_texto(SistemaArchivo *archivo, const char *texto, int nivel_de_profundidad)
 {
 	(void)archivo;
 	(void)texto;
+	(void)nivel_de_profundidad;
 	return -1;
 }
 
 /* Mientras el backend no exista, toda consulta de error debe ser conservadora. */
-static int sistema_archivo_hay_error(SistemaArchivo *archivo)
+static int sistema_archivo_hay_error(SistemaArchivo *archivo, int nivel_de_profundidad)
 {
 	(void)archivo;
+	(void)nivel_de_profundidad;
 	return 1;
 }
 #endif
 
 #if defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
 /* Backends de consola de escritorio; aquí, y solo aquí, se usa stdio. */
-static int sistema_consola_leer_caracter(void)
+static int sistema_consola_leer_caracter(int nivel_de_profundidad)
 {
+	(void)nivel_de_profundidad;
 	static int caracterPendiente;
 	static int tieneCaracterPendiente;
 	int caracter;
@@ -2306,35 +2326,40 @@ static int sistema_consola_leer_caracter(void)
 }
 
 /* Escribe un carácter a salida estándar; 0=éxito y -1=fallo. */
-static int sistema_consola_escribir_caracter(int caracter)
+static int sistema_consola_escribir_caracter(int caracter, int nivel_de_profundidad)
 {
+	(void)nivel_de_profundidad;
 	return fputc(caracter, stdout) == EOF ? -1 : 0;
 }
 
 /* Escribe una cadena completa y vacía la salida para que los prompts aparezcan. */
-static int sistema_consola_escribir_texto(const char *texto)
+static int sistema_consola_escribir_texto(const char *texto, int nivel_de_profundidad)
 {
+	(void)nivel_de_profundidad;
 	if(texto == NULL || fputs(texto, stdout) == EOF || fflush(stdout) != 0) return -1;
 	return 0;
 }
 #elif defined(PLATAFORMA_SEMICONDUCTOR)
 /* Reemplazar con lectura del periférico elegido, por ejemplo UART. */
-static int sistema_consola_leer_caracter(void)
+static int sistema_consola_leer_caracter(int nivel_de_profundidad)
 {
+	(void)nivel_de_profundidad;
 	return SISTEMA_ARCHIVO_FIN_LECTURA;
 }
 
 /* Stub de salida de byte: no reporta éxito sin un periférico real. */
-static int sistema_consola_escribir_caracter(int caracter)
+static int sistema_consola_escribir_caracter(int caracter, int nivel_de_profundidad)
 {
 	(void)caracter;
+	(void)nivel_de_profundidad;
 	return -1;
 }
 
 /* Stub de salida de texto; lo implementará el backend de consola PIC16F. */
-static int sistema_consola_escribir_texto(const char *texto)
+static int sistema_consola_escribir_texto(const char *texto, int nivel_de_profundidad)
 {
 	(void)texto;
+	(void)nivel_de_profundidad;
 	return -1;
 }
 #endif
@@ -2455,7 +2480,7 @@ char *crearResultado(
     longitudTotal += longitudAnterior;
 
     /* Reserva una cadena independiente. */
-    char *resultado = sistema_memoria_reservar(longitudTotal);
+    char *resultado = sistema_memoria_reservar(longitudTotal, nivel_de_profundidad);
 
     if (resultado == NULL)
     {
@@ -2486,8 +2511,9 @@ char *crearResultado(
  * Imprime un mensaje de depuración con formato printf.
  * En PIC16F, el mensaje se limita al tamaño del buffer.
  */
-void imprimirMensaje_para_depurar(const char *format, ...)
+void imprimirMensaje_para_depurar(int nivel_de_profundidad, const char *format, ...)
 {
+	(void)nivel_de_profundidad;
 	if(format == NULL) return;
 
 	va_list args;
@@ -2510,7 +2536,8 @@ void imprimirMensaje_para_depurar(const char *format, ...)
 #else
 	va_end(args);
 	sistema_consola_escribir_texto(
-		"[formato de depuracion no disponible en este backend]\n"
+		"[formato de depuracion no disponible en este backend]\n",
+		nivel_de_profundidad
 	);
 #endif
 }
@@ -2520,11 +2547,13 @@ void imprimirMensaje_para_depurar(const char *format, ...)
  * en NULL; de lo contrario se imprimen exactamente total elementos.
  */
 void imprimirMensaje_para_depurar_arreglo(
+	int nivel_de_profundidad,
 	char **contenido,
 	const char *texto,
 	int total
 )
 {
+	(void)nivel_de_profundidad;
 	const char *prefijo = (texto != NULL) ? texto : "celda";
 
 	if(contenido == NULL)
@@ -2532,7 +2561,7 @@ void imprimirMensaje_para_depurar_arreglo(
 #if defined(PIC16F) || defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
 		printf("%s[0]: (null)\n", prefijo);
 #else
-		sistema_consola_escribir_formato(0, "%s[0]: (null)\n", prefijo);
+		sistema_consola_escribir_formato(nivel_de_profundidad, "%s[0]: (null)\n", prefijo);
 #endif
 		return;
 	}
@@ -2565,7 +2594,7 @@ void imprimirMensaje_para_depurar_arreglo(
 #elif defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
 			printf("\n%s[%d]: %s", prefijo, i, valor);
 #else
-			sistema_consola_escribir_formato(0, 
+			sistema_consola_escribir_formato(nivel_de_profundidad, 
 				"\n%s[%d]: %s",
 				prefijo,
 				i,
@@ -2602,7 +2631,7 @@ void imprimirMensaje_para_depurar_arreglo(
 #elif defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
 		printf("%s[%d]: %s\n", prefijo, i, valor);
 #else
-		sistema_consola_escribir_formato(0, 
+		sistema_consola_escribir_formato(nivel_de_profundidad, 
 			"%s[%d]: %s\n",
 			prefijo,
 			i,
@@ -2617,7 +2646,7 @@ void imprimirMensaje_para_depurar_arreglo(
 #if defined(PIC16F) || defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
 		printf("%s[0]: (null)\n", prefijo);
 #else
-		sistema_consola_escribir_formato(0, "%s[0]: (null)\n", prefijo);
+		sistema_consola_escribir_formato(nivel_de_profundidad, "%s[0]: (null)\n", prefijo);
 #endif
 	}
 }
@@ -2626,8 +2655,9 @@ void imprimirMensaje_para_depurar_arreglo(
  * Menú de pruebas manuales para primitivas y funciones auxiliares.
  * Las pruebas de archivos se limitan a nombres temporales de esta prueba.
  */
-static int submenu_pruebas_auxiliares(void)
+static int submenu_pruebas_auxiliares(int nivel_de_profundidad)
 {
+	nivel_de_profundidad++;
 	int opcion = 0;
 
 	for(;;)
@@ -2674,7 +2704,7 @@ static int submenu_pruebas_auxiliares(void)
 				}
 
 				sistema_consola_escribir_formato(0, "Elementos: %d\n", cantidad);
-				imprimirMensaje_para_depurar_arreglo(partes, "parte", cantidad);
+				imprimirMensaje_para_depurar_arreglo(nivel_de_profundidad, partes, "parte", cantidad);
 				sistema_consola_escribir_formato(0, "\nSeparador para unir: ");
 				char *separadorUnion = leerLineaConsola(1);
 				if(separadorUnion == NULL)
@@ -2742,12 +2772,12 @@ static int submenu_pruebas_auxiliares(void)
 				char *traza = leerLineaConsola(1);
 				if(traza == NULL) return -1;
 				int codigo = 0;
-				if(leerCodigoResultado(traza, &codigo))
+				if(leerCodigoResultado(nivel_de_profundidad, traza, &codigo))
 				{
 					sistema_consola_escribir_formato(0, 
 						"Código=%d; resultadoTieneError=%d\n",
 						codigo,
-						resultadoTieneError(traza)
+						resultadoTieneError(nivel_de_profundidad, traza)
 					);
 				}
 				else
@@ -2836,7 +2866,7 @@ static int submenu_pruebas_auxiliares(void)
 				}
 				sistema_memoria_liberar(tamanoTexto, 0);
 
-				unsigned char *bloque = sistema_memoria_reservar((size_t)tamano);
+				unsigned char *bloque = sistema_memoria_reservar((size_t)tamano, 0);
 				if(bloque == NULL)
 				{
 					sistema_consola_escribir_formato(0, 
@@ -2848,7 +2878,8 @@ static int submenu_pruebas_auxiliares(void)
 				memset(bloque, 0x5A, (size_t)tamano);
 				unsigned char *redimensionado = sistema_memoria_redimensionar(
 					bloque,
-					(size_t)tamano + 1
+					(size_t)tamano + 1,
+					0
 				);
 				if(redimensionado == NULL)
 				{
@@ -2870,18 +2901,18 @@ static int submenu_pruebas_auxiliares(void)
 				const char *rutaOriginal = "qu1ron_backend_test.tmp";
 				const char *rutaRenombrada = "qu1ron_backend_test_renamed.tmp";
 				SistemaArchivo *preexistenteOriginal =
-					sistema_archivo_abrir(rutaOriginal, "r");
+					sistema_archivo_abrir(rutaOriginal, "r", 0);
 				SistemaArchivo *preexistenteRenombrado =
-					sistema_archivo_abrir(rutaRenombrada, "r");
+					sistema_archivo_abrir(rutaRenombrada, "r", 0);
 				if(preexistenteOriginal != NULL || preexistenteRenombrado != NULL)
 				{
 					if(preexistenteOriginal != NULL)
 					{
-						sistema_archivo_cerrar(preexistenteOriginal);
+						sistema_archivo_cerrar(preexistenteOriginal, 0);
 					}
 					if(preexistenteRenombrado != NULL)
 					{
-						sistema_archivo_cerrar(preexistenteRenombrado);
+						sistema_archivo_cerrar(preexistenteRenombrado, 0);
 					}
 					sistema_consola_escribir_formato(0, 
 						"Los archivos temporales de prueba ya existen; no se modificaron.\n"
@@ -2907,21 +2938,22 @@ static int submenu_pruebas_auxiliares(void)
 
 				SistemaArchivo *archivo = sistema_archivo_abrir(
 					rutaOriginal,
-					"w"
+					"w",
+					0
 				);
 				int archivoOriginalCreado = archivo != NULL;
 				int archivoRenombradoCreado = 0;
 				int error = archivo == NULL;
 				if(!error)
 				{
-					error = sistema_archivo_escribir_texto(archivo, texto) != 0 ||
-						sistema_archivo_escribir_caracter(archivo, '|') != 0 ||
-						sistema_archivo_escribir_entero(archivo, entero) != 0 ||
-						escribirLineaArchivo(archivo, "") != 0;
-					if(sistema_archivo_cerrar(archivo) != 0) error = 1;
+					error = sistema_archivo_escribir_texto(archivo, texto, 0) != 0 ||
+						sistema_archivo_escribir_caracter(archivo, '|', 0) != 0 ||
+						sistema_archivo_escribir_entero(archivo, entero, 0) != 0 ||
+						escribirLineaArchivo(archivo, "", 0) != 0;
+					if(sistema_archivo_cerrar(archivo, 0) != 0) error = 1;
 				}
 				if(!error &&
-					sistema_archivo_renombrar(rutaOriginal, rutaRenombrada) != 0)
+					sistema_archivo_renombrar(rutaOriginal, rutaRenombrada, 0) != 0)
 				{
 					error = 1;
 				}
@@ -2933,7 +2965,7 @@ static int submenu_pruebas_auxiliares(void)
 
 				if(!error)
 				{
-					archivo = sistema_archivo_abrir(rutaRenombrada, "r");
+					archivo = sistema_archivo_abrir(rutaRenombrada, "r", 0);
 					if(archivo == NULL)
 					{
 						error = 1;
@@ -2942,27 +2974,27 @@ static int submenu_pruebas_auxiliares(void)
 					{
 						sistema_consola_escribir_formato(0, "Contenido leído: ");
 						int caracter;
-						while((caracter = sistema_archivo_leer_caracter(archivo)) !=
+						while((caracter = sistema_archivo_leer_caracter(archivo, 0)) !=
 							SISTEMA_ARCHIVO_FIN_LECTURA)
 						{
-							if(sistema_consola_escribir_caracter(caracter) != 0)
+							if(sistema_consola_escribir_caracter(caracter, 0) != 0)
 							{
 								error = 1;
 								break;
 							}
 						}
-						if(sistema_archivo_hay_error(archivo)) error = 1;
-						if(sistema_archivo_cerrar(archivo) != 0) error = 1;
+						if(sistema_archivo_hay_error(archivo, 0)) error = 1;
+						if(sistema_archivo_cerrar(archivo, 0) != 0) error = 1;
 					}
 				}
 
 				if(archivoOriginalCreado &&
-					sistema_archivo_eliminar(rutaOriginal) != 0)
+					sistema_archivo_eliminar(rutaOriginal, 0) != 0)
 				{
 					error = 1;
 				}
 				if(archivoRenombradoCreado &&
-					sistema_archivo_eliminar(rutaRenombrada) != 0)
+					sistema_archivo_eliminar(rutaRenombrada, 0) != 0)
 				{
 					error = 1;
 				}
@@ -2979,18 +3011,19 @@ static int submenu_pruebas_auxiliares(void)
 				sistema_consola_escribir_formato(0, "Texto para imprimir: ");
 				char *texto = leerLineaConsola(1);
 				if(texto == NULL) return -1;
-				sistema_consola_escribir_caracter('[');
-				sistema_consola_escribir_texto(texto);
-				sistema_consola_escribir_caracter(']');
-				sistema_consola_escribir_caracter('\n');
+				sistema_consola_escribir_caracter('[', 0);
+				sistema_consola_escribir_texto(texto, 0);
+				sistema_consola_escribir_caracter(']', 0);
+				sistema_consola_escribir_caracter('\n', 0);
 				imprimirMensaje_para_depurar(
+					0,
 					"Formato de depuración: texto=%s longitud=%d\n",
 					texto,
 					(int)strlen(texto)
 				);
 				char *elementos[] = { texto, NULL };
-				imprimirMensaje_para_depurar_arreglo(elementos, "dato", 1);
-				sistema_consola_escribir_caracter('\n');
+				imprimirMensaje_para_depurar_arreglo(nivel_de_profundidad, elementos, "dato", 1);
+				sistema_consola_escribir_caracter('\n', 0);
 				sistema_memoria_liberar(texto, 0);
 				break;
 			}
@@ -3009,11 +3042,13 @@ static int submenu_pruebas_auxiliares(void)
  * Extrae el código inicial de una traza, con o sin separador inicial.
  * Ejemplos: "°-2¬1" y "-2|error" guardan -2 y devuelven 1.
  */
- static int leerCodigoResultado(const char *texto, int *codigo)
+  static int leerCodigoResultado(int nivel_de_profundidad, const char *texto, int *codigo)
  {
 	const char *inicio;
 	const char *fin;
 	int separadorEncontrado = 0;
+	(void)nivel_de_profundidad;
+ 	(void)nivel_de_profundidad;
 
 	if(texto == NULL || codigo == NULL) return 0;
 
@@ -3059,10 +3094,10 @@ static int submenu_pruebas_auxiliares(void)
  }
 
 /* Interpreta como error un código negativo o una cadena de resultado inválida. */
- static int resultadoTieneError(const char *texto)
+ static int resultadoTieneError(int nivel_de_profundidad, const char *texto)
  {
  	int codigo;
- 	return !leerCodigoResultado(texto, &codigo) || codigo < 0;
+ 	return !leerCodigoResultado(nivel_de_profundidad, texto, &codigo) || codigo < 0;
  }
 
 
