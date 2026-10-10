@@ -559,7 +559,7 @@ int prueba(void)
  			sistema_memoria_liberar(resultado);
  			resultado = leerArchivo(NOMBRE_ARCHIVO, nivel_de_profundidad);
  			sistema_memoria_liberar(estado);
- 			estado = crearResultado(1, "informacionMain", "1", __func__, 1);
+			estado = crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  			break;
  		}
  		case 2:
@@ -570,7 +570,7 @@ int prueba(void)
  			resultado = escribirLinea(NOMBRE_ARCHIVO, texto, nivel_de_profundidad);
  			sistema_memoria_liberar(texto);
  			sistema_memoria_liberar(estado);
- 			estado = crearResultado(1, "informacionMain", "1", __func__, 1);
+			estado = crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  			break;
  		}
  		case 3:
@@ -585,7 +585,7 @@ int prueba(void)
  			resultado = editarLinea(NOMBRE_ARCHIVO, idLinea, texto, nivel_de_profundidad);
  			sistema_memoria_liberar(texto);
  			sistema_memoria_liberar(estado);
- 			estado = crearResultado(1, "informacionMain", "1", __func__, 1);
+			estado = crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  			break;
  		}
  		case 4:
@@ -604,7 +604,7 @@ int prueba(void)
  			resultado = editarColumna(NOMBRE_ARCHIVO, idLinea, idColumna, valor, nivel_de_profundidad);
  			sistema_memoria_liberar(valor);
  			sistema_memoria_liberar(estado);
- 			estado = crearResultado(1, "informacionMain", "1", __func__, 1);
+			estado = crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  			break;
  		}
  		case 5:
@@ -616,7 +616,7 @@ int prueba(void)
  			sistema_memoria_liberar(resultado);
  			resultado = eliminarLinea(NOMBRE_ARCHIVO, idLinea, nivel_de_profundidad);
  			sistema_memoria_liberar(estado);
- 			estado = crearResultado(1, "informacionMain", "1", __func__, 1);
+			estado = crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  			break;
  		}
  		case 6:
@@ -628,7 +628,7 @@ int prueba(void)
  			sistema_memoria_liberar(resultado);
  			resultado = vaciarLinea(NOMBRE_ARCHIVO, idLinea, nivel_de_profundidad);
  			sistema_memoria_liberar(estado);
- 			estado = crearResultado(1, "informacionMain", "1", __func__, 1);
+			estado = crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  			break;
  		}
  		case 7:
@@ -636,7 +636,7 @@ int prueba(void)
  			sistema_memoria_liberar(resultado);
  			resultado = ejecutarEjemplosPrueba(nivel_de_profundidad);
  			sistema_memoria_liberar(estado);
- 			estado = crearResultado(1, "informacionMain", "1", __func__, 1);
+			estado = crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  			break;
  		}
  		case 8:
@@ -644,13 +644,13 @@ int prueba(void)
  			sistema_consola_escribir_formato("Volviendo al menú anterior...\n");
  			sistema_memoria_liberar(estado);
  			sistema_memoria_liberar(resultado);
- 			return crearResultado(1, "informacionMain", "1", __func__, 1);
+			return crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  		}
  		default:
  		{
  			sistema_consola_escribir_formato("Opción no válida.\n");
  			sistema_memoria_liberar(estado);
- 			estado = crearResultado(-2, "opcion_no_valida", "", __func__, 1);
+			estado = crearResultado(-2, "opcion_no_valida", "", __func__, nivel_de_profundidad);
  			break;
  		}
  	}
@@ -660,7 +660,7 @@ int prueba(void)
  	}
  	sistema_memoria_liberar(estado);
  	sistema_memoria_liberar(resultado);
- 	return crearResultado(1, "informacionMain", "1", __func__, 1);
+	return crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  }
 /*
  * Menú para guardar mensajes en los archivos configurados.
@@ -669,6 +669,7 @@ int prueba(void)
  */
  char * submenu_enlasador_mandar_mensajes(const char * parametros_en_texto_a_splitear, int nivel_de_profundidad)
  {
+	nivel_de_profundidad++;
  	int opcion = 0;                        /* Acción elegida: 1=todos, 2=contactos, 3=primero, 4=volver. */
  	char * resultado = NULL;               /* Resultado de mensajería, por ejemplo "1|mensaje_enviado|...". */
  	char * estado = NULL;                  /* Estado del menú, mostrado y liberado al terminar. */
@@ -706,7 +707,7 @@ int prueba(void)
  			resultado = mandar_mensje_a_todos(mensaje, nivel_de_profundidad);
  			sistema_memoria_liberar(mensaje);
  			sistema_memoria_liberar(estado);
- 			estado = crearResultado(1, "informacionMain", "1", __func__, 1);
+			estado = crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  			break;
  		}
  		case 2:
@@ -725,7 +726,7 @@ int prueba(void)
  			sistema_memoria_liberar(mensaje);
  			sistema_memoria_liberar(contactos);
  			sistema_memoria_liberar(estado);
- 			estado = crearResultado(1, "informacionMain", "1", __func__, 1);
+			estado = crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  			break;
  		}
  		case 3:
@@ -742,7 +743,7 @@ int prueba(void)
  			sistema_memoria_liberar(aceptado);
  			sistema_memoria_liberar(respuesta);
  			sistema_memoria_liberar(estado);
- 			estado = crearResultado(1, "informacionMain", "1", __func__, 1);
+			estado = crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  			break;
  		}
 		case 4:
@@ -782,13 +783,13 @@ int prueba(void)
  			sistema_consola_escribir_formato("Volviendo al menú anterior...\n");
  			sistema_memoria_liberar(estado);
  			sistema_memoria_liberar(resultado);
- 			return crearResultado(1, "informacionMain", "1", __func__, 1);
+				return crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  		}
  		default:
  		{
  			sistema_consola_escribir_formato("Opción no válida.\n");
  			sistema_memoria_liberar(estado);
- 			estado = crearResultado(-2, "opcion_no_valida", "", __func__, 1);
+			estado = crearResultado(-2, "opcion_no_valida", "", __func__, nivel_de_profundidad);
  			break;
  		}
  	}
@@ -798,7 +799,7 @@ int prueba(void)
  	}
  	sistema_memoria_liberar(estado);
  	sistema_memoria_liberar(resultado);
- 	return crearResultado(1, "informacionMain", "1", __func__, 1);
+	return crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  }
 /*
  * Menú de demostración de split(), modificarColumna() y lectura de consola.
@@ -806,6 +807,7 @@ int prueba(void)
  */
  char * submenu_operaciones_de_texto(const char * parametros_en_texto_a_splitear, int nivel_de_profundidad)
  {
+	nivel_de_profundidad++;
  	int opcion = 0;                        /* 1=split, 2=editar columna, 3=leer consola, 4=volver. */
  	int cantidad = 0;                      /* Número de argumentos de ejemplo divididos. */
  	char ** parametros_espliteados = NULL; /* Argumentos temporales que se liberan al mostrarlos. */
@@ -844,7 +846,7 @@ int prueba(void)
  				sistema_memoria_liberar(texto);
  				sistema_memoria_liberar(delimitador);
  				sistema_memoria_liberar(estado);
- 				estado = crearResultado(-1, "error_split", "", __func__, 1);
+				estado = crearResultado(-1, "error_split", "", __func__, nivel_de_profundidad);
  				break;
  			}
  			for(int i = 0; i < total; i++)
@@ -855,7 +857,7 @@ int prueba(void)
  			sistema_memoria_liberar(texto);
  			sistema_memoria_liberar(delimitador);
  			sistema_memoria_liberar(estado);
- 			estado = crearResultado(1, "informacionMain", "1", __func__, 1);
+			estado = crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  			break;
  		}
  		case 2:
@@ -875,7 +877,7 @@ int prueba(void)
  				sistema_memoria_liberar(linea);
  				sistema_memoria_liberar(nuevo);
  				sistema_memoria_liberar(estado);
- 				estado = crearResultado(-1, "error_modificar_columna", "", __func__, 1);
+				estado = crearResultado(-1, "error_modificar_columna", "", __func__, nivel_de_profundidad);
  				break;
  			}
  			sistema_consola_escribir_formato("Resultado: %s\n", resultadoMod);
@@ -883,7 +885,7 @@ int prueba(void)
  			sistema_memoria_liberar(linea);
  			sistema_memoria_liberar(nuevo);
  			sistema_memoria_liberar(estado);
- 			estado = crearResultado(1, "informacionMain", "1", __func__, 1);
+			estado = crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  			break;
  		}
  		case 3:
@@ -893,13 +895,13 @@ int prueba(void)
  			if(linea == NULL)
  			{
  				sistema_memoria_liberar(estado);
- 				estado = crearResultado(-1, "error_lectura", "", __func__, 1);
+				estado = crearResultado(-1, "error_lectura", "", __func__, nivel_de_profundidad);
  				break;
  			}
  			sistema_consola_escribir_formato("Línea recibida: %s\n", linea);
  			sistema_memoria_liberar(linea);
  			sistema_memoria_liberar(estado);
- 			estado = crearResultado(1, "informacionMain", "1", __func__, 1);
+			estado = crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  			break;
  		}
  		case 4:
@@ -911,13 +913,13 @@ int prueba(void)
  				estado = NULL;
  				return tmp;
  			}
- 			return crearResultado(1, "informacionMain", "1", __func__, 1);
+			return crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  		}
  		default:
  		{
  			sistema_consola_escribir_formato("Opción no válida.\n");
  			sistema_memoria_liberar(estado);
- 			estado = crearResultado(-2, "opcion_no_valida", "", __func__, 1);
+			estado = crearResultado(-2, "opcion_no_valida", "", __func__, nivel_de_profundidad);
  			break;
  		}
  	}
@@ -926,7 +928,7 @@ int prueba(void)
  		sistema_consola_escribir_formato("%s\n", estado);
  	}
  	sistema_memoria_liberar(estado);
- 	return crearResultado(1, "informacionMain", "1", __func__, 1);
+	return crearResultado(1, "informacionMain", "1", __func__, nivel_de_profundidad);
  }
  
  #pragma endregion FUNCIONES SUBMENÚS
@@ -975,7 +977,7 @@ int prueba(void)
  */
  char ** split(const char *texto, const char *separador, int *cantidad, int nivel_de_profundidad)
  {
- 	(void)nivel_de_profundidad;
+	nivel_de_profundidad++;
  	if(cantidad == NULL) return NULL;
  	*cantidad = 0;
  	if(texto == NULL || separador == NULL || separador[0] == '\0') return NULL;
@@ -1050,7 +1052,7 @@ int prueba(void)
  */
  void liberarSplit(char **partes, int cantidad, int nivel_de_profundidad)
  {
- 	(void)nivel_de_profundidad;
+	nivel_de_profundidad++;
  	if(partes == NULL) return;
  	for(int i = 0; i < cantidad; i++) sistema_memoria_liberar(partes[i]);
  	sistema_memoria_liberar(partes);
@@ -1063,7 +1065,7 @@ int prueba(void)
  */
  char * join(char **arreglo, int cantidad, const char *carcter_separacion, int nivel_de_profundidad)
  {
- 	(void)nivel_de_profundidad;
+	nivel_de_profundidad++;
  	const char *separador = (carcter_separacion != NULL) ? carcter_separacion : ""; /* NULL significa sin separador. */
  	size_t longitud_total = 1;                  /* Incluye desde el inicio el byte final '\0'. */
  	size_t longitud_separador = strlen(separador); /* Bytes insertados entre elementos. */
@@ -1331,11 +1333,7 @@ static char *leerLineaDesde(
     int caracter;      /* Byte leído como int o SISTEMA_ARCHIVO_FIN_LECTURA. */
 
 
-    /*
-     * Actualmente el nivel se reserva para
-     * el control interno del sistema.
-     */
-    (void)nivel_de_profundidad;
+	nivel_de_profundidad++;
 
 
     /*
@@ -1465,6 +1463,8 @@ static int leerCaracterConsola(void *contexto)
 /* Adaptador público interno: lee una línea desde un archivo ya abierto. */
 static char *leerLineaDinamica(SistemaArchivo *flujo, int nivel_de_profundidad)
 {
+	nivel_de_profundidad++;
+	(void)nivel_de_profundidad;
 	if(flujo == NULL) return NULL;
 	return leerLineaDesde(leerCaracterArchivo, flujo, nivel_de_profundidad);
 }
@@ -1472,6 +1472,8 @@ static char *leerLineaDinamica(SistemaArchivo *flujo, int nivel_de_profundidad)
 /* Adaptador interno: misma lógica de línea, pero leyendo desde la consola. */
 static char *leerLineaConsola(int nivel_de_profundidad)
 {
+	nivel_de_profundidad++;
+	(void)nivel_de_profundidad;
 	return leerLineaDesde(leerCaracterConsola, NULL, nivel_de_profundidad);
 }
 
@@ -1485,6 +1487,7 @@ char * modificarColumna(const char * lineaOriginal,
  	const char * nuevoValor,
  		int nivel_de_profundidad)
  {
+	nivel_de_profundidad++;
  	if(lineaOriginal == NULL || nuevoValor == NULL || columnaTarget < 1) return NULL;
 
  	int cantidad = 0; /* Columnas encontradas en la fila, por ejemplo 3. */
@@ -1555,6 +1558,8 @@ static int aplicarOperacionLinea(
 	int nivel_de_profundidad
 )
 {
+	nivel_de_profundidad++;
+	(void)nivel_de_profundidad;
 	SistemaArchivo *archivo;          /* Original abierto para lectura. */
 	SistemaArchivo *temporal;         /* Archivo de salida con cambios aplicados. */
 	char *linea;                      /* Línea actual; se libera en cada iteración. */
@@ -1645,18 +1650,16 @@ static int aplicarOperacionLinea(
  char * leerArchivo(const char * ruta,
  	int nivel_de_profundidad)
  {
- 	nivel_de_profundidad++;
+	nivel_de_profundidad++;
  	if(ruta == NULL)
  	{
  		return crearResultado(-1, "ruta_invalida", "", __func__, nivel_de_profundidad);
  	}
-
  	SistemaArchivo *archivo = sistema_archivo_abrir(ruta, "r");
  	if(archivo == NULL)
  	{
  		return crearResultado(-1, "no_se_pudo_abrir_archivo", "", __func__, nivel_de_profundidad);
  	}
-
  	int numeroLinea = 1; /* Número que se muestra junto a cada línea. */
  	char *linea;          /* Línea dinámica leída; se libera inmediatamente tras mostrarla. */
  	sistema_consola_escribir_formato("\n--- CONTENIDO DE [%s] ---\n", ruta);
@@ -1665,14 +1668,13 @@ static int aplicarOperacionLinea(
  		sistema_consola_escribir_formato("%d: %s\n", numeroLinea++, linea);
  		sistema_memoria_liberar(linea);
  	}
-
  	int errorLectura = sistema_archivo_hay_error(archivo);
  	int errorCierre = sistema_archivo_cerrar(archivo);
  	sistema_consola_escribir_formato("-----------------------------------\n");
  	if(errorLectura || errorCierre != 0)
  	{
  		return crearResultado(-1, "error_al_leer_archivo", "", __func__, nivel_de_profundidad);
- 	}
+	}
  	return crearResultado(1, "lectura_ok", "", __func__, nivel_de_profundidad);
  }
 /*
