@@ -579,18 +579,7 @@ char* prueba(int nivel_de_profundidad)
 	{
 		return crearResultado(-1, "error_al_concatenar_comando", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);
 	}
-	comando = comandoConcatenado;
-
-	char *comandoConOpcion = concatenar(
-		"%s%s%d",
-		comando,
-		GG_caracter_para_transferencia_entre_archivos[1],
-		opcionSubmenu
-	);
-	if(comandoConOpcion == NULL)
-	{
-		return crearResultado(-1, "error_al_concatenar_opcion", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);
-	}
+	
 
 	char *resultado = concatenar(
 		"%s%s%s%s%s%s%s",
@@ -598,12 +587,11 @@ char* prueba(int nivel_de_profundidad)
 		GG_caracter_para_transferencia_entre_archivos[0],
 		"prueba",
 		GG_caracter_para_transferencia_entre_archivos[1],
-		comandoConOpcion,
+		comandoConcatenado,
 		GG_caracter_para_transferencia_entre_archivos[1],
 		"INFORMACION_ESPEJO_NO_SE_MODIFICA"
 	);
 	sistema_memoria_liberar(comandoConcatenado, error_o_datos_a_retornar, 0);
-	sistema_memoria_liberar(comandoConOpcion, error_o_datos_a_retornar, 0);
 	if(resultado == NULL){return crearResultado(-1, "error_al_concatenar_opcion", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);}
 	return resultado;
  }
