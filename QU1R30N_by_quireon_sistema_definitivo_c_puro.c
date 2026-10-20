@@ -330,6 +330,8 @@ char* prueba(int nivel_de_profundidad)
 	int opcion = 0;
 	int opcionSubmenu = 0;
 	const char *comando = NULL;
+	char *accionSubmenu = NULL;
+	char *comandoConcatenado = NULL;
 
 	char *error_o_datos_a_retornar ="";
 	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "\n=== MENÚ DE PRUEBAS ===\n");
@@ -364,15 +366,53 @@ char* prueba(int nivel_de_profundidad)
 			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "Seleccione una opción: ");
 			char *entradaSubmenu = leerLineaConsola(error_o_datos_a_retornar, nivel_de_profundidad);
 			if(entradaSubmenu == NULL)
-			{
-				return crearResultado(-1, "no_se_pudo_leer_opcion_submenu", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);
-			}
+			{return crearResultado(-1, "no_se_pudo_leer_opcion_submenu", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);}
+			
 			int entradaSubmenuValida = textoAEntero(entradaSubmenu, &opcionSubmenu, error_o_datos_a_retornar, nivel_de_profundidad);
 			sistema_memoria_liberar(entradaSubmenu, error_o_datos_a_retornar, 0);
 			if(!entradaSubmenuValida || opcionSubmenu < 1 || opcionSubmenu > 8)
+			{return crearResultado(-2, "opcion_submenu_no_valida", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);}
+
+			switch (opcionSubmenu)
 			{
-				return crearResultado(-2, "opcion_submenu_no_valida", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);
+				case 1:
+					accionSubmenu = concatenar("%s%s%s", "leerArchivo", GG_caracter_separacion[2], NOMBRE_ARCHIVO);
+					break;
+				case 2:
+					accionSubmenu = concatenar("%s%s%s%s%s", "escribirLinea", GG_caracter_separacion[2], NOMBRE_ARCHIVO, GG_caracter_separacion[2], "registro_sintetico");
+					break;
+				case 3:
+					accionSubmenu = concatenar("%s%s%s%s%s", "editarLinea", GG_caracter_separacion[2], NOMBRE_ARCHIVO, GG_caracter_separacion[2], "1");
+					if(accionSubmenu != NULL)
+					{
+						char *accionCompleta = concatenar("%s%s%s", accionSubmenu, GG_caracter_separacion[2], "texto_editado_sintetico");
+						sistema_memoria_liberar(accionSubmenu, error_o_datos_a_retornar, 0);
+						accionSubmenu = accionCompleta;
+					}
+					break;
+				case 4:
+					accionSubmenu = concatenar("%s%s%s%s%s%s%s", "editarColumna", GG_caracter_separacion[2], NOMBRE_ARCHIVO, GG_caracter_separacion[2], "1", GG_caracter_separacion[2], "1");
+					if(accionSubmenu != NULL)
+					{
+						char *accionCompleta = concatenar("%s%s%s", accionSubmenu, GG_caracter_separacion[2], "valor_sintetico");
+						sistema_memoria_liberar(accionSubmenu, error_o_datos_a_retornar, 0);
+						accionSubmenu = accionCompleta;
+					}
+					break;
+				case 5:
+					accionSubmenu = concatenar("%s%s%s%s%s", "eliminarLinea", GG_caracter_separacion[2], NOMBRE_ARCHIVO, GG_caracter_separacion[2], "1");
+					break;
+				case 6:
+					accionSubmenu = concatenar("%s%s%s%s%s", "vaciarLinea", GG_caracter_separacion[2], NOMBRE_ARCHIVO, GG_caracter_separacion[2], "1");
+					break;
+				case 7:
+					accionSubmenu = concatenar("%s", "ejecutarEjemplosPrueba");
+					break;
+				case 8:
+					accionSubmenu = concatenar("%s", "volver");
+					break;
 			}
+
 			break;
 		}
 		case 2:
@@ -396,6 +436,24 @@ char* prueba(int nivel_de_profundidad)
 			{
 				return crearResultado(-2, "opcion_submenu_no_valida", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);
 			}
+			switch(opcionSubmenu)
+			{
+				case 1:
+					accionSubmenu = concatenar("%s%s%s", "mandar_mensje_a_todos", GG_caracter_separacion[2], "mensaje_sintetico");
+					break;
+				case 2:
+					accionSubmenu = concatenar("%s%s%s%s%s%s%s", "mandar_mensje_a_contacto", GG_caracter_separacion[2], "mensaje_sintetico", GG_caracter_separacion[2], "contacto_sintetico", GG_caracter_separacion[2], "1");
+					break;
+				case 3:
+					accionSubmenu = concatenar("%s%s%s%s%s%s%s", "mandar_mensje_al_primero_que_responda", GG_caracter_separacion[2], "pregunta_sintetica", GG_caracter_separacion[2], "aceptacion_sintetica", GG_caracter_separacion[2], "respuesta_sintetica");
+					break;
+				case 4:
+					accionSubmenu = concatenar("%s", "checar_si_hay_mensajes_no_leido");
+					break;
+				case 5:
+					accionSubmenu = concatenar("%s", "volver");
+					break;
+			}
 			break;
 		}
 		case 3:
@@ -417,6 +475,21 @@ char* prueba(int nivel_de_profundidad)
 			if(!entradaSubmenuValida || opcionSubmenu < 1 || opcionSubmenu > 4)
 			{
 				return crearResultado(-2, "opcion_submenu_no_valida", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);
+			}
+			switch(opcionSubmenu)
+			{
+				case 1:
+					accionSubmenu = concatenar("%s%s%s%s%s", "split", GG_caracter_separacion[2], "uno,dos,tres", GG_caracter_separacion[2], ",");
+					break;
+				case 2:
+					accionSubmenu = concatenar("%s%s%s%s%s%s%s", "modificarColumna", GG_caracter_separacion[2], "uno,dos,tres", GG_caracter_separacion[2], "2", GG_caracter_separacion[2], "valor_sintetico");
+					break;
+				case 3:
+					accionSubmenu = concatenar("%s", "leerLineaConsola");
+					break;
+				case 4:
+					accionSubmenu = concatenar("%s", "volver");
+					break;
 			}
 			break;
 		}
@@ -443,6 +516,30 @@ char* prueba(int nivel_de_profundidad)
 			{
 				return crearResultado(-2, "opcion_submenu_no_valida", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);
 			}
+			switch(opcionSubmenu)
+			{
+				case 1:
+					accionSubmenu = concatenar("%s%s%s%s%s%s%s", "probar_split_join", GG_caracter_separacion[2], "uno,dos", GG_caracter_separacion[2], ",", GG_caracter_separacion[2], "-");
+					break;
+				case 2:
+					accionSubmenu = concatenar("%s%s%s%s%s", "probar_conversiones", GG_caracter_separacion[2], "42", GG_caracter_separacion[2], "42|prueba");
+					break;
+				case 3:
+					accionSubmenu = concatenar("%s%s%s%s%s%s%s%s%s%s%s", "probar_crearResultado", GG_caracter_separacion[2], "1", GG_caracter_separacion[2], "prueba_sintetica", GG_caracter_separacion[2], "", GG_caracter_separacion[2], "prueba", GG_caracter_separacion[2], "1");
+					break;
+				case 4:
+					accionSubmenu = concatenar("%s%s%s", "probar_memoria", GG_caracter_separacion[2], "16");
+					break;
+				case 5:
+					accionSubmenu = concatenar("%s%s%s%s%s", "probar_archivos", GG_caracter_separacion[2], "texto_sintetico", GG_caracter_separacion[2], "42");
+					break;
+				case 6:
+					accionSubmenu = concatenar("%s%s%s", "probar_consola", GG_caracter_separacion[2], "texto_sintetico");
+					break;
+				case 7:
+					accionSubmenu = concatenar("%s", "volver");
+					break;
+			}
 			break;
 		}
 		case 5:
@@ -467,6 +564,23 @@ char* prueba(int nivel_de_profundidad)
 			return crearResultado(-2, "opcion_no_valida", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);
 	}
 
+	if(accionSubmenu == NULL)
+	{
+		return crearResultado(-2, "accion_submenu_no_definida", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);
+	}
+	comandoConcatenado = concatenar(
+		"%s%s%s",
+		comando,
+		GG_caracter_separacion_funciones_espesificas[0],
+		accionSubmenu
+	);
+	sistema_memoria_liberar(accionSubmenu, error_o_datos_a_retornar, 0);
+	if(comandoConcatenado == NULL)
+	{
+		return crearResultado(-1, "error_al_concatenar_comando", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);
+	}
+	comando = comandoConcatenado;
+
 	char *comandoConOpcion = concatenar(
 		"%s%s%d",
 		comando,
@@ -488,6 +602,7 @@ char* prueba(int nivel_de_profundidad)
 		GG_caracter_para_transferencia_entre_archivos[1],
 		"INFORMACION_ESPEJO_NO_SE_MODIFICA"
 	);
+	sistema_memoria_liberar(comandoConcatenado, error_o_datos_a_retornar, 0);
 	sistema_memoria_liberar(comandoConOpcion, error_o_datos_a_retornar, 0);
 	if(resultado == NULL){return crearResultado(-1, "error_al_concatenar_opcion", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);}
 	return resultado;
@@ -522,11 +637,27 @@ int main(void)
 			sistema_memoria_liberar(resultado, error_o_datos_a_retornar, 0);
 			return -1;
 		}
-		const char *nombreFuncion = partesResultado[1];
+		int cantidadPartesComando = 0;
+		char **partesComando = split(
+			partesResultado[1],
+			GG_caracter_separacion_funciones_espesificas[0],
+			&cantidadPartesComando,
+			error_o_datos_a_retornar,
+			0
+		);
+		if(partesComando == NULL || cantidadPartesComando < 1)
+		{
+			liberarSplit(partesComando, cantidadPartesComando, error_o_datos_a_retornar, 0);
+			liberarSplit(partesResultado, cantidadPartesResultado, error_o_datos_a_retornar, 0);
+			sistema_memoria_liberar(resultado, error_o_datos_a_retornar, 0);
+			return -1;
+		}
+		const char *nombreFuncion = partesComando[0];
 		int opcionSubmenu = 0;
 		if(cantidadPartesResultado < 4 ||
 			!textoAEntero(partesResultado[2], &opcionSubmenu, error_o_datos_a_retornar, 0))
 		{
+			liberarSplit(partesComando, cantidadPartesComando, error_o_datos_a_retornar, 0);
 			liberarSplit(partesResultado, cantidadPartesResultado, error_o_datos_a_retornar, 0);
 			sistema_memoria_liberar(resultado, error_o_datos_a_retornar, 0);
 			return -1;
@@ -534,6 +665,7 @@ int main(void)
 
 		if(nombreFuncion != NULL && strcmp(nombreFuncion, "salir") == 0)
 		{
+			liberarSplit(partesComando, cantidadPartesComando, error_o_datos_a_retornar, 0);
 			liberarSplit(partesResultado, cantidadPartesResultado, error_o_datos_a_retornar, 0);
 			sistema_memoria_liberar(resultado, error_o_datos_a_retornar, 0);
 			return 0;
@@ -586,6 +718,7 @@ int main(void)
 			resultado = crearResultado(1, "informacionMain", "1", __func__, error_o_datos_a_retornar, 1);
 		}
 
+		liberarSplit(partesComando, cantidadPartesComando, error_o_datos_a_retornar, 0);
 		liberarSplit(partesResultado, cantidadPartesResultado, error_o_datos_a_retornar, 0);
 		if(resultado == NULL) return -1;
 		int resultadoValido = leerCodigoResultado(error_o_datos_a_retornar, 0, resultado, &codigo);
