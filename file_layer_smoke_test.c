@@ -47,5 +47,6 @@ int main(void)
     assert(empty_previous != NULL);
     assert(strcmp(empty_previous, "200|test||main|0") == 0);
     sistema_memoria_liberar(empty_previous, 0);
+
     return 0;
 }
