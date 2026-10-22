@@ -37,7 +37,11 @@
   * limitations under the License.
   * =============================================================================
   */
- #include <stdarg.h>     /* Permite recibir argumentos variables en el formateador común. */
+#if defined(__linux__) && !defined(_POSIX_C_SOURCE)
+#define _POSIX_C_SOURCE 199309L
+#endif
+
+  #include <stdarg.h>     /* Permite recibir argumentos variables en el formateador común. */
 
 #if !defined(SEMICONDUCTOR) || defined(PIC16F)
  #include <stdio.h>
@@ -55,6 +59,33 @@
 
  #include <limits.h>     /* INT_MIN, INT_MAX y CHAR_BIT para conversiones con límites seguros. */
 
+ #include <float.h>      /* FLT_MAX para validar conversiones decimales a float. */
+
+#if defined(_WIN32) || defined(_WIN64) || defined(__linux__)
+#include <time.h>
+#endif
+
+#if defined(__linux__)
+#include <errno.h>
+#endif
+
+#if defined(_WIN32) || defined(_WIN64)
+#include <windows.h>
+#endif
+
+#if defined(__XC)
+#ifndef _XTAL_FREQ
+#define _XTAL_FREQ 4000000
+#endif
+#include <xc.h>
+#endif
+
+
+ /*
+  * Tamaño de arranque, no límite máximo: las líneas largas se amplían mediante
+  * la capa de memoria. Ejemplo: una línea de 80 caracteres crece desde 16.
+  */
+ #define TAMANO_INICIAL_LINEA 16
 
 
 /*
@@ -117,12 +148,6 @@
 #pragma endregion RUTAS_DE_ARCHIVOS
 
  /*
-  * Tamaño de arranque, no límite máximo: las líneas largas se amplían mediante
-  * la capa de memoria. Ejemplo: una línea de 80 caracteres crece desde 16.
-  */
- #define TAMANO_INICIAL_LINEA 16
-
- /*
   * ============================================================================
   * CONFIGURACIÓN DE CONSOLA UTF-8
   * ============================================================================
@@ -137,7 +162,8 @@
 	setlocale(LC_ALL, "");
 	#endif
  }
- /* ---------------------------------------------------------------------------
+
+/* ---------------------------------------------------------------------------
     CAPA DE MEMORIA, ARCHIVOS Y CONSOLA
     --------------------------------------------------------------------------- */
 #pragma region CAPA DE MEMORIA, ARCHIVOS Y CONSOLA
@@ -155,6 +181,7 @@ static char * leerLineaDinamica(SistemaArchivo * flujo, char *error_o_datos_a_re
  static void * sistema_memoria_reservar(size_t cantidad, char *error_o_datos_a_retornar,int nivel_de_profundidad);
  static void * sistema_memoria_redimensionar(void * memoria, size_t cantidad, char *error_o_datos_a_retornar,int nivel_de_profundidad);
  static void sistema_memoria_liberar(void * memoria, char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ 
  static SistemaArchivo * sistema_archivo_abrir(const char * ruta,const char * modo, char *error_o_datos_a_retornar,int nivel_de_profundidad);
  static int sistema_archivo_cerrar(SistemaArchivo *archivo, char *error_o_datos_a_retornar,int nivel_de_profundidad);
  static int sistema_archivo_eliminar(const char * ruta, char *error_o_datos_a_retornar,int nivel_de_profundidad);
@@ -231,6 +258,73 @@ static char * leerLineaDinamica(SistemaArchivo * flujo, char *error_o_datos_a_re
 /* Identidad textual del programa y sus rutas configuradas por plataforma. */
  const char * GG_id_programa = "QU1R30N_SISTEMA_DEFINITIVO";
  const char * GG_direccion_control_errores_try = RUTA_CONTROL_ERRORES_TRY;
+
+/*
+ * Catálogo navegable del subsistema de negocio. El formato de resultado del
+ * programa sigue siendo el de crearResultado(); este catálogo no lo reemplaza.
+ */
+typedef struct
+{
+	const char *nombre;
+	const char *ruta;
+	const char *columnas;
+} GG_SeccionNegocio;
+
+static const GG_SeccionNegocio GG_secciones_negocio[] = {
+	{"Configuración", "CONFIG/CONF/CONFIGURACION.TXT", "dato_de_configuracion°descripcion_de_configuracion"},
+	{"Productos / inventario", "CONFIG/INF/INVENTARIO/INVENTARIO.TXT",
+		"_00_ID°_01_PRODUCTO°_02_CONTENIDO°_03_TIPO_MEDIDA°_04_PRECIO_VENTA°_05_COD_BARRAS°_06_CANTIDAD°_07_COSTO_COMP°_08_PROVEDOR°_09_GRUPO°_10_CANT_X_PAQUET°_11_ES_PAQUETE°_12_CODBAR_PAQUETE_E_ID°_13_COD_BAR_INDIVIDUAL_ES_PAQ_E_ID°_14_LIGAR_PROD_SAB°_15_IMPUESTOS°_16_INGREDIENTES°_17_CADUCIDAD°_18_ULTIMO_MOV°_19_SUCUR_VENT°_20_CLAF_PROD°_21_DIR_IMG_INTER°_22_DIR_IMG_COMP°_23_INFO_EXTRA°_24_PROCESO_CREAR°_25_DIR_VID_PROC_CREAR°_26_TIEMPO_FABRICACION°_27_INDICES_DIA_REGISTRO_PRODUC_VENDIDO°_28_INDICES_MES_REGISTRO_PRODUC_VENDIDO°_29_INDICES_AÑO_REGISTRO_PRODUC_VENDIDO°_30_ULTIMA_VENTA°_31_INDICES_TOTAL_REGISTRO_PRODUC_VENDIDO°_32_NO_PONER_NADA"},
+	{"Productos no inventariados", "CONFIG/INF/INVENTARIO/COSAS_NO_ESTABAN.TXT", "_00_ID°_01_COD_BAR°_02_NOMBRE"},
+	{"Proveedores", "CONFIG/INF/DAT/PROVEDORES.TXT",
+		"_00_ID_EMPRESA°_01_NOMBRE_EMPRESA°_02_NOMBRE_ENCARGADO°_03_DIRECCIÓN_EMPRESA°_04_CIUDAD_EMPRESA°_05_ESTADO_EMPRESA°_06_CÓDIGO_POSTAL°_07_PAÍS°_08_CORREO_ELECTRÓNICO°_09_TELÉFONO_ENCARGADO°_10_TELEFONO_EMPRESA°_11_TIPO_DE_PROVEEDOR°_12_PRODUCTOS_SERVICIOS_SUMINISTRADOS°_13_CUENTA_BANCO°_14_UBICACIÓN_(GPS)°_15_NOTAS°_16_RECORDATORIO°_17_ACTIVO_O_NO_ACTIVO°_18_CALIFICACIÓN°_19_COMENTARIOS°_20_SUCURSALES_QUE_LE_COMPRAN°_21_DINERO_A_COMPRARLE°_22_DIAS_DE_PREVENTA°_23_DIAS_DE_ENTREGA"},
+	{"Afiliados", "CONFIG/AFILIADOS/AFILIADOS_UNIFICADO.TXT",
+		"_00_ID°_01_NOMBRE°_02_APELLIDO_PATERNO°_03_APELLIDO_MATERNO°_04_FECHA_DE_NACIMIENTO°_05_GÉNERO°_06_DIRECCIÓN°_07_CIUDAD°_08_ESTADO_PROVINCIA°_09_CÓDIGO_POSTAL°_10_PAÍS°_11_CORREO_ELECTRÓNICO°_12_TELÉFONO°_13_FECHA_DE_INGRESO°_14_SUELDO°_15_CARGO°_16_ESTADO_DE_CURS_APRENDIS_E°_17_SUPERVISOR°_18_NOTAS°_19_IDS_DE_AFILIADOS°_20_FECHA_DE_TERMINACIÓN°_21_MOTIVO_DE_TERMINACIÓN°_22_HORAS_TRABAJADAS°_23_EVALUACIONES_DE_DESEMPEÑO°_24_HABILIDADES_Y_CERTIFICACIONES°_25_IDIOMAS°_26_FECHA_DE_ÚLTIMA_PROMOCIÓN°_27_ID_DEPARTAMENTO°_28_HISTORIAL_DE_CAPACITACIÓN°_29_ÚLTIMO_AUMENTO_DE_SALARIO°_30_TIPO_EMPLEADO°_31_RANGO_CALIF°_32_ID_PATROCINADOR°_33_ID_ENCARGADO°_34_PUNTOS_A_P°_35_REG_PUNTOS_DIA°_36_REG_PUNTOS_MES°_37_REG_PUNTOS_AÑO°_38_REG_PUNTOS_TOTAL°_39_NIVEL°_40_FECHA_ASIGNACION°_40_ESTADO_DEL_USUARIO"},
+	{"Sucursales", "CONFIG/INF/DAT/SUCUR.TXT",
+		"_00_ID°_01_NOM_ID_SUCUR°_02_NOMBRE_SUCUR°_03_NOMBRE_ENCARGADO°_04_DIRECCIÓN_SUCUR°_05_CIUDAD_SUCUR°_06_ESTADO_SUCUR°_07_CÓDIGO_POSTAL°_08_PAÍS°_09_CORREO_ELECTRÓNICO°_10_TELÉFONO_ENCARGADO°_11_TELEFONO_SUCUR°_12_TIPO_DE_SUCUR°_13_PRODUCTOS_SERVICIOS°_14_CUENTA_BANCO°_15_UBICACIÓN_(GPS)°_16_NOTAS°_17_RECORDATORIO°_18_ACTIVO_O_NO_ACTIVO°_19_HORA_ABRIR_CERRAR"},
+	{"Registros diarios", "CONFIG/INF/REGISTROS/FECHAS/AAAA/AAAAMM/AAAAMMDD_REGISTRO.TXT",
+		"_00_ID°_01_HORA°_02_OPERACION°_03_TOTAL_IMPUESTO°_04_CÓDIGO_PRECIO°_05_COMENTARIO°_06_TOTAL_VENTA°_07_TOTAL_COSTO_COMP°_08_TOTAL_IMPUESTOS°_09_TOTAL_DEDUSIBLES°_10_PLATAFORMA"},
+	{"Registros mensuales", "CONFIG/INF/REGISTROS/FECHAS/AAAA/AAAAMM_REGISTRO.TXT",
+		"_00_ID°_01_DIA°_02_OPERACION°_03_TOTAL_IMPUESTO°_04_COMENTARIO°_05_TOTAL_VENTA°_06_TOTAL_COSTO_COMP°_07_TOTAL_IMPUESTOS°_08_TOTAL_GANANCIA"},
+	{"Registros anuales", "CONFIG/INF/REGISTROS/FECHAS/AAAA_REGISTRO.TXT",
+		"_00_ID°_01_MES°_02_OPERACION°_03_TOTAL_IMPUESTO°_04_COMENTARIO°_05_TOTAL_VENTA°_06_TOTAL_COSTO_COMP°_07_TOTAL_IMPUESTOS°_08_TOTAL_GANANCIA"},
+	{"Registro acumulado", "CONFIG/INF/REGISTROS/ACUMULADO_REGISTRO.TXT",
+		"_00_ID°_01_AÑO°_02_OPERACION°_03_TOTAL_IMPUESTO°_04_COMENTARIO°_05_TOTAL_VENTA°_06_TOTAL_COSTO_COMP°_07_TOTAL_IMPUESTOS°_08_TOTAL_GANANCIA"},
+	{"Productos vendidos (día)", "CONFIG/INF/REGISTROS/FECHAS/AAAAMMDD_PRODUC_REGISTRO.TXT",
+		"_00_ID°_01_NOMBRE_PRODUCTO°_02_CANTIDAD°_03_COD_BAR°_04_PROVEDORES°_05_HISTORIAL°_06_RANKING°_07_PROMEDIO°_08_VECES_SUPERA_PROMEDIO°_09_USO_MULTIPLE°_10_TIPO_PRODUCTO°_11_NIVEL_NECESIDAD"},
+	{"Productos vendidos (mes)", "CONFIG/INF/REGISTROS/FECHAS/AAAAMM_PRODUC_REGISTRO.TXT",
+		"_00_ID°_01_NOMBRE_PRODUCTO°_02_CANTIDAD°_03_COD_BAR°_04_PROVEDORES°_05_HISTORIAL°_06_RANKING°_07_PROMEDIO°_08_VECES_SUPERA_PROMEDIO°_09_USO_MULTIPLE°_10_TIPO_PRODUCTO°_11_NIVEL_NECESIDAD"},
+	{"Productos vendidos (año)", "CONFIG/INF/REGISTROS/FECHAS/AAAA_PRODUC_REGISTRO.TXT",
+		"_00_ID°_01_NOMBRE_PRODUCTO°_02_CANTIDAD°_03_COD_BAR°_04_PROVEDORES°_05_HISTORIAL°_06_RANKING°_07_PROMEDIO°_08_VECES_SUPERA_PROMEDIO°_09_USO_MULTIPLE°_10_TIPO_PRODUCTO°_11_NIVEL_NECESIDAD"},
+	{"Productos vendidos (acumulado)", "CONFIG/INF/REGISTROS/ACUMULADO_PRODUC_REGISTRO.TXT",
+		"_00_ID°_01_NOMBRE_PRODUCTO°_02_CANTIDAD°_03_COD_BAR°_04_PROVEDORES°_05_HISTORIAL°_06_RANKING°_07_PROMEDIO°_08_VECES_SUPERA_PROMEDIO°_09_USO_MULTIPLE°_10_TIPO_PRODUCTO°_11_NIVEL_NECESIDAD"},
+	{"Impuestos", "CONFIG/INF/IMPUESTOS/IMPUESTOS.TXT", "_00_ID°_01_IMPUESTO°_02_PORCENTAGE°_03_DESCRIPCION°_04_INFO_EXTRA°_05_TIPO_IMPUESTO"},
+	{"Deducibles", "CONFIG/INF/IMPUESTOS/DEDUSIBLES.TXT", "_00_ID°_01_FECHA°_02_MONTO°_03_DESCRIPCION°_04_PROVEDOR°_05_ARCHIVO_FACTURA°_06_FOLIO"},
+	{"Herramientas / tipos de medida", "CONFIG/INF/INVENTARIO/TIPOS_DE_MEDIDA.TXT", "_00_ID°_01_COD_BAR"},
+	{"Trabajos por día", "CONFIG/INF/DAT/TRABAJOS_POR_DIA.TXT",
+		"_00_ID°_01_DIA°_02_ID_TRABAJADOR°_03_HECHO_O_NO°_04_CANTIDAD°_05_COSTO_COMP°_06_ID_QUIENLOISO°_07_ID_PROGRAMA"},
+	{NULL, NULL, NULL}
+};
+
+static const GG_SeccionNegocio GG_archivos[] = {
+	{"Espacios", "espacios/archivo_espacios.txt", "ID|Usuario|Contraseña|Directorio_Archivo_permisos_usuarios|Nivel"},
+	{"Entrada del sistema", RUTA_TRANSFERENCIA_PREGUNTAS, "ID_DESTINO┴ID_ORIGEN■COMANDO■INFORMACION_ESPEJO_NO_SE_MODIFICA"},
+	{"Salida del sistema", RUTA_TRANSFERENCIA_RESPUESTAS, "ID_DESTINO┴ID_ORIGEN■COMANDO■INFORMACION_ESPEJO_NO_SE_MODIFICA"},
+	{"Control de errores", RUTA_CONTROL_ERRORES_TRY, NULL},
+	{"Registros de ventas", "registros_ventas.txt", NULL},
+	{"Registros de compras", "registros_compras.txt", NULL},
+	{NULL, NULL, NULL}
+};
+
+char *GG_ultimo_retorno_estandar = NULL;
+static char *GG_acumulador_retorno_procesos = NULL;
+
+/* El getter devuelve una vista válida hasta la siguiente llamada a crearResultado(). */
+static int actualizar_ultimo_retorno(const char *texto);
+/* Acumula el texto de cada proceso usando el separador de transferencia actual. */
+int acumular_retorno_proceso(const char *texto);
+void limpiar_retorno_procesos(void);
+const char *obtener_ultimo_retorno_formateado(void);
+
  const char * G_dir_arch_transferencia[] = {
  	/* 0 */
  	RUTA_TRANSFERENCIA_BANDERAS,
@@ -281,6 +375,35 @@ static char * leerLineaDinamica(SistemaArchivo * flujo, char *error_o_datos_a_re
  char ** split(const char * texto,const char * delimitador,int * cantidad,char *error_o_datos_a_retornar,int nivel_de_profundidad);
  void liberarSplit(char ** partes, int cantidad, char *error_o_datos_a_retornar,int nivel_de_profundidad);
  char * join(char ** arreglo, int cantidad,const char * carcter_separacion,char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ char *construir_retorno_estandar(int codigo, const char *separador, const char *mensaje, const char *datos_extra);
+ char *variable_string(const char *format, ...);
+ int split_con_numero_de_celdas(const char *txt, const char *sep, char ***salida);
+ void free_split_con_numero_de_celdas(char **arreglo);
+ int texto_a_int_seguro(const char *texto, int *var_a_retornar);
+ int texto_a_float_seguro(const char *texto, float *var_a_retornar);
+ int concatenar_formato_separado_por_variable(char **destino, const char *separador, const char *formato, ...);
+ int concatenar_formato(char *destino, size_t capacidad, const char *separador, const char *formato, ...);
+ char *join_paresido_simple(char caracter_union_filas, char **texto, int n_texto, const char *columnas_extraer, const char *caracter_union_columnas);
+ char *joineada_paraesida_y_quitador_de_extremos(const char *data, int restar_cuantas, int restar_primera_celda);
+ char *Trimend_paresido(const char *texto);
+ char *concatenacion_filas_de_un_archivo(const char *ruta_archivo, int poner_num_fila);
+ char *concatenacion_filas_de_un_arreglo(char **arreglo, int n_arreglo, int poner_num_fila);
+ char *concatenacion_caracter_separacion(const char *texto_actual, const char *texto_agregar, const char *separador);
+ char *generar_folio(const char *formato_fecha_hora);
+ int desfragmentar_direccion(const char *direccion, char **retorna_directorios, char **retorna_nom_arch, char **retorna_extencion);
+ char *ReemplazarCaracteres_de_texto_arreglo(const char *info, char **caracteres_sep, int n_sep, char **caracteres_sustitucion);
+ char *ReemplazarCaracteres_de_texto_string(const char *info, const char *sep, const char *sust);
+ char *busqueda_profunda_string(const char *texto, const char *columnas_recorrer, const char *comparar);
+ char *busqueda_profunda_comparacion_final_string(const char *texto, const char *columnas_recorrer, const char *comparar);
+ char *busqueda_con_YY_profunda_texto_id_archivo(const char *texto, const char *columnas_recorrer, const char *comparaciones);
+ char *editar_incr_string_funcion_recursiva(const char *texto, const char *columnas_recorrer, const char *info_sustituir, const char *edit_0_increm_1);
+ char *editar_inc_agregar_edicion_profunda_multiple_comparacion_final_string(const char *texto, const char *indices_editar, const char *info_editar, const char *comparacion, const char *edit_0_increm_1);
+ char *ARR_FUN_SOLO_TEXTO_editar_inc_agregar_edicion_profunda_multiple(const char *datos);
+ char *editar_inc_agregar_edicion_profunda_multiple_comparacion_MULTIPLE_A_CHECAR(const char *texto, const char *indices_editar, const char *comparacion_con_edicion, const char *edit_0_increm_1);
+ char *editar_inc_edicion_profunda_multiple_string(const char *texto, const char *indices_editar, const char *info_editar, const char *edit_0_increm_1);
+ char *editar_inc_edicion_profunda_multiple_AL_FINAL_string(const char *texto, const char *indices_editar, const char *info_editar, const char *edit_0_increm_1);
+ char *recorrer_caracter_separacion(const char *contenidoFila, const char *izquierda_o_derecha, int numero_veses);
+ char *recorrer_caracter_separacion_funciones_espesificas(const char *contenidoFila, const char *izquierda_o_derecha, int numero_veses);
   char * concatenar(const char * formato, ...);
   static char *enteroATexto(int valor, char *buffer, size_t capacidad);
  
@@ -299,6 +422,8 @@ static char * leerLineaDinamica(SistemaArchivo * flujo, char *error_o_datos_a_re
  char * crearResultado(int codigo,const char * informacion,const char * resultado_anterior,const char * funcion_llamante,char *error_o_datos_a_retornar,int nivel_de_profundidad);
  void imprimirMensaje_para_depurar(char *error_o_datos_a_retornar,int nivel_de_profundidad, const char *format, ...);
  void imprimirMensaje_para_depurar_arreglo(char *error_o_datos_a_retornar,int nivel_de_profundidad, char **contenido, const char *texto, int total);
+ void delay_ms(unsigned int ms);
+ void fechaActual(char *buffer, const char *formato);
  static int submenu_pruebas_auxiliares(char *error_o_datos_a_retornar,int nivel_de_profundidad,int opcion_seleccionada);
  static int leerCodigoResultado(char *error_o_datos_a_retornar,int nivel_de_profundidad, const char *texto, int *codigo);
  static int resultadoTieneError(char *error_o_datos_a_retornar,int nivel_de_profundidad, const char *texto);
@@ -339,7 +464,8 @@ char* prueba(int nivel_de_profundidad)
 	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "2. Probar envío y consulta de mensajes\n");
 	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "3. Probar operaciones de texto\n");
 	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "4. Probar funciones auxiliares e infraestructura\n");
-	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "5. Volver al menú principal\n");
+	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "5. Navegar el catálogo del negocio\n");
+	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "6. Volver al menú principal\n");
 	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "Seleccione una opción: ");
 
 	char *entrada = leerLineaConsola(error_o_datos_a_retornar,nivel_de_profundidad);
@@ -543,6 +669,32 @@ char* prueba(int nivel_de_profundidad)
 			break;
 		}
 		case 5:
+		{
+			comando = "catalogo_negocio";
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "\n=== CATÁLOGO DEL NEGOCIO ===\n");
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "1. Productos e inventario\n");
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "2. Proveedores y afiliados\n");
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "3. Sucursales\n");
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "4. Registros de ventas y productos\n");
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "5. Impuestos, deducibles y trabajos\n");
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "6. Configuración y archivos generales\n");
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "7. Volver\n");
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "Seleccione una sección: ");
+			char *entradaSubmenu = leerLineaConsola(error_o_datos_a_retornar, nivel_de_profundidad);
+			if(entradaSubmenu == NULL)
+			{
+				return crearResultado(-1, "no_se_pudo_leer_opcion_submenu", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);
+			}
+			int entradaSubmenuValida = textoAEntero(entradaSubmenu, &opcionSubmenu, error_o_datos_a_retornar, nivel_de_profundidad);
+			sistema_memoria_liberar(entradaSubmenu, error_o_datos_a_retornar, 0);
+			if(!entradaSubmenuValida || opcionSubmenu < 1 || opcionSubmenu > 7)
+			{
+				return crearResultado(-2, "opcion_submenu_no_valida", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);
+			}
+			accionSubmenu = concatenar("%s%s%d", "ver", GG_caracter_separacion[2], opcionSubmenu);
+			break;
+		}
+		case 6:
 			{
 				char *salida = concatenar(
 					"%s%s%s%s%s%s%d%s%s",
@@ -582,12 +734,14 @@ char* prueba(int nivel_de_profundidad)
 	
 
 	char *resultado = concatenar(
-		"%s%s%s%s%s%s%s",
+		"%s%s%s%s%s%s%d%s%s",
 		GG_id_programa,
 		GG_caracter_para_transferencia_entre_archivos[0],
 		"prueba",
 		GG_caracter_para_transferencia_entre_archivos[1],
 		comandoConcatenado,
+		GG_caracter_para_transferencia_entre_archivos[1],
+		opcionSubmenu,
 		GG_caracter_para_transferencia_entre_archivos[1],
 		"INFORMACION_ESPEJO_NO_SE_MODIFICA"
 	);
@@ -596,6 +750,76 @@ char* prueba(int nivel_de_profundidad)
 	return resultado;
  }
 
+static void mostrar_seccion_negocio(int seccion, char *error_o_datos_a_retornar, int nivel_de_profundidad)
+{
+	const int cantidadSecciones = (int)(sizeof(GG_secciones_negocio) / sizeof(GG_secciones_negocio[0])) - 1;
+	const int cantidadArchivos = (int)(sizeof(GG_archivos) / sizeof(GG_archivos[0])) - 1;
+	int inicio = 0;
+	int fin = 0;
+
+	switch(seccion)
+	{
+		case 1: inicio = 1; fin = 3; break;
+		case 2: inicio = 3; fin = 5; break;
+		case 3: inicio = 5; fin = 6; break;
+		case 4: inicio = 6; fin = 14; break;
+		case 5: inicio = 14; fin = cantidadSecciones; break;
+		case 6:
+			sistema_consola_escribir_formato(
+				error_o_datos_a_retornar,
+				nivel_de_profundidad,
+				"%s\n  Archivo: %s\n",
+				GG_secciones_negocio[0].nombre,
+				GG_secciones_negocio[0].ruta
+			);
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, nivel_de_profundidad, "\n=== ARCHIVOS GENERALES ===\n");
+			for(int i = 0; i < cantidadArchivos; i++)
+			{
+				sistema_consola_escribir_formato(
+					error_o_datos_a_retornar,
+					nivel_de_profundidad,
+					"%s: %s\n",
+					GG_archivos[i].nombre,
+					GG_archivos[i].ruta
+				);
+			}
+			return;
+		case 7:
+			return;
+		default:
+			return;
+	}
+
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, nivel_de_profundidad, "\n=== SECCIÓN DEL NEGOCIO ===\n");
+	for(int i = inicio; i < fin && i < cantidadSecciones; i++)
+	{
+		sistema_consola_escribir_formato(
+			error_o_datos_a_retornar,
+			nivel_de_profundidad,
+			"%s\n  Archivo: %s\n",
+			GG_secciones_negocio[i].nombre,
+			GG_secciones_negocio[i].ruta
+		);
+	}
+}
+
+/*
+ * Garantiza que exista NOMBRE_ARCHIVO sin borrar su contenido si ya existe.
+ */
+static char * inicio(char *error_o_datos_a_retornar, int nivel_de_profundidad)
+{
+	SistemaArchivo *archivo = sistema_archivo_abrir(NOMBRE_ARCHIVO,"a",error_o_datos_a_retornar,nivel_de_profundidad);
+
+	
+	if(archivo == NULL)
+	{return crearResultado(-1, "no_se_pudo_crear_archivo_inicial", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad + 1);}
+
+	if(sistema_archivo_cerrar(archivo, error_o_datos_a_retornar, nivel_de_profundidad) != 0)
+	{return crearResultado(-1, "no_se_pudo_cerrar_archivo_inicial", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad + 1);}
+
+	return crearResultado(1, "archivo_inicial_listo", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad + 1);
+}
+
  /*
   * Punto de entrada: muestra el menú y distribuye las opciones.
   */
@@ -603,6 +827,19 @@ int main(void)
 {
 	configurarConsolaUTF8();
 	char *error_o_datos_a_retornar = NULL;
+	char *resultadoInicio = inicio(error_o_datos_a_retornar, 0);
+	int codigoInicio = -1;
+	if(resultadoInicio == NULL ||
+		!leerCodigoResultado(error_o_datos_a_retornar, 0, resultadoInicio, &codigoInicio))
+	{
+		sistema_memoria_liberar(resultadoInicio, error_o_datos_a_retornar, 0);
+		return -1;
+	}
+	sistema_memoria_liberar(resultadoInicio, error_o_datos_a_retornar, 0);
+	if(codigoInicio < 0)
+	{
+		return codigoInicio;
+	}
 
 	while (1)
 	{
@@ -699,6 +936,12 @@ int main(void)
 				error_o_datos_a_retornar,
 				1
 			);
+		}
+		else if(nombreFuncion != NULL && strcmp(nombreFuncion, "catalogo_negocio") == 0)
+		{
+			mostrar_seccion_negocio(opcionSubmenu, error_o_datos_a_retornar, 1);
+			sistema_memoria_liberar(resultado, error_o_datos_a_retornar, 0);
+			resultado = crearResultado(1, "catalogo_negocio", "", __func__, error_o_datos_a_retornar, 1);
 		}
 		else
 		{
@@ -1263,6 +1506,1228 @@ int main(void)
  	*cantidad = (int)contador;
  	return partes;
  }
+
+/*
+ * Formatea una cadena nueva con memoria de la capa común.
+ * El llamador debe liberar el resultado con sistema_memoria_liberar().
+ */
+char *variable_string(const char *format, ...)
+{
+#if defined(PLATAFORMA_SEMICONDUCTOR) && !defined(PIC16F)
+	(void)format;
+	return NULL;
+#else
+	if(format == NULL) return NULL;
+
+	va_list argumentos;
+	va_list argumentos_medicion;
+	va_start(argumentos, format);
+	va_copy(argumentos_medicion, argumentos);
+	int longitud = vsnprintf(NULL, 0, format, argumentos_medicion);
+	va_end(argumentos_medicion);
+	if(longitud < 0)
+	{
+		va_end(argumentos);
+		return NULL;
+	}
+
+	char *buffer = sistema_memoria_reservar((size_t)longitud + 1, NULL, 0);
+	if(buffer == NULL)
+	{
+		va_end(argumentos);
+		return NULL;
+	}
+
+	int escritos = vsnprintf(buffer, (size_t)longitud + 1, format, argumentos);
+	va_end(argumentos);
+	if(escritos != longitud)
+	{
+		sistema_memoria_liberar(buffer, NULL, 0);
+		return NULL;
+	}
+	return buffer;
+#endif
+}
+
+/*
+ * Construye el retorno estándar sin cambiar el formato de traza de crearResultado().
+ * El resultado pertenece al llamador y se libera con sistema_memoria_liberar().
+ */
+char *construir_retorno_estandar(
+	int codigo,
+	const char *separador,
+	const char *mensaje,
+	const char *datos_extra
+)
+{
+	if(separador == NULL)
+	{
+		separador = GG_caracter_para_confirmacion_o_error[0];
+	}
+	if(separador == NULL) return NULL;
+
+	return variable_string(
+		"%d%s%s%s%s",
+		codigo,
+		separador,
+		mensaje != NULL ? mensaje : "sin_mensaje",
+		separador,
+		datos_extra != NULL ? datos_extra : "sin_datos"
+	);
+}
+
+/*
+ * Adaptador compatible con la interfaz anterior de split.
+ * Devuelve el número de celdas o -1 si no pudo dividir.
+ */
+int split_con_numero_de_celdas(const char *txt, const char *sep, char ***salida)
+{
+	if(salida == NULL) return -1;
+	*salida = NULL;
+
+	int cantidad = 0;
+	char **partes = split(txt, sep, &cantidad, NULL, 0);
+	if(partes == NULL) return -1;
+
+	*salida = partes;
+	return cantidad;
+}
+
+void free_split_con_numero_de_celdas(char **arreglo)
+{
+	if(arreglo == NULL) return;
+
+	int cantidad = 0;
+	while(arreglo[cantidad] != NULL)
+	{
+		if(cantidad == INT_MAX)
+		{
+			return;
+		}
+		cantidad++;
+	}
+	liberarSplit(arreglo, cantidad, NULL, 0);
+}
+
+/* Devuelve 0 si convierte todo el texto y -1 si el valor no es válido. */
+int texto_a_int_seguro(const char *texto, int *var_a_retornar)
+{
+	return textoAEntero(texto, var_a_retornar, NULL, 0) ? 0 : -1;
+}
+
+typedef struct
+{
+	char *datos;
+	size_t longitud;
+	size_t capacidad;
+} GG_CadenaDinamica;
+
+static void gg_cadena_iniciar(GG_CadenaDinamica *cadena)
+{
+	cadena->datos = sistema_memoria_reservar(1, NULL, 0);
+	cadena->longitud = 0;
+	cadena->capacidad = cadena->datos != NULL ? 1 : 0;
+	if(cadena->datos != NULL) cadena->datos[0] = '\0';
+}
+
+static int gg_cadena_agregar_n(GG_CadenaDinamica *cadena, const char *texto, size_t longitud)
+{
+	if(cadena == NULL || (texto == NULL && longitud > 0)) return 0;
+	if(cadena->datos == NULL) return 0;
+	if(longitud > (size_t)-1 - cadena->longitud - 1) return 0;
+
+	size_t requerida = cadena->longitud + longitud + 1;
+	if(requerida > cadena->capacidad)
+	{
+		size_t nueva_capacidad = cadena->capacidad;
+		while(nueva_capacidad < requerida)
+		{
+			if(nueva_capacidad > (size_t)-1 / 2)
+			{
+				nueva_capacidad = requerida;
+				break;
+			}
+			nueva_capacidad *= 2;
+		}
+		char *temporal = sistema_memoria_redimensionar(cadena->datos, nueva_capacidad, NULL, 0);
+		if(temporal == NULL) return 0;
+		cadena->datos = temporal;
+		cadena->capacidad = nueva_capacidad;
+	}
+
+	if(longitud > 0) memcpy(cadena->datos + cadena->longitud, texto, longitud);
+	cadena->longitud += longitud;
+	cadena->datos[cadena->longitud] = '\0';
+	return 1;
+}
+
+static int gg_cadena_agregar(GG_CadenaDinamica *cadena, const char *texto)
+{
+	return texto != NULL
+		? gg_cadena_agregar_n(cadena, texto, strlen(texto))
+		: 1;
+}
+
+static void gg_cadena_liberar(GG_CadenaDinamica *cadena)
+{
+	if(cadena == NULL) return;
+	sistema_memoria_liberar(cadena->datos, NULL, 0);
+	cadena->datos = NULL;
+	cadena->longitud = 0;
+	cadena->capacidad = 0;
+}
+
+static char *gg_cadena_entregar(GG_CadenaDinamica *cadena)
+{
+	if(cadena == NULL) return NULL;
+	char *resultado = cadena->datos;
+	cadena->datos = NULL;
+	cadena->longitud = 0;
+	cadena->capacidad = 0;
+	return resultado;
+}
+
+static char *gg_formatear_argumentos(const char *formato, va_list argumentos)
+{
+#if defined(PLATAFORMA_SEMICONDUCTOR) && !defined(PIC16F)
+	(void)formato;
+	(void)argumentos;
+	return NULL;
+#else
+	if(formato == NULL) return NULL;
+	va_list copia;
+	va_copy(copia, argumentos);
+	int longitud = vsnprintf(NULL, 0, formato, copia);
+	va_end(copia);
+	if(longitud < 0) return NULL;
+
+	char *resultado = sistema_memoria_reservar((size_t)longitud + 1, NULL, 0);
+	if(resultado == NULL) return NULL;
+	va_copy(copia, argumentos);
+	int escritos = vsnprintf(resultado, (size_t)longitud + 1, formato, copia);
+	va_end(copia);
+	if(escritos != longitud)
+	{
+		sistema_memoria_liberar(resultado, NULL, 0);
+		return NULL;
+	}
+	return resultado;
+#endif
+}
+
+static int gg_indices_desde_texto(const char *texto, const char *separador, int **indices_salida, int *cantidad_salida)
+{
+	if(texto == NULL || separador == NULL || separador[0] == '\0' ||
+		indices_salida == NULL || cantidad_salida == NULL) return 0;
+	*indices_salida = NULL;
+	*cantidad_salida = 0;
+
+	int cantidad = 0;
+	char **partes = split(texto, separador, &cantidad, NULL, 0);
+	if(partes == NULL) return 0;
+	if((size_t)cantidad > (size_t)-1 / sizeof(int))
+	{
+		liberarSplit(partes, cantidad, NULL, 0);
+		return 0;
+	}
+
+	int *indices = sistema_memoria_reservar((size_t)cantidad * sizeof(*indices), NULL, 0);
+	if(indices == NULL && cantidad > 0)
+	{
+		liberarSplit(partes, cantidad, NULL, 0);
+		return 0;
+	}
+	for(int i = 0; i < cantidad; ++i)
+	{
+		if(texto_a_int_seguro(partes[i], &indices[i]) != 0 || indices[i] < 0)
+		{
+			sistema_memoria_liberar(indices, NULL, 0);
+			liberarSplit(partes, cantidad, NULL, 0);
+			return 0;
+		}
+	}
+	liberarSplit(partes, cantidad, NULL, 0);
+	*indices_salida = indices;
+	*cantidad_salida = cantidad;
+	return 1;
+}
+
+int texto_a_float_seguro(const char *texto, float *var_a_retornar)
+{
+	if(texto == NULL || var_a_retornar == NULL || texto[0] == '\0') return -1;
+
+	const char *cursor = texto;
+	int negativo = 0;
+	if(*cursor == '-' || *cursor == '+')
+	{
+		negativo = *cursor == '-';
+		cursor++;
+	}
+
+	double valor = 0.0;
+	int digitos = 0;
+	while(*cursor >= '0' && *cursor <= '9')
+	{
+		valor = valor * 10.0 + (double)(*cursor - '0');
+		if(valor > FLT_MAX) return -1;
+		digitos++;
+		cursor++;
+	}
+	if(*cursor == '.')
+	{
+		double escala = 0.1;
+		cursor++;
+		while(*cursor >= '0' && *cursor <= '9')
+		{
+			valor += (double)(*cursor - '0') * escala;
+			if(valor > FLT_MAX) return -1;
+			escala *= 0.1;
+			digitos++;
+			cursor++;
+		}
+	}
+	if(digitos == 0 || *cursor != '\0') return -1;
+
+	*var_a_retornar = (float)(negativo ? -valor : valor);
+	return 0;
+}
+
+int concatenar_formato_separado_por_variable(char **destino, const char *separador, const char *formato, ...)
+{
+	if(destino == NULL || formato == NULL) return -1;
+
+	GG_CadenaDinamica formato_expandido;
+	gg_cadena_iniciar(&formato_expandido);
+	if(formato_expandido.datos == NULL) return -1;
+
+	size_t longitud_formato = strlen(formato);
+	for(size_t i = 0; i < longitud_formato; ++i)
+	{
+		if(formato[i] != '%')
+		{
+			if(!gg_cadena_agregar_n(&formato_expandido, formato + i, 1)) goto error_formato_expandido;
+			continue;
+		}
+		if(i + 1 >= longitud_formato) goto error_formato_expandido;
+		if(!gg_cadena_agregar_n(&formato_expandido, formato + i, 1)) goto error_formato_expandido;
+		i++;
+		if(!gg_cadena_agregar_n(&formato_expandido, formato + i, 1)) goto error_formato_expandido;
+		if(formato[i] == '%') continue;
+
+		while(i + 1 < longitud_formato &&
+			strchr("diuoxXfFeEgGaAcspn", formato[i]) == NULL)
+		{
+			i++;
+			if(!gg_cadena_agregar_n(&formato_expandido, formato + i, 1)) goto error_formato_expandido;
+		}
+		if(strchr("diuoxXfFeEgGaAcspn", formato[i]) == NULL) goto error_formato_expandido;
+		if(separador != NULL && separador[0] != '\0' &&
+			!gg_cadena_agregar(&formato_expandido, separador)) goto error_formato_expandido;
+	}
+
+	va_list argumentos;
+	va_start(argumentos, formato);
+	char *nuevo_texto = gg_formatear_argumentos(formato_expandido.datos, argumentos);
+	va_end(argumentos);
+	gg_cadena_liberar(&formato_expandido);
+	if(nuevo_texto == NULL) return -1;
+
+	GG_CadenaDinamica combinado;
+	gg_cadena_iniciar(&combinado);
+	if(combinado.datos == NULL)
+	{
+		sistema_memoria_liberar(nuevo_texto, NULL, 0);
+		return -1;
+	}
+	if(*destino != NULL && !gg_cadena_agregar(&combinado, *destino)) goto error_combinado;
+	if(!gg_cadena_agregar(&combinado, nuevo_texto)) goto error_combinado;
+	sistema_memoria_liberar(nuevo_texto, NULL, 0);
+	sistema_memoria_liberar(*destino, NULL, 0);
+	*destino = gg_cadena_entregar(&combinado);
+	return *destino != NULL ? 0 : -1;
+
+error_combinado:
+	sistema_memoria_liberar(nuevo_texto, NULL, 0);
+	gg_cadena_liberar(&combinado);
+	return -1;
+error_formato_expandido:
+	gg_cadena_liberar(&formato_expandido);
+	return -1;
+}
+
+int concatenar_formato(char *destino, size_t capacidad, const char *separador, const char *formato, ...)
+{
+if(destino == NULL || capacidad == 0 || formato == NULL ||
+	memchr(destino, '\0', capacidad) == NULL) return -1;
+va_list argumentos;
+va_start(argumentos, formato);
+char *nuevo_texto = gg_formatear_argumentos(formato, argumentos);
+	va_end(argumentos);
+	if(nuevo_texto == NULL) return -1;
+
+	size_t longitud = strlen(destino);
+	size_t longitud_nuevo = strlen(nuevo_texto);
+	size_t longitud_separador = separador != NULL ? strlen(separador) : 0;
+	if(longitud >= capacidad ||
+		longitud_nuevo > capacidad - longitud - 1 ||
+		longitud_separador > capacidad - longitud - longitud_nuevo - 1)
+	{
+		sistema_memoria_liberar(nuevo_texto, NULL, 0);
+		return -1;
+	}
+	memcpy(destino + longitud, nuevo_texto, longitud_nuevo);
+	longitud += longitud_nuevo;
+	if(longitud_separador > 0)
+	{
+		memcpy(destino + longitud, separador, longitud_separador);
+		longitud += longitud_separador;
+	}
+	destino[longitud] = '\0';
+	sistema_memoria_liberar(nuevo_texto, NULL, 0);
+	return 0;
+}
+
+static const char *gg_separador_columnas(void)
+{
+	return GG_caracter_separacion[1] != NULL ? GG_caracter_separacion[1] : "|";
+}
+
+static const char *gg_separador_filas(void)
+{
+	return GG_caracter_separacion[0] != NULL ? GG_caracter_separacion[0] : "|";
+}
+
+static char *gg_unir_partes(char **partes, int cantidad, const char *separador)
+{
+	return join(partes, cantidad, separador, NULL, 0);
+}
+
+char *join_paresido_simple(
+	char caracter_union_filas,
+	char **texto,
+	int n_texto,
+	const char *columnas_extraer,
+	const char *caracter_union_columnas
+)
+{
+	if(n_texto < 0 || (n_texto > 0 && texto == NULL)) return NULL;
+	char separador_filas[2] = {caracter_union_filas, '\0'};
+	const char *separador_columnas = caracter_union_columnas != NULL
+		? caracter_union_columnas
+		: gg_separador_columnas();
+	GG_CadenaDinamica salida;
+	gg_cadena_iniciar(&salida);
+	if(salida.datos == NULL) return NULL;
+
+	if(columnas_extraer == NULL || columnas_extraer[0] == '\0')
+	{
+		int escritas = 0;
+		for(int i = 0; i < n_texto; ++i)
+		{
+			if(texto[i] == NULL) continue;
+			if(escritas > 0 && !gg_cadena_agregar(&salida, separador_filas)) goto error_join_paresido;
+			if(!gg_cadena_agregar(&salida, texto[i])) goto error_join_paresido;
+			escritas++;
+		}
+		return gg_cadena_entregar(&salida);
+	}
+
+	int *indices = NULL;
+	int cantidad_indices = 0;
+	if(!gg_indices_desde_texto(columnas_extraer, separador_columnas, &indices, &cantidad_indices))
+		goto error_join_paresido;
+
+	int filas_escritas = 0;
+	for(int i = 0; i < n_texto; ++i)
+	{
+		if(texto[i] == NULL) continue;
+		int cantidad_partes = 0;
+		char **partes = split(texto[i], separador_columnas, &cantidad_partes, NULL, 0);
+		if(partes == NULL)
+		{
+			sistema_memoria_liberar(indices, NULL, 0);
+			goto error_join_paresido;
+		}
+		GG_CadenaDinamica fila;
+		gg_cadena_iniciar(&fila);
+		if(fila.datos == NULL)
+		{
+			liberarSplit(partes, cantidad_partes, NULL, 0);
+			sistema_memoria_liberar(indices, NULL, 0);
+			goto error_join_paresido;
+		}
+		int columnas_escritas = 0;
+		for(int j = 0; j < cantidad_indices; ++j)
+		{
+			int indice = indices[j];
+			if(indice >= cantidad_partes) continue;
+			if(columnas_escritas > 0 && !gg_cadena_agregar(&fila, separador_columnas))
+			{
+				gg_cadena_liberar(&fila);
+				liberarSplit(partes, cantidad_partes, NULL, 0);
+				sistema_memoria_liberar(indices, NULL, 0);
+				goto error_join_paresido;
+			}
+			if(!gg_cadena_agregar(&fila, partes[indice]))
+			{
+				gg_cadena_liberar(&fila);
+				liberarSplit(partes, cantidad_partes, NULL, 0);
+				sistema_memoria_liberar(indices, NULL, 0);
+				goto error_join_paresido;
+			}
+			columnas_escritas++;
+		}
+		if(columnas_escritas == 0)
+		{
+			gg_cadena_liberar(&fila);
+			liberarSplit(partes, cantidad_partes, NULL, 0);
+			continue;
+		}
+		if(filas_escritas > 0 && !gg_cadena_agregar(&salida, separador_filas))
+		{
+			gg_cadena_liberar(&fila);
+			liberarSplit(partes, cantidad_partes, NULL, 0);
+			sistema_memoria_liberar(indices, NULL, 0);
+			goto error_join_paresido;
+		}
+		if(!gg_cadena_agregar(&salida, fila.datos))
+		{
+			gg_cadena_liberar(&fila);
+			liberarSplit(partes, cantidad_partes, NULL, 0);
+			sistema_memoria_liberar(indices, NULL, 0);
+			goto error_join_paresido;
+		}
+		if(columnas_escritas > 0) filas_escritas++;
+		gg_cadena_liberar(&fila);
+		liberarSplit(partes, cantidad_partes, NULL, 0);
+	}
+
+	sistema_memoria_liberar(indices, NULL, 0);
+	return gg_cadena_entregar(&salida);
+
+error_join_paresido:
+	gg_cadena_liberar(&salida);
+	return NULL;
+}
+
+char *joineada_paraesida_y_quitador_de_extremos(const char *data, int restar_cuantas, int restar_primera_celda)
+{
+	if(data == NULL || restar_cuantas < 0) return NULL;
+	int cantidad = 0;
+	char **partes = split(data, gg_separador_filas(), &cantidad, NULL, 0);
+	if(partes == NULL) return NULL;
+
+	int inicio = restar_primera_celda ? restar_cuantas : 0;
+	int fin = restar_primera_celda ? cantidad : cantidad - restar_cuantas;
+	if(inicio > cantidad) inicio = cantidad;
+	if(fin < inicio) fin = inicio;
+	char *resultado = gg_unir_partes(partes + inicio, fin - inicio, gg_separador_filas());
+	liberarSplit(partes, cantidad, NULL, 0);
+	return resultado;
+}
+
+char *Trimend_paresido(const char *texto)
+{
+	if(texto == NULL) return NULL;
+	int cantidad = 0;
+	char **partes = split(texto, gg_separador_filas(), &cantidad, NULL, 0);
+	if(partes == NULL) return NULL;
+
+	int cantidad_total = cantidad;
+	while(cantidad > 0 && partes[cantidad - 1][0] == '\0') cantidad--;
+	char *resultado = gg_unir_partes(partes, cantidad, gg_separador_filas());
+	liberarSplit(partes, cantidad_total, NULL, 0);
+	return resultado;
+}
+
+char *concatenacion_filas_de_un_archivo(const char *ruta_archivo, int poner_num_fila)
+{
+	if(ruta_archivo == NULL) return NULL;
+	SistemaArchivo *archivo = sistema_archivo_abrir(ruta_archivo, "r", NULL, 0);
+	if(archivo == NULL) return NULL;
+
+	GG_CadenaDinamica salida;
+	gg_cadena_iniciar(&salida);
+	if(salida.datos == NULL)
+	{
+		sistema_archivo_cerrar(archivo, NULL, 0);
+		return NULL;
+	}
+
+	int num_fila = 0;
+	int error = 0;
+	char *linea;
+	while((linea = leerLineaDinamica(archivo, NULL, 0)) != NULL)
+	{
+		if(salida.longitud > 0 && !gg_cadena_agregar(&salida, gg_separador_filas()))
+		{
+			sistema_memoria_liberar(linea, NULL, 0);
+			error = 1;
+			break;
+		}
+		if(poner_num_fila)
+		{
+			char numero[sizeof(int) * CHAR_BIT + 2];
+			char prefijo[sizeof(numero) + 2];
+			if(enteroATexto(num_fila, numero, sizeof(numero)) == NULL)
+			{
+				sistema_memoria_liberar(linea, NULL, 0);
+				error = 1;
+				break;
+			}
+			size_t longitud_numero = strlen(numero);
+			memcpy(prefijo, numero, longitud_numero);
+			memcpy(prefijo + longitud_numero, ") ", 3);
+			if(!gg_cadena_agregar(&salida, prefijo))
+			{
+				sistema_memoria_liberar(linea, NULL, 0);
+				error = 1;
+				break;
+			}
+		}
+		if(!gg_cadena_agregar(&salida, linea))
+		{
+			sistema_memoria_liberar(linea, NULL, 0);
+			error = 1;
+			break;
+		}
+		num_fila++;
+		sistema_memoria_liberar(linea, NULL, 0);
+	}
+	if(sistema_archivo_hay_error(archivo, NULL, 0)) error = 1;
+	if(sistema_archivo_cerrar(archivo, NULL, 0) != 0) error = 1;
+	if(error)
+	{
+		gg_cadena_liberar(&salida);
+		return NULL;
+	}
+	return gg_cadena_entregar(&salida);
+}
+
+char *concatenacion_filas_de_un_arreglo(char **arreglo, int n_arreglo, int poner_num_fila)
+{
+	if(n_arreglo < 0 || (n_arreglo > 0 && arreglo == NULL)) return NULL;
+	GG_CadenaDinamica salida;
+	gg_cadena_iniciar(&salida);
+	if(salida.datos == NULL) return NULL;
+
+	int agregadas = 0;
+	for(int i = 0; i < n_arreglo; ++i)
+	{
+		if(arreglo[i] == NULL) continue;
+		if(agregadas > 0 && !gg_cadena_agregar(&salida, gg_separador_filas())) goto error_concatenar_filas;
+		if(poner_num_fila)
+		{
+			char numero[sizeof(int) * CHAR_BIT + 2];
+			char prefijo[sizeof(numero) + 2];
+			if(enteroATexto(i, numero, sizeof(numero)) == NULL) goto error_concatenar_filas;
+			size_t longitud_numero = strlen(numero);
+			memcpy(prefijo, numero, longitud_numero);
+			memcpy(prefijo + longitud_numero, ") ", 3);
+			if(!gg_cadena_agregar(&salida, prefijo)) goto error_concatenar_filas;
+		}
+		if(!gg_cadena_agregar(&salida, arreglo[i])) goto error_concatenar_filas;
+		agregadas++;
+	}
+	return gg_cadena_entregar(&salida);
+
+error_concatenar_filas:
+	gg_cadena_liberar(&salida);
+	return NULL;
+}
+
+char *concatenacion_caracter_separacion(const char *texto_actual, const char *texto_agregar, const char *separador)
+{
+	if(texto_agregar == NULL) return NULL;
+	GG_CadenaDinamica salida;
+	gg_cadena_iniciar(&salida);
+	if(salida.datos == NULL) return NULL;
+	if(texto_actual != NULL && texto_actual[0] != '\0')
+	{
+		if(!gg_cadena_agregar(&salida, texto_actual) ||
+			(separador != NULL && !gg_cadena_agregar(&salida, separador)))
+		{
+			gg_cadena_liberar(&salida);
+			return NULL;
+		}
+	}
+	if(!gg_cadena_agregar(&salida, texto_agregar))
+	{
+		gg_cadena_liberar(&salida);
+		return NULL;
+	}
+	return gg_cadena_entregar(&salida);
+}
+
+char *generar_folio(const char *formato_fecha_hora)
+{
+#if defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
+	time_t ahora = time(NULL);
+	struct tm *hora_local = localtime(&ahora);
+	if(hora_local == NULL) return NULL;
+	char buffer[256];
+	const char *formato = formato_fecha_hora != NULL ? formato_fecha_hora : "%y%m%d%H%M%S";
+	size_t longitud = strftime(buffer, sizeof(buffer), formato, hora_local);
+	if(longitud == 0) return NULL;
+	char *folio = sistema_memoria_reservar(longitud + 1, NULL, 0);
+	if(folio != NULL) memcpy(folio, buffer, longitud + 1);
+	return folio;
+#else
+	(void)formato_fecha_hora;
+	return NULL;
+#endif
+}
+
+int desfragmentar_direccion(
+	const char *direccion,
+	char **retorna_directorios,
+	char **retorna_nom_arch,
+	char **retorna_extencion
+)
+{
+	if(direccion == NULL || retorna_directorios == NULL ||
+		retorna_nom_arch == NULL || retorna_extencion == NULL) return -1;
+	*retorna_directorios = NULL;
+	*retorna_nom_arch = NULL;
+	*retorna_extencion = NULL;
+
+	const char *nombre = direccion;
+	for(const char *cursor = direccion; *cursor != '\0'; ++cursor)
+	{
+		if(*cursor == '/' || *cursor == '\\') nombre = cursor + 1;
+	}
+	const char *separador_ruta = nombre > direccion ? nombre - 1 : NULL;
+	const char *punto = strrchr(nombre, '.');
+	if(punto == nombre) punto = NULL;
+	size_t longitud_directorio = separador_ruta != NULL ? (size_t)(separador_ruta - direccion) : 0;
+	size_t longitud_nombre = (size_t)((punto != NULL ? punto : direccion + strlen(direccion)) - nombre);
+	size_t longitud_extension = punto != NULL ? strlen(punto + 1) : 0;
+
+	char *directorio = sistema_memoria_reservar(longitud_directorio + 1, NULL, 0);
+	char *nombre_archivo = sistema_memoria_reservar(longitud_nombre + 1, NULL, 0);
+	char *extension = sistema_memoria_reservar(longitud_extension + 1, NULL, 0);
+	if(directorio == NULL || nombre_archivo == NULL || extension == NULL)
+	{
+		sistema_memoria_liberar(directorio, NULL, 0);
+		sistema_memoria_liberar(nombre_archivo, NULL, 0);
+		sistema_memoria_liberar(extension, NULL, 0);
+		return -1;
+	}
+	if(longitud_directorio > 0) memcpy(directorio, direccion, longitud_directorio);
+	directorio[longitud_directorio] = '\0';
+	memcpy(nombre_archivo, nombre, longitud_nombre);
+	nombre_archivo[longitud_nombre] = '\0';
+	if(longitud_extension > 0) memcpy(extension, punto + 1, longitud_extension);
+	extension[longitud_extension] = '\0';
+	*retorna_directorios = directorio;
+	*retorna_nom_arch = nombre_archivo;
+	*retorna_extencion = extension;
+	return 0;
+}
+
+static char *gg_reemplazar_texto(const char *texto, const char *buscar, const char *reemplazo)
+{
+	if(texto == NULL || buscar == NULL || reemplazo == NULL || buscar[0] == '\0') return NULL;
+	size_t longitud_buscar = strlen(buscar);
+	GG_CadenaDinamica salida;
+	gg_cadena_iniciar(&salida);
+	if(salida.datos == NULL) return NULL;
+
+	const char *cursor = texto;
+	const char *encontrado;
+	while((encontrado = strstr(cursor, buscar)) != NULL)
+	{
+		if(!gg_cadena_agregar_n(&salida, cursor, (size_t)(encontrado - cursor)) ||
+			!gg_cadena_agregar(&salida, reemplazo))
+		{
+			gg_cadena_liberar(&salida);
+			return NULL;
+		}
+		cursor = encontrado + longitud_buscar;
+	}
+	if(!gg_cadena_agregar(&salida, cursor))
+	{
+		gg_cadena_liberar(&salida);
+		return NULL;
+	}
+	return gg_cadena_entregar(&salida);
+}
+
+char *ReemplazarCaracteres_de_texto_arreglo(
+	const char *info,
+	char **caracteres_sep,
+	int n_sep,
+	char **caracteres_sustitucion
+)
+{
+	if(info == NULL || n_sep < 0 || (n_sep > 0 && (caracteres_sep == NULL || caracteres_sustitucion == NULL)))
+		return NULL;
+	char *resultado = variable_string("%s", info);
+	if(resultado == NULL) return NULL;
+	for(int i = 0; i < n_sep; ++i)
+	{
+		if(caracteres_sep[i] == NULL || caracteres_sustitucion[i] == NULL ||
+			caracteres_sep[i][0] == '\0') continue;
+		char *reemplazado = gg_reemplazar_texto(resultado, caracteres_sep[i], caracteres_sustitucion[i]);
+		if(reemplazado == NULL)
+		{
+			sistema_memoria_liberar(resultado, NULL, 0);
+			return NULL;
+		}
+		sistema_memoria_liberar(resultado, NULL, 0);
+		resultado = reemplazado;
+	}
+	return resultado;
+}
+
+char *ReemplazarCaracteres_de_texto_string(const char *info, const char *sep, const char *sust)
+{
+	if(info == NULL) return NULL;
+	if(sep == NULL || sust == NULL || sep[0] == '\0') return variable_string("%s", info);
+	return gg_reemplazar_texto(info, sep, sust);
+}
+
+static int gg_indices_coinciden(char **campos, int cantidad_campos, const int *indices, int cantidad_indices, const char *valor)
+{
+	if(campos == NULL || indices == NULL || valor == NULL) return 0;
+	for(int i = 0; i < cantidad_indices; ++i)
+	{
+		if(indices[i] < cantidad_campos && strcmp(campos[indices[i]], valor) == 0) return 1;
+	}
+	return 0;
+}
+
+static int gg_fila_cumple_comparaciones(const char *fila, const char *comparaciones)
+{
+	if(fila == NULL || comparaciones == NULL) return 0;
+	int cantidad_condiciones = 0;
+	char **condiciones = split(comparaciones, "|", &cantidad_condiciones, NULL, 0);
+	if(condiciones == NULL) return 0;
+	int cantidad_campos = 0;
+	char **campos = split(fila, gg_separador_columnas(), &cantidad_campos, NULL, 0);
+	if(campos == NULL)
+	{
+		liberarSplit(condiciones, cantidad_condiciones, NULL, 0);
+		return 0;
+	}
+
+	int cumple = 1;
+	for(int i = 0; i < cantidad_condiciones && cumple; ++i)
+	{
+		char *dos_puntos = strchr(condiciones[i], ':');
+		if(dos_puntos == NULL)
+		{
+			cumple = 0;
+			break;
+		}
+		*dos_puntos = '\0';
+		int indice = -1;
+		if(texto_a_int_seguro(condiciones[i], &indice) != 0 ||
+			indice < 0 || indice >= cantidad_campos ||
+			strcmp(campos[indice], dos_puntos + 1) != 0)
+		{
+			cumple = 0;
+		}
+	}
+	liberarSplit(campos, cantidad_campos, NULL, 0);
+	liberarSplit(condiciones, cantidad_condiciones, NULL, 0);
+	return cumple;
+}
+
+char *busqueda_profunda_string(const char *texto, const char *columnas_recorrer, const char *comparar)
+{
+	if(texto == NULL || columnas_recorrer == NULL || comparar == NULL) return NULL;
+	int *indices = NULL;
+	int cantidad_indices = 0;
+	if(!gg_indices_desde_texto(columnas_recorrer, "|", &indices, &cantidad_indices)) return NULL;
+	int cantidad_filas = 0;
+	char **filas = split(texto, gg_separador_filas(), &cantidad_filas, NULL, 0);
+	if(filas == NULL)
+	{
+		sistema_memoria_liberar(indices, NULL, 0);
+		return NULL;
+	}
+
+	GG_CadenaDinamica salida;
+	gg_cadena_iniciar(&salida);
+	if(salida.datos == NULL)
+	{
+		liberarSplit(filas, cantidad_filas, NULL, 0);
+		sistema_memoria_liberar(indices, NULL, 0);
+		return NULL;
+	}
+	int encontradas = 0;
+	for(int i = 0; i < cantidad_filas; ++i)
+	{
+		int cantidad_campos = 0;
+		char **campos = split(filas[i], gg_separador_columnas(), &cantidad_campos, NULL, 0);
+		if(campos == NULL) goto error_busqueda;
+		int coincide = gg_indices_coinciden(campos, cantidad_campos, indices, cantidad_indices, comparar);
+		liberarSplit(campos, cantidad_campos, NULL, 0);
+		if(!coincide) continue;
+		if(encontradas > 0 && !gg_cadena_agregar(&salida, gg_separador_filas())) goto error_busqueda;
+		if(!gg_cadena_agregar(&salida, filas[i])) goto error_busqueda;
+		encontradas++;
+	}
+	liberarSplit(filas, cantidad_filas, NULL, 0);
+	sistema_memoria_liberar(indices, NULL, 0);
+	return gg_cadena_entregar(&salida);
+
+error_busqueda:
+	liberarSplit(filas, cantidad_filas, NULL, 0);
+	sistema_memoria_liberar(indices, NULL, 0);
+	gg_cadena_liberar(&salida);
+	return NULL;
+}
+
+char *busqueda_profunda_comparacion_final_string(const char *texto, const char *columnas_recorrer, const char *comparar)
+{
+	if(texto == NULL || columnas_recorrer == NULL || comparar == NULL) return NULL;
+	int *indices = NULL;
+	int cantidad_indices = 0;
+	if(!gg_indices_desde_texto(columnas_recorrer, "|", &indices, &cantidad_indices)) return NULL;
+	int cantidad_filas = 0;
+	char **filas = split(texto, gg_separador_filas(), &cantidad_filas, NULL, 0);
+	if(filas == NULL)
+	{
+		sistema_memoria_liberar(indices, NULL, 0);
+		return NULL;
+	}
+	const char *ultima = NULL;
+	for(int i = 0; i < cantidad_filas; ++i)
+	{
+		int cantidad_campos = 0;
+		char **campos = split(filas[i], gg_separador_columnas(), &cantidad_campos, NULL, 0);
+		if(campos == NULL)
+		{
+			liberarSplit(filas, cantidad_filas, NULL, 0);
+			sistema_memoria_liberar(indices, NULL, 0);
+			return NULL;
+		}
+		if(gg_indices_coinciden(campos, cantidad_campos, indices, cantidad_indices, comparar))
+			ultima = filas[i];
+		liberarSplit(campos, cantidad_campos, NULL, 0);
+	}
+	char *resultado = ultima != NULL ? variable_string("%s", ultima) : variable_string("%s", "");
+	liberarSplit(filas, cantidad_filas, NULL, 0);
+	sistema_memoria_liberar(indices, NULL, 0);
+	return resultado;
+}
+
+char *busqueda_con_YY_profunda_texto_id_archivo(const char *texto, const char *columnas_recorrer, const char *comparaciones)
+{
+	(void)columnas_recorrer;
+	if(texto == NULL || comparaciones == NULL) return NULL;
+	int cantidad_filas = 0;
+	char **filas = split(texto, gg_separador_filas(), &cantidad_filas, NULL, 0);
+	if(filas == NULL) return NULL;
+	GG_CadenaDinamica salida;
+	gg_cadena_iniciar(&salida);
+	if(salida.datos == NULL)
+	{
+		liberarSplit(filas, cantidad_filas, NULL, 0);
+		return NULL;
+	}
+	int encontradas = 0;
+	for(int i = 0; i < cantidad_filas; ++i)
+	{
+		if(!gg_fila_cumple_comparaciones(filas[i], comparaciones)) continue;
+		if(encontradas > 0 && !gg_cadena_agregar(&salida, gg_separador_filas())) goto error_busqueda_yy;
+		if(!gg_cadena_agregar(&salida, filas[i])) goto error_busqueda_yy;
+		encontradas++;
+	}
+	liberarSplit(filas, cantidad_filas, NULL, 0);
+	return gg_cadena_entregar(&salida);
+
+error_busqueda_yy:
+	liberarSplit(filas, cantidad_filas, NULL, 0);
+	gg_cadena_liberar(&salida);
+	return NULL;
+}
+
+static int gg_editar_campos(char **campos, int cantidad_campos, const int *indices, int cantidad_indices, const char *valor, int incrementar, const char *comparar)
+{
+	if(campos == NULL || (cantidad_indices > 0 && indices == NULL)) return 0;
+	for(int i = 0; i < cantidad_indices; ++i)
+	{
+		int indice = indices[i];
+		if(indice >= cantidad_campos) continue;
+		if(comparar != NULL && strcmp(campos[indice], comparar) != 0) continue;
+
+		char nuevo_valor[sizeof(int) * CHAR_BIT + 2];
+		const char *texto_nuevo = valor != NULL ? valor : "";
+		if(incrementar)
+		{
+			int actual = 0;
+			if(texto_a_int_seguro(campos[indice], &actual) != 0 || actual == INT_MAX) return 0;
+			if(enteroATexto(actual + 1, nuevo_valor, sizeof(nuevo_valor)) == NULL) return 0;
+			texto_nuevo = nuevo_valor;
+		}
+		char *copia = variable_string("%s", texto_nuevo);
+		if(copia == NULL) return 0;
+		sistema_memoria_liberar(campos[indice], NULL, 0);
+		campos[indice] = copia;
+	}
+	return 1;
+}
+
+static char *gg_reconstruir_fila(char **campos, int cantidad_campos)
+{
+	return join(campos, cantidad_campos, gg_separador_columnas(), NULL, 0);
+}
+
+static char *gg_editar_filas(
+	const char *texto,
+	const int *indices,
+	int cantidad_indices,
+	const char *valor,
+	int incrementar,
+	int fila_objetivo,
+	const char *comparar_campos
+)
+{
+	if(texto == NULL || cantidad_indices < 0) return NULL;
+	int cantidad_filas = 0;
+	char **filas = split(texto, gg_separador_filas(), &cantidad_filas, NULL, 0);
+	if(filas == NULL) return NULL;
+
+	GG_CadenaDinamica salida;
+	gg_cadena_iniciar(&salida);
+	if(salida.datos == NULL)
+	{
+		liberarSplit(filas, cantidad_filas, NULL, 0);
+		return NULL;
+	}
+
+	for(int i = 0; i < cantidad_filas; ++i)
+	{
+		if(i > 0 && !gg_cadena_agregar(&salida, gg_separador_filas())) goto error_editar_filas;
+		if((fila_objetivo == -1 || fila_objetivo == i) && cantidad_indices > 0)
+		{
+			int cantidad_campos = 0;
+			char **campos = split(filas[i], gg_separador_columnas(), &cantidad_campos, NULL, 0);
+			if(campos == NULL) goto error_editar_filas;
+			if(!gg_editar_campos(campos, cantidad_campos, indices, cantidad_indices, valor, incrementar, comparar_campos))
+			{
+				liberarSplit(campos, cantidad_campos, NULL, 0);
+				goto error_editar_filas;
+			}
+			char *fila_editada = gg_reconstruir_fila(campos, cantidad_campos);
+			liberarSplit(campos, cantidad_campos, NULL, 0);
+			if(fila_editada == NULL) goto error_editar_filas;
+			int agregada = gg_cadena_agregar(&salida, fila_editada);
+			sistema_memoria_liberar(fila_editada, NULL, 0);
+			if(!agregada) goto error_editar_filas;
+		}
+		else if(!gg_cadena_agregar(&salida, filas[i]))
+		{
+			goto error_editar_filas;
+		}
+	}
+	liberarSplit(filas, cantidad_filas, NULL, 0);
+	return gg_cadena_entregar(&salida);
+
+error_editar_filas:
+	liberarSplit(filas, cantidad_filas, NULL, 0);
+	gg_cadena_liberar(&salida);
+	return NULL;
+}
+
+char *editar_incr_string_funcion_recursiva(
+	const char *texto,
+	const char *columnas_recorrer,
+	const char *info_sustituir,
+	const char *edit_0_increm_1
+)
+{
+	int *indices = NULL;
+	int cantidad_indices = 0;
+	if(!gg_indices_desde_texto(columnas_recorrer, "|", &indices, &cantidad_indices)) return NULL;
+	int incrementar = edit_0_increm_1 != NULL && strcmp(edit_0_increm_1, "1") == 0;
+	char *resultado = gg_editar_filas(texto, indices, cantidad_indices, info_sustituir, incrementar, -1, NULL);
+	sistema_memoria_liberar(indices, NULL, 0);
+	return resultado;
+}
+
+char *editar_inc_edicion_profunda_multiple_string(
+	const char *texto,
+	const char *indices_editar,
+	const char *info_editar,
+	const char *edit_0_increm_1
+)
+{
+	return editar_incr_string_funcion_recursiva(texto, indices_editar, info_editar, edit_0_increm_1);
+}
+
+char *editar_inc_edicion_profunda_multiple_AL_FINAL_string(
+	const char *texto,
+	const char *indices_editar,
+	const char *info_editar,
+	const char *edit_0_increm_1
+)
+{
+	if(texto == NULL) return NULL;
+	int *indices = NULL;
+	int cantidad_indices = 0;
+	if(!gg_indices_desde_texto(indices_editar, "|", &indices, &cantidad_indices)) return NULL;
+	int cantidad_filas = 0;
+	char **filas = split(texto, gg_separador_filas(), &cantidad_filas, NULL, 0);
+	if(filas == NULL)
+	{
+		sistema_memoria_liberar(indices, NULL, 0);
+		return NULL;
+	}
+	int incrementar = edit_0_increm_1 != NULL && strcmp(edit_0_increm_1, "1") == 0;
+	char *resultado = gg_editar_filas(
+		texto, indices, cantidad_indices, info_editar, incrementar,
+		cantidad_filas > 0 ? cantidad_filas - 1 : -1, NULL
+	);
+	liberarSplit(filas, cantidad_filas, NULL, 0);
+	sistema_memoria_liberar(indices, NULL, 0);
+	return resultado;
+}
+
+char *editar_inc_agregar_edicion_profunda_multiple_comparacion_final_string(
+	const char *texto,
+	const char *indices_editar,
+	const char *info_editar,
+	const char *comparacion,
+	const char *edit_0_increm_1
+)
+{
+	if(texto == NULL || comparacion == NULL) return NULL;
+	int *indices = NULL;
+	int cantidad_indices = 0;
+	if(!gg_indices_desde_texto(indices_editar, "|", &indices, &cantidad_indices)) return NULL;
+	int cantidad_filas = 0;
+	char **filas = split(texto, gg_separador_filas(), &cantidad_filas, NULL, 0);
+	if(filas == NULL)
+	{
+		sistema_memoria_liberar(indices, NULL, 0);
+		return NULL;
+	}
+	int objetivo = -2;
+	for(int i = 0; i < cantidad_filas; ++i)
+	{
+		int cantidad_campos = 0;
+		char **campos = split(filas[i], gg_separador_columnas(), &cantidad_campos, NULL, 0);
+		if(campos == NULL)
+		{
+			liberarSplit(filas, cantidad_filas, NULL, 0);
+			sistema_memoria_liberar(indices, NULL, 0);
+			return NULL;
+		}
+		if(gg_indices_coinciden(campos, cantidad_campos, indices, cantidad_indices, comparacion))
+			objetivo = i;
+		liberarSplit(campos, cantidad_campos, NULL, 0);
+	}
+	int incrementar = edit_0_increm_1 != NULL && strcmp(edit_0_increm_1, "1") == 0;
+	char *resultado = gg_editar_filas(texto, indices, cantidad_indices, info_editar, incrementar, objetivo, NULL);
+	liberarSplit(filas, cantidad_filas, NULL, 0);
+	sistema_memoria_liberar(indices, NULL, 0);
+	return resultado;
+}
+
+char *ARR_FUN_SOLO_TEXTO_editar_inc_agregar_edicion_profunda_multiple(const char *datos)
+{
+	if(datos == NULL) return NULL;
+	int cantidad = 0;
+	char **partes = split(datos, "|", &cantidad, NULL, 0);
+	if(partes == NULL) return NULL;
+	if(cantidad < 3)
+	{
+		liberarSplit(partes, cantidad, NULL, 0);
+		return variable_string("%s", "");
+	}
+	char *resultado = editar_incr_string_funcion_recursiva(
+		partes[0],
+		partes[1],
+		partes[2],
+		cantidad > 3 ? partes[3] : "0"
+	);
+	liberarSplit(partes, cantidad, NULL, 0);
+	return resultado;
+}
+
+char *editar_inc_agregar_edicion_profunda_multiple_comparacion_MULTIPLE_A_CHECAR(
+	const char *texto,
+	const char *indices_editar,
+	const char *comparacion_con_edicion,
+	const char *edit_0_increm_1
+)
+{
+	if(texto == NULL || indices_editar == NULL || comparacion_con_edicion == NULL) return NULL;
+	char *separador = strchr(comparacion_con_edicion, ',');
+	char *comparar = NULL;
+	const char *valor_editar = "";
+	if(separador != NULL)
+	{
+		size_t longitud_comparar = (size_t)(separador - comparacion_con_edicion);
+		comparar = sistema_memoria_reservar(longitud_comparar + 1, NULL, 0);
+		if(comparar == NULL) return NULL;
+		memcpy(comparar, comparacion_con_edicion, longitud_comparar);
+		comparar[longitud_comparar] = '\0';
+		valor_editar = separador + 1;
+	}
+	else
+	{
+		comparar = variable_string("%s", comparacion_con_edicion);
+		if(comparar == NULL) return NULL;
+	}
+
+	int *indices = NULL;
+	int cantidad_indices = 0;
+	if(!gg_indices_desde_texto(indices_editar, "|", &indices, &cantidad_indices))
+	{
+		sistema_memoria_liberar(comparar, NULL, 0);
+		return NULL;
+	}
+	int incrementar = edit_0_increm_1 != NULL && strcmp(edit_0_increm_1, "1") == 0;
+	char *resultado = gg_editar_filas(
+		texto, indices, cantidad_indices, valor_editar, incrementar, -1, comparar
+	);
+	sistema_memoria_liberar(indices, NULL, 0);
+	sistema_memoria_liberar(comparar, NULL, 0);
+	return resultado;
+}
+
+char *recorrer_caracter_separacion(const char *contenidoFila, const char *izquierda_o_derecha, int numero_veses)
+{
+	if(contenidoFila == NULL || numero_veses < 0) return NULL;
+	int cantidad = 0;
+	char **partes = split(contenidoFila, gg_separador_filas(), &cantidad, NULL, 0);
+	if(partes == NULL) return NULL;
+	int izquierda = izquierda_o_derecha != NULL && strcmp(izquierda_o_derecha, "izq") == 0;
+	int inicio = izquierda ? numero_veses : 0;
+	int fin = izquierda ? cantidad : cantidad - numero_veses;
+	if(inicio > cantidad) inicio = cantidad;
+	if(fin < inicio) fin = inicio;
+	char *resultado = gg_unir_partes(partes + inicio, fin - inicio, gg_separador_filas());
+	liberarSplit(partes, cantidad, NULL, 0);
+	return resultado;
+}
+
+char *recorrer_caracter_separacion_funciones_espesificas(
+	const char *contenidoFila,
+	const char *izquierda_o_derecha,
+	int numero_veses
+)
+{
+	if(contenidoFila == NULL || numero_veses < 0) return NULL;
+	const char *separador = GG_caracter_separacion_funciones_espesificas[0];
+	if(separador == NULL || separador[0] == '\0') separador = gg_separador_filas();
+	int cantidad = 0;
+	char **partes = split(contenidoFila, separador, &cantidad, NULL, 0);
+	if(partes == NULL) return NULL;
+	int izquierda = izquierda_o_derecha != NULL && strcmp(izquierda_o_derecha, "izq") == 0;
+	int inicio = izquierda ? numero_veses : 0;
+	int fin = izquierda ? cantidad : cantidad - numero_veses;
+	if(inicio > cantidad) inicio = cantidad;
+	if(fin < inicio) fin = inicio;
+	char *resultado = gg_unir_partes(partes + inicio, fin - inicio, separador);
+	liberarSplit(partes, cantidad, NULL, 0);
+	return resultado;
+}
 
 /*
  * Libera todas las cadenas devueltas por split() y después el vector.
@@ -2815,6 +4280,11 @@ char *crearResultado(
 
     *destino = '\0';
 
+	if(!actualizar_ultimo_retorno(resultado))
+	{
+		sistema_memoria_liberar(resultado, error_o_datos_a_retornar, nivel_de_profundidad);
+		return NULL;
+	}
     return resultado;
 }
 
@@ -2963,6 +4433,65 @@ void imprimirMensaje_para_depurar_arreglo(
 		sistema_consola_escribir_formato(error_o_datos_a_retornar, nivel_de_profundidad, "%s[0]: (null)\n", prefijo);
 #endif
 	}
+}
+
+/*
+ * Pausa la ejecución usando el mecanismo disponible en la plataforma.
+ */
+void delay_ms(unsigned int ms)
+{
+#if defined(_WIN32) || defined(_WIN64)
+	Sleep((DWORD)ms);
+#elif defined(__linux__)
+	struct timespec espera;
+	espera.tv_sec = (time_t)(ms / 1000U);
+	espera.tv_nsec = (long)(ms % 1000U) * 1000000L;
+	while(nanosleep(&espera, &espera) != 0 && errno == EINTR)
+	{
+	}
+#elif defined(__XC)
+	while(ms > 0U)
+	{
+		__delay_ms(1);
+		--ms;
+	}
+#else
+	(void)ms;
+#endif
+}
+
+/*
+ * Escribe la fecha en un buffer de al menos 20 bytes.
+ * El formato se usa en escritorio; el backend embebido usa una fecha simulada.
+ */
+void fechaActual(char *buffer, const char *formato)
+{
+	if(buffer == NULL)
+	{
+		return;
+	}
+
+#if defined(_WIN32) || defined(_WIN64) || defined(__linux__)
+	if(formato == NULL)
+	{
+		buffer[0] = '\0';
+		return;
+	}
+
+	time_t ahora = time(NULL);
+	struct tm *hora_local = localtime(&ahora);
+	if(hora_local == NULL || strftime(buffer, 20, formato, hora_local) == 0)
+	{
+		buffer[0] = '\0';
+	}
+#elif defined(__XC) || defined(PLATAFORMA_SEMICONDUCTOR)
+	const char fecha_simulada[] = "01/01/2000 00:00";
+	memcpy(buffer, fecha_simulada, sizeof(fecha_simulada));
+	(void)formato;
+#else
+	buffer[0] = '\0';
+	(void)formato;
+#endif
 }
 
 /*
@@ -3420,6 +4949,68 @@ static int submenu_pruebas_auxiliares(char *error_o_datos_a_retornar,int nivel_d
  	return !leerCodigoResultado(error_o_datos_a_retornar, nivel_de_profundidad, texto, &codigo) || codigo < 0;
  }
 
+ static int actualizar_ultimo_retorno(const char *texto)
+ {
+ 	if(texto == NULL) return 0;
+ 	size_t longitud = strlen(texto);
+ 	if(longitud == (size_t)-1) return 0;
+
+ 	char *copia = sistema_memoria_reservar(longitud + 1, NULL, 0);
+ 	if(copia == NULL) return 0;
+ 	memcpy(copia, texto, longitud + 1);
+
+ 	sistema_memoria_liberar(GG_ultimo_retorno_estandar, NULL, 0);
+ 	GG_ultimo_retorno_estandar = copia;
+ 	return 1;
+ }
+
+ int acumular_retorno_proceso(const char *texto)
+ {
+ 	if(texto == NULL || texto[0] == '\0') return 0;
+
+ 	const char *separador = GG_caracter_para_transferencia_entre_archivos[1];
+ 	size_t longitudActual = GG_acumulador_retorno_procesos != NULL
+ 		? strlen(GG_acumulador_retorno_procesos)
+ 		: 0;
+ 	size_t longitudTexto = strlen(texto);
+ 	size_t longitudSeparador = longitudActual > 0 ? strlen(separador) : 0;
+ 	if(longitudActual > (size_t)-1 - longitudSeparador ||
+ 		longitudActual + longitudSeparador > (size_t)-1 - longitudTexto ||
+ 		longitudActual + longitudSeparador + longitudTexto == (size_t)-1)
+ 	{
+ 		return -1;
+ 	}
+
+ 	size_t longitudTotal = longitudActual + longitudSeparador + longitudTexto + 1;
+ 	char *acumulado = sistema_memoria_redimensionar(
+ 		GG_acumulador_retorno_procesos,
+ 		longitudTotal,
+ 		NULL,
+ 		0
+ 	);
+ 	if(acumulado == NULL) return -1;
+
+ 	GG_acumulador_retorno_procesos = acumulado;
+ 	if(longitudSeparador > 0)
+ 	{
+ 		memcpy(acumulado + longitudActual, separador, longitudSeparador);
+ 		longitudActual += longitudSeparador;
+ 	}
+ 	memcpy(acumulado + longitudActual, texto, longitudTexto + 1);
+ 	return 1;
+ }
+
+ void limpiar_retorno_procesos(void)
+ {
+ 	sistema_memoria_liberar(GG_acumulador_retorno_procesos, NULL, 0);
+ 	GG_acumulador_retorno_procesos = NULL;
+ }
+
+ const char *obtener_ultimo_retorno_formateado(void)
+ {
+ 	return GG_ultimo_retorno_estandar;
+ }
 
 
-#pragma endregion FUNCIONES_DE_DEPURACION
+
+ #pragma endregion FUNCIONES_DE_DEPURACION
