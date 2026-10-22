@@ -71,6 +71,10 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
+#include <direct.h>
+#include <sys/stat.h>
+#elif defined(__linux__)
+#include <sys/stat.h>
 #endif
 
 #if defined(__XC)
@@ -404,6 +408,26 @@ const char *obtener_ultimo_retorno_formateado(void);
  char *editar_inc_edicion_profunda_multiple_AL_FINAL_string(const char *texto, const char *indices_editar, const char *info_editar, const char *edit_0_increm_1);
  char *recorrer_caracter_separacion(const char *contenidoFila, const char *izquierda_o_derecha, int numero_veses);
  char *recorrer_caracter_separacion_funciones_espesificas(const char *contenidoFila, const char *izquierda_o_derecha, int numero_veses);
+  int crearDirectorio(const char *ruta);
+  int crearArchivo(const char *ruta, const char *cabecera);
+  char **leer_archivo(const char *ruta, int *n_lineas_out);
+  void guardar_archivo(const char *ruta, char **lineas, int n_lineas);
+  void free_lineas(char **lineas, int n_lineas);
+  void agregar_fila(const char *ruta, const char *fila);
+  int existe_archivo(const char *ruta);
+  void generar_ruta_archivo(const char *ruta, long id, long cant_por_arch, char *salida, size_t tam_salida);
+  char *leer_info_dividida(const char *ruta);
+  char *agregar_info_dividida(const char *direccion, const char *agregando, const char *nom_columnas);
+  char *leer_todo_info_dividida(const char *ruta);
+  char *agregar_sino_existe_info_dividida(const char *direccion, long col_comp, const char *comparar, const char *texto_agr, const char *nom_cols);
+  char *seleccionar_id_info_dividida(const char *direccion, const char *id);
+  char *seleccionar_id_info_dividida_extrae(const char *direccion, const char *id);
+  char *editar_id_info_dividida(const char *direccion, const char *id, const char *info_a_comparar, const char *col_comparar, const char *nuevos_datos, int col_editar);
+  char *editar_celda_id_info_dividida(const char *direccion, const char *id, const char *cols_str, const char *vals_str);
+  char *incrementa_celda_id_info_dividida(const char *direccion, const char *id, const char *cols_str, const char *cants_str);
+  char *incrementa_celda_id_info_dividida_copia_si_cero(const char *direccion, const char *id, const char *cols_str, const char *cants_str, const char *cols_fuente_str);
+  char *incrementa_celda_busqueda_info_dividida(const char *direccion, const char *dato_a_buscar, int col_buscar, const char *cols_inc_str, const char *cants_inc_str, const char *agregar_fallback);
+  char *buscar_info_dividida(const char *direccion, const char *dato_buscar, int col_buscar, int id_hint);
   char * concatenar(const char * formato, ...);
   static char *enteroATexto(int valor, char *buffer, size_t capacidad);
  
@@ -3584,6 +3608,1040 @@ static int aplicarOperacionLinea(
  }
 
  #pragma endregion FUNCIONES OPERACIONES_DE_TEX_BASE
+
+/* ============================================================================
+   ALMACENAMIENTO DIVIDIDO
+   ============================================================================ */
+#pragma region FUNCIONES_INFO_DIVIDIDA
+
+#if defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
+
+static char *gg_buscar_ultimo_separador_ruta(char *ruta)
+{
+	char *barra = strrchr(ruta, '/');
+	char *barra_inversa = strrchr(ruta, '\\');
+	if(barra == NULL) return barra_inversa;
+	if(barra_inversa == NULL) return barra;
+	return barra > barra_inversa ? barra : barra_inversa;
+}
+
+static int gg_es_directorio(const char *ruta)
+{
+#if defined(PLATAFORMA_WINDOWS)
+	struct _stat estado;
+	return _stat(ruta, &estado) == 0 && (estado.st_mode & _S_IFDIR) != 0;
+#else
+	struct stat estado;
+	return stat(ruta, &estado) == 0 && S_ISDIR(estado.st_mode);
+#endif
+}
+
+static int gg_crear_directorio_uno(const char *ruta)
+{
+#if defined(PLATAFORMA_WINDOWS)
+	if(_mkdir(ruta) == 0 || gg_es_directorio(ruta)) return 0;
+#else
+	if(mkdir(ruta, 0777) == 0 || gg_es_directorio(ruta)) return 0;
+#endif
+	return -1;
+}
+
+int crearDirectorio(const char *ruta)
+{
+	if(ruta == NULL || ruta[0] == '\0') return -1;
+	char *copia = variable_string("%s", ruta);
+	if(copia == NULL) return -1;
+
+	for(char *cursor = copia; *cursor != '\0'; ++cursor)
+	{
+#if defined(PLATAFORMA_WINDOWS)
+		if(*cursor == '/') *cursor = '\\';
+		if(*cursor != '\\') continue;
+		if(cursor == copia || (cursor == copia + 2 && copia[1] == ':')) continue;
+#else
+		if(*cursor == '\\') *cursor = '/';
+		if(*cursor != '/' || cursor == copia) continue;
+#endif
+		char separador = *cursor;
+		*cursor = '\0';
+		int error = copia[0] != '\0' && gg_crear_directorio_uno(copia) != 0;
+		*cursor = separador;
+		if(error)
+		{
+			sistema_memoria_liberar(copia, NULL, 0);
+			return -1;
+		}
+	}
+
+	int resultado = gg_crear_directorio_uno(copia);
+	sistema_memoria_liberar(copia, NULL, 0);
+	return resultado;
+}
+
+static int gg_crear_directorio_padre(const char *ruta)
+{
+	char *copia = variable_string("%s", ruta);
+	if(copia == NULL) return -1;
+	char *separador = gg_buscar_ultimo_separador_ruta(copia);
+	if(separador == NULL)
+	{
+		sistema_memoria_liberar(copia, NULL, 0);
+		return 0;
+	}
+#if defined(PLATAFORMA_WINDOWS)
+	if(separador == copia + 2 && copia[1] == ':')
+	{
+		sistema_memoria_liberar(copia, NULL, 0);
+		return 0;
+	}
+#endif
+	if(separador == copia)
+	{
+		separador[1] = '\0';
+	}
+	else
+	{
+		*separador = '\0';
+	}
+	int resultado = crearDirectorio(copia);
+	sistema_memoria_liberar(copia, NULL, 0);
+	return resultado;
+}
+
+int existe_archivo(const char *ruta)
+{
+	if(ruta == NULL) return 0;
+	SistemaArchivo *archivo = sistema_archivo_abrir(ruta, "r", NULL, 0);
+	if(archivo == NULL) return 0;
+	return sistema_archivo_cerrar(archivo, NULL, 0) == 0;
+}
+
+int crearArchivo(const char *ruta, const char *cabecera)
+{
+	if(ruta == NULL || ruta[0] == '\0') return -1;
+	if(existe_archivo(ruta)) return 1;
+	if(gg_crear_directorio_padre(ruta) != 0) return -1;
+	SistemaArchivo *archivo = sistema_archivo_abrir(ruta, "w", NULL, 0);
+	if(archivo == NULL) return -1;
+	int error = cabecera != NULL && escribirLineaArchivo(archivo, cabecera, NULL, 0) != 0;
+	if(sistema_archivo_cerrar(archivo, NULL, 0) != 0) error = 1;
+	return error ? -1 : 0;
+}
+
+void free_lineas(char **lineas, int n_lineas)
+{
+	if(lineas == NULL) return;
+	for(int i = 0; i < n_lineas; ++i)
+		sistema_memoria_liberar(lineas[i], NULL, 0);
+	sistema_memoria_liberar(lineas, NULL, 0);
+}
+
+char **leer_archivo(const char *ruta, int *n_lineas_out)
+{
+	if(n_lineas_out == NULL) return NULL;
+	*n_lineas_out = 0;
+	if(ruta == NULL) return NULL;
+
+	SistemaArchivo *archivo = sistema_archivo_abrir(ruta, "r", NULL, 0);
+	if(archivo == NULL) return NULL;
+
+	int capacidad = 8;
+	int cantidad = 0;
+	char **lineas = sistema_memoria_reservar((size_t)capacidad * sizeof(*lineas), NULL, 0);
+	if(lineas == NULL)
+	{
+		sistema_archivo_cerrar(archivo, NULL, 0);
+		return NULL;
+	}
+
+	char *linea;
+	while((linea = leerLineaDinamica(archivo, NULL, 0)) != NULL)
+	{
+		if(cantidad == capacidad)
+		{
+			if(capacidad > INT_MAX / 2)
+			{
+				sistema_memoria_liberar(linea, NULL, 0);
+				free_lineas(lineas, cantidad);
+				sistema_archivo_cerrar(archivo, NULL, 0);
+				return NULL;
+			}
+			int nueva_capacidad = capacidad * 2;
+			char **temporal = sistema_memoria_redimensionar(
+				lineas, (size_t)nueva_capacidad * sizeof(*lineas), NULL, 0);
+			if(temporal == NULL)
+			{
+				sistema_memoria_liberar(linea, NULL, 0);
+				free_lineas(lineas, cantidad);
+				sistema_archivo_cerrar(archivo, NULL, 0);
+				return NULL;
+			}
+			lineas = temporal;
+			capacidad = nueva_capacidad;
+		}
+		lineas[cantidad++] = linea;
+	}
+
+	int error = sistema_archivo_hay_error(archivo, NULL, 0);
+	if(sistema_archivo_cerrar(archivo, NULL, 0) != 0) error = 1;
+	if(error)
+	{
+		free_lineas(lineas, cantidad);
+		return NULL;
+	}
+	*n_lineas_out = cantidad;
+	return lineas;
+}
+
+static int gg_guardar_archivo(const char *ruta, char **lineas, int n_lineas)
+{
+	if(ruta == NULL || n_lineas < 0 || (n_lineas > 0 && lineas == NULL)) return -1;
+	SistemaArchivo *archivo = sistema_archivo_abrir(ruta, "w", NULL, 0);
+	if(archivo == NULL) return -1;
+	int error = 0;
+	for(int i = 0; i < n_lineas; ++i)
+	{
+		if(lineas[i] == NULL || escribirLineaArchivo(archivo, lineas[i], NULL, 0) != 0)
+		{
+			error = 1;
+			break;
+		}
+	}
+	if(sistema_archivo_hay_error(archivo, NULL, 0)) error = 1;
+	if(sistema_archivo_cerrar(archivo, NULL, 0) != 0) error = 1;
+	return error ? -1 : 0;
+}
+
+void guardar_archivo(const char *ruta, char **lineas, int n_lineas)
+{
+	(void)gg_guardar_archivo(ruta, lineas, n_lineas);
+}
+
+static int gg_agregar_fila(const char *ruta, const char *fila)
+{
+	if(ruta == NULL || fila == NULL) return -1;
+	SistemaArchivo *archivo = sistema_archivo_abrir(ruta, "a", NULL, 0);
+	if(archivo == NULL) return -1;
+	int error = escribirLineaArchivo(archivo, fila, NULL, 0) != 0;
+	if(sistema_archivo_hay_error(archivo, NULL, 0)) error = 1;
+	if(sistema_archivo_cerrar(archivo, NULL, 0) != 0) error = 1;
+	return error ? -1 : 0;
+}
+
+void agregar_fila(const char *ruta, const char *fila)
+{
+	(void)gg_agregar_fila(ruta, fila);
+}
+
+void generar_ruta_archivo(const char *ruta, long id, long cant_por_arch, char *salida, size_t tam_salida)
+{
+	if(salida == NULL || tam_salida == 0) return;
+	salida[0] = '\0';
+	if(cant_por_arch <= 0) return;
+
+	char *id_texto = variable_string("%ld", id);
+	char *cantidad_texto = variable_string("%ld", cant_por_arch);
+	if(id_texto == NULL || cantidad_texto == NULL)
+	{
+		sistema_memoria_liberar(id_texto, NULL, 0);
+		sistema_memoria_liberar(cantidad_texto, NULL, 0);
+		return;
+	}
+
+	GG_CadenaDinamica construida;
+	gg_cadena_iniciar(&construida);
+	if(construida.datos == NULL) goto terminar_ruta_archivo;
+
+	const char *separador = "\\";
+#if defined(PLATAFORMA_LINUX)
+	separador = "/";
+#endif
+	if(ruta != NULL && ruta[0] != '\0')
+	{
+		size_t largo = strlen(ruta);
+		if(!gg_cadena_agregar(&construida, ruta)) goto error_ruta_archivo;
+		if(ruta[largo - 1] != '/' && ruta[largo - 1] != '\\' &&
+			!gg_cadena_agregar(&construida, separador)) goto error_ruta_archivo;
+	}
+
+	size_t largo_id = strlen(id_texto);
+	size_t largo_cantidad = strlen(cantidad_texto);
+	size_t ceros = largo_cantidad > 0 ? largo_cantidad - 1 : 0;
+	long potencia = cant_por_arch;
+	for(size_t digito = 2; digito <= largo_id; ++digito)
+	{
+		char *segmento = variable_string("%ld%s", potencia, separador);
+		if(segmento == NULL || !gg_cadena_agregar(&construida, segmento))
+		{
+			sistema_memoria_liberar(segmento, NULL, 0);
+			goto error_ruta_archivo;
+		}
+		sistema_memoria_liberar(segmento, NULL, 0);
+		if(potencia > LONG_MAX / cant_por_arch) goto error_ruta_archivo;
+		potencia *= cant_por_arch;
+	}
+
+	size_t prefijo = largo_id > ceros ? largo_id - ceros : 0;
+	if(!gg_cadena_agregar_n(&construida, id_texto, prefijo)) goto error_ruta_archivo;
+	for(size_t i = 0; i < ceros; ++i)
+		if(!gg_cadena_agregar(&construida, "0")) goto error_ruta_archivo;
+	if(!gg_cadena_agregar(&construida, ".txt")) goto error_ruta_archivo;
+	if(construida.longitud < tam_salida)
+		memcpy(salida, construida.datos, construida.longitud + 1);
+	goto terminar_ruta_archivo;
+
+error_ruta_archivo:
+	gg_cadena_liberar(&construida);
+	goto terminar_ruta_archivo;
+terminar_ruta_archivo:
+	if(construida.datos != NULL) gg_cadena_liberar(&construida);
+	sistema_memoria_liberar(id_texto, NULL, 0);
+	sistema_memoria_liberar(cantidad_texto, NULL, 0);
+}
+
+static char *gg_carpeta_data(const char *ruta_metadata)
+{
+	char *copia = variable_string("%s", ruta_metadata);
+	if(copia == NULL) return NULL;
+	char *separador = gg_buscar_ultimo_separador_ruta(copia);
+	char *punto = strrchr(copia, '.');
+	if(punto != NULL && (separador == NULL || punto > separador)) *punto = '\0';
+	char *resultado = variable_string("%s_DAT", copia);
+	sistema_memoria_liberar(copia, NULL, 0);
+	return resultado;
+}
+
+static int gg_parse_long_info(const char *texto, long *valor)
+{
+	if(texto == NULL || valor == NULL || texto[0] == '\0') return 0;
+	char *fin = NULL;
+	long convertido = strtol(texto, &fin, 10);
+	if(fin == texto || *fin != '\0') return 0;
+	*valor = convertido;
+	return 1;
+}
+
+static int gg_leer_config_metadata(const char *ruta, long *id_total, long *cantidad_por_archivo)
+{
+	int cantidad = 0;
+	char **lineas = leer_archivo(ruta, &cantidad);
+	if(lineas == NULL) return -1;
+	long id = 0;
+	long por_archivo = 100;
+	for(int i = 0; i < cantidad; ++i)
+	{
+		char **partes = NULL;
+		int n = split_con_numero_de_celdas(lineas[i], GG_caracter_separacion[0], &partes);
+		if(n >= 2 && partes != NULL)
+		{
+			if(strcmp(partes[0], "ID_TOT") == 0)
+			{
+				long convertido = 0;
+				if(gg_parse_long_info(partes[1], &convertido) && convertido >= 0) id = convertido;
+			}
+			else if(strcmp(partes[0], "CANT_POR_ARCH") == 0)
+			{
+				long convertido = 0;
+				if(gg_parse_long_info(partes[1], &convertido) && convertido > 0) por_archivo = convertido;
+			}
+		}
+		if(partes != NULL) free_split_con_numero_de_celdas(partes);
+	}
+	free_lineas(lineas, cantidad);
+	if(id_total != NULL) *id_total = id;
+	if(cantidad_por_archivo != NULL) *cantidad_por_archivo = por_archivo;
+	return 0;
+}
+
+static int gg_leer_columnas_metadata(const char *ruta, char **columnas_out)
+{
+	if(columnas_out == NULL) return -1;
+	*columnas_out = NULL;
+	int cantidad = 0;
+	char **lineas = leer_archivo(ruta, &cantidad);
+	if(lineas == NULL) return -1;
+	for(int i = 0; i < cantidad; ++i)
+	{
+		char **partes = NULL;
+		int n = split_con_numero_de_celdas(lineas[i], GG_caracter_separacion[0], &partes);
+		if(n >= 2 && partes != NULL && strcmp(partes[0], "COLUMNAS") == 0)
+		{
+			*columnas_out = variable_string("%s", partes[1]);
+			free_split_con_numero_de_celdas(partes);
+			free_lineas(lineas, cantidad);
+			return *columnas_out != NULL ? 0 : -1;
+		}
+		if(partes != NULL) free_split_con_numero_de_celdas(partes);
+	}
+	free_lineas(lineas, cantidad);
+	return -1;
+}
+
+static int gg_guardar_metadata_id(const char *ruta, long nuevo_id)
+{
+	int cantidad = 0;
+	char **lineas = leer_archivo(ruta, &cantidad);
+	if(lineas == NULL) return -1;
+	char *texto_id = variable_string("%ld", nuevo_id);
+	if(texto_id == NULL)
+	{
+		free_lineas(lineas, cantidad);
+		return -1;
+	}
+	int encontrado = 0;
+	for(int i = 0; i < cantidad; ++i)
+	{
+		char **partes = NULL;
+		int n = split_con_numero_de_celdas(lineas[i], GG_caracter_separacion[0], &partes);
+		if(n >= 2 && partes != NULL && strcmp(partes[0], "ID_TOT") == 0)
+		{
+			char *nueva_linea = variable_string("ID_TOT%s%s", GG_caracter_separacion[0], texto_id);
+			if(nueva_linea == NULL)
+			{
+				free_split_con_numero_de_celdas(partes);
+				sistema_memoria_liberar(texto_id, NULL, 0);
+				free_lineas(lineas, cantidad);
+				return -1;
+			}
+			sistema_memoria_liberar(lineas[i], NULL, 0);
+			lineas[i] = nueva_linea;
+			encontrado = 1;
+		}
+		if(partes != NULL) free_split_con_numero_de_celdas(partes);
+	}
+	sistema_memoria_liberar(texto_id, NULL, 0);
+	int resultado = encontrado ? gg_guardar_archivo(ruta, lineas, cantidad) : -1;
+	free_lineas(lineas, cantidad);
+	return resultado;
+}
+
+static char *gg_ruta_data_por_id(const char *ruta_metadata, long id, long cantidad_por_archivo)
+{
+	char *carpeta = gg_carpeta_data(ruta_metadata);
+	if(carpeta == NULL) return NULL;
+	size_t capacidad = strlen(carpeta) + 512;
+	char *ruta = sistema_memoria_reservar(capacidad, NULL, 0);
+	if(ruta != NULL)
+	{
+		generar_ruta_archivo(carpeta, id, cantidad_por_archivo, ruta, capacidad);
+		if(ruta[0] == '\0')
+		{
+			sistema_memoria_liberar(ruta, NULL, 0);
+			ruta = NULL;
+		}
+	}
+	sistema_memoria_liberar(carpeta, NULL, 0);
+	return ruta;
+}
+
+static char *gg_reconstruir_fila_info(char **celdas, int cantidad)
+{
+	char *resultado = NULL;
+	for(int i = 0; i < cantidad; ++i)
+	{
+		const char *valor = celdas[i] != NULL ? celdas[i] : "";
+		int estado = i == 0
+			? concatenar_formato_separado_por_variable(&resultado, NULL, "%s", valor)
+			: concatenar_formato_separado_por_variable(&resultado, NULL, "%s%s", GG_caracter_separacion[0], valor);
+		if(estado < 0)
+		{
+			sistema_memoria_liberar(resultado, NULL, 0);
+			return NULL;
+		}
+	}
+	return resultado != NULL ? resultado : variable_string("");
+}
+
+static char *gg_info_respuesta(int codigo, const char *mensaje)
+{
+	return variable_string("%d%s%s", codigo, GG_caracter_para_confirmacion_o_error[0], mensaje);
+}
+
+static char *gg_info_respuesta_fila(int codigo, const char *fila)
+{
+	return variable_string("%d%s%s", codigo, GG_caracter_para_confirmacion_o_error[0], fila != NULL ? fila : "");
+}
+
+static int gg_crear_metadata_info(const char *ruta, const char *columnas)
+{
+	if(ruta == NULL || ruta[0] == '\0') return -1;
+	char *cabecera = variable_string(
+		"tipo_info%sinfo\nID_TOT%s0\nCOLUMNAS%s%s\nCANT_POR_ARCH%s100",
+		GG_caracter_separacion[0], GG_caracter_separacion[0],
+		GG_caracter_separacion[0], columnas != NULL ? columnas : "",
+		GG_caracter_separacion[0]);
+	if(cabecera == NULL) return -1;
+	int resultado = crearArchivo(ruta, cabecera);
+	sistema_memoria_liberar(cabecera, NULL, 0);
+	return resultado;
+}
+
+char *leer_info_dividida(const char *ruta)
+{
+	if(ruta == NULL) return NULL;
+	int cantidad = 0;
+	char **lineas = leer_archivo(ruta, &cantidad);
+	if(lineas == NULL) return NULL;
+	GG_CadenaDinamica resultado;
+	gg_cadena_iniciar(&resultado);
+	if(resultado.datos == NULL)
+	{
+		free_lineas(lineas, cantidad);
+		return NULL;
+	}
+	for(int i = 0; i < cantidad; ++i)
+	{
+		if(i > 0 && !gg_cadena_agregar(&resultado, "\n")) goto error_leer_info;
+		if(!gg_cadena_agregar(&resultado, lineas[i])) goto error_leer_info;
+	}
+	free_lineas(lineas, cantidad);
+	return gg_cadena_entregar(&resultado);
+
+error_leer_info:
+	free_lineas(lineas, cantidad);
+	gg_cadena_liberar(&resultado);
+	return NULL;
+}
+
+char *agregar_info_dividida(const char *direccion, const char *agregando, const char *nom_columnas)
+{
+	if(direccion == NULL || direccion[0] == '\0') return gg_info_respuesta(0, "parametros_invalidos");
+	if(!existe_archivo(direccion) && gg_crear_metadata_info(direccion, nom_columnas) < 0)
+		return gg_info_respuesta(0, "error_no_pudo_crear_metadata");
+
+	char *columnas_metadata = NULL;
+	const char *columnas = nom_columnas;
+	if(columnas == NULL)
+	{
+		if(gg_leer_columnas_metadata(direccion, &columnas_metadata) != 0)
+			return gg_info_respuesta(0, "error_no_pudo_leer_metadata");
+		columnas = columnas_metadata;
+	}
+
+	long id_total = 0;
+	long por_archivo = 100;
+	if(gg_leer_config_metadata(direccion, &id_total, &por_archivo) != 0 || id_total == LONG_MAX)
+	{
+		sistema_memoria_liberar(columnas_metadata, NULL, 0);
+		return gg_info_respuesta(0, "error_no_pudo_leer_metadata");
+	}
+
+	char *ruta_data = gg_ruta_data_por_id(direccion, id_total + 1, por_archivo);
+	if(ruta_data == NULL)
+	{
+		sistema_memoria_liberar(columnas_metadata, NULL, 0);
+		return gg_info_respuesta(0, "error_de_memoria");
+	}
+
+	char *columnas_archivo = ReemplazarCaracteres_de_texto_string(
+		columnas,
+		GG_caracter_separacion[1], GG_caracter_separacion[0]);
+	if(columnas_archivo == NULL)
+	{
+		sistema_memoria_liberar(columnas_metadata, NULL, 0);
+		sistema_memoria_liberar(ruta_data, NULL, 0);
+		return gg_info_respuesta(0, "error_de_memoria");
+	}
+	int estado_archivo = crearArchivo(ruta_data, columnas_archivo);
+	sistema_memoria_liberar(columnas_archivo, NULL, 0);
+	sistema_memoria_liberar(columnas_metadata, NULL, 0);
+	if(estado_archivo < 0)
+	{
+		sistema_memoria_liberar(ruta_data, NULL, 0);
+		return gg_info_respuesta(0, "error_no_pudo_crear_archivo_de_datos");
+	}
+
+	char *fila = variable_string("%ld%s%s", id_total + 1, GG_caracter_separacion[0], agregando != NULL ? agregando : "");
+	if(fila == NULL || gg_agregar_fila(ruta_data, fila) != 0 ||
+		gg_guardar_metadata_id(direccion, id_total + 1) != 0)
+	{
+		sistema_memoria_liberar(fila, NULL, 0);
+		sistema_memoria_liberar(ruta_data, NULL, 0);
+		return gg_info_respuesta(0, "error_al_guardar");
+	}
+	char *respuesta = gg_info_respuesta_fila(1, fila);
+	sistema_memoria_liberar(fila, NULL, 0);
+	sistema_memoria_liberar(ruta_data, NULL, 0);
+	return respuesta;
+}
+
+char *leer_todo_info_dividida(const char *ruta)
+{
+	long id_total = 0;
+	long por_archivo = 100;
+	if(ruta == NULL || gg_leer_config_metadata(ruta, &id_total, &por_archivo) != 0) return NULL;
+	char *resultado = NULL;
+	char *ruta_anterior = NULL;
+	long registros_agregados = 0;
+	for(long id = 1; id <= id_total && registros_agregados < id_total; ++id)
+	{
+		char *ruta_data = gg_ruta_data_por_id(ruta, id, por_archivo);
+		if(ruta_data == NULL) goto error_leer_todo;
+		if(ruta_anterior != NULL && strcmp(ruta_anterior, ruta_data) == 0)
+		{
+			sistema_memoria_liberar(ruta_data, NULL, 0);
+			continue;
+		}
+		sistema_memoria_liberar(ruta_anterior, NULL, 0);
+		ruta_anterior = variable_string("%s", ruta_data);
+		if(ruta_anterior == NULL)
+		{
+			sistema_memoria_liberar(ruta_data, NULL, 0);
+			goto error_leer_todo;
+		}
+
+		int cantidad = 0;
+		char **lineas = leer_archivo(ruta_data, &cantidad);
+		sistema_memoria_liberar(ruta_data, NULL, 0);
+		if(lineas == NULL) goto error_leer_todo;
+		for(int fila = cantidad > 0 ? 1 : 0; fila < cantidad && registros_agregados < id_total; ++fila)
+		{
+			if(resultado != NULL &&
+				concatenar_formato_separado_por_variable(&resultado, NULL, "%s%s",
+					GG_caracter_separacion_funciones_espesificas[3], lineas[fila]) < 0)
+			{
+				free_lineas(lineas, cantidad);
+				goto error_leer_todo;
+			}
+			if(resultado == NULL &&
+				concatenar_formato_separado_por_variable(&resultado, NULL, "%s", lineas[fila]) < 0)
+			{
+				free_lineas(lineas, cantidad);
+				goto error_leer_todo;
+			}
+			++registros_agregados;
+		}
+		free_lineas(lineas, cantidad);
+	}
+	sistema_memoria_liberar(ruta_anterior, NULL, 0);
+	return resultado != NULL ? resultado : variable_string("");
+
+error_leer_todo:
+	sistema_memoria_liberar(ruta_anterior, NULL, 0);
+	sistema_memoria_liberar(resultado, NULL, 0);
+	return NULL;
+}
+
+static int gg_buscar_fila_por_id(const char *ruta_metadata, const char *id, char **ruta_data_out, int *indice_out, char **fila_out)
+{
+	if(ruta_data_out != NULL) *ruta_data_out = NULL;
+	if(indice_out != NULL) *indice_out = -1;
+	if(fila_out != NULL) *fila_out = NULL;
+	if(ruta_metadata == NULL || id == NULL || id[0] == '\0') return -1;
+	long id_numero = 0;
+	if(!gg_parse_long_info(id, &id_numero) || id_numero < 0) return -1;
+	long por_archivo = 100;
+	if(gg_leer_config_metadata(ruta_metadata, NULL, &por_archivo) != 0) return -1;
+	char *ruta_data = gg_ruta_data_por_id(ruta_metadata, id_numero, por_archivo);
+	if(ruta_data == NULL) return -1;
+	int cantidad = 0;
+	char **lineas = leer_archivo(ruta_data, &cantidad);
+	if(lineas == NULL)
+	{
+		sistema_memoria_liberar(ruta_data, NULL, 0);
+		return -1;
+	}
+	int encontrado = -1;
+	for(int i = 0; i < cantidad; ++i)
+	{
+		char **celdas = NULL;
+		int n = split_con_numero_de_celdas(lineas[i], GG_caracter_separacion[0], &celdas);
+		if(n > 0 && celdas != NULL && strcmp(celdas[0], id) == 0)
+		{
+			encontrado = i;
+			if(fila_out != NULL) *fila_out = variable_string("%s", lineas[i]);
+			break;
+		}
+		if(celdas != NULL) free_split_con_numero_de_celdas(celdas);
+	}
+	free_lineas(lineas, cantidad);
+	if(encontrado < 0 || (fila_out != NULL && *fila_out == NULL))
+	{
+		sistema_memoria_liberar(ruta_data, NULL, 0);
+		return -1;
+	}
+	if(ruta_data_out != NULL) *ruta_data_out = ruta_data;
+	else sistema_memoria_liberar(ruta_data, NULL, 0);
+	if(indice_out != NULL) *indice_out = encontrado;
+	return 0;
+}
+
+char *seleccionar_id_info_dividida(const char *direccion, const char *id)
+{
+	char *fila = NULL;
+	if(gg_buscar_fila_por_id(direccion, id, NULL, NULL, &fila) != 0)
+		return gg_info_respuesta(0, "no_se_encontro_informacion");
+	char *respuesta = gg_info_respuesta_fila(1, fila);
+	sistema_memoria_liberar(fila, NULL, 0);
+	return respuesta;
+}
+
+char *seleccionar_id_info_dividida_extrae(const char *direccion, const char *id)
+{
+	char *fila = NULL;
+	char *ruta_data = NULL;
+	int indice = -1;
+	if(gg_buscar_fila_por_id(direccion, id, &ruta_data, &indice, &fila) != 0)
+		return gg_info_respuesta(0, "no_se_encontro_informacion");
+	char *respuesta = variable_string("1%s%s%s%s%s%d",
+		GG_caracter_para_confirmacion_o_error[0], fila,
+		GG_caracter_para_confirmacion_o_error[0], ruta_data,
+		GG_caracter_para_confirmacion_o_error[0], indice);
+	sistema_memoria_liberar(fila, NULL, 0);
+	sistema_memoria_liberar(ruta_data, NULL, 0);
+	return respuesta;
+}
+
+static int gg_editar_campos_en_archivo(const char *ruta_data, int indice_fila, char **indices, char **valores, int cantidad)
+{
+	int n_lineas = 0;
+	char **lineas = leer_archivo(ruta_data, &n_lineas);
+	if(lineas == NULL || indice_fila < 0 || indice_fila >= n_lineas)
+	{
+		free_lineas(lineas, n_lineas);
+		return -1;
+	}
+	char **celdas = NULL;
+	int n_celdas = split_con_numero_de_celdas(lineas[indice_fila], GG_caracter_separacion[0], &celdas);
+	if(n_celdas <= 0 || celdas == NULL)
+	{
+		free_lineas(lineas, n_lineas);
+		return -1;
+	}
+	for(int i = 0; i < cantidad; ++i)
+	{
+		int columna = -1;
+		if(indices == NULL || valores == NULL || texto_a_int_seguro(indices[i], &columna) != 0 ||
+			columna < 0 || columna >= n_celdas) continue;
+		char *nuevo = variable_string("%s", valores[i]);
+		if(nuevo == NULL)
+		{
+			free_split_con_numero_de_celdas(celdas);
+			free_lineas(lineas, n_lineas);
+			return -1;
+		}
+		sistema_memoria_liberar(celdas[columna], NULL, 0);
+		celdas[columna] = nuevo;
+	}
+	char *nueva_fila = gg_reconstruir_fila_info(celdas, n_celdas);
+	free_split_con_numero_de_celdas(celdas);
+	if(nueva_fila == NULL)
+	{
+		free_lineas(lineas, n_lineas);
+		return -1;
+	}
+	sistema_memoria_liberar(lineas[indice_fila], NULL, 0);
+	lineas[indice_fila] = nueva_fila;
+	int resultado = gg_guardar_archivo(ruta_data, lineas, n_lineas);
+	free_lineas(lineas, n_lineas);
+	return resultado;
+}
+
+char *editar_celda_id_info_dividida(const char *direccion, const char *id, const char *cols_str, const char *vals_str)
+{
+	char *ruta_data = NULL;
+	int indice = -1;
+	if(gg_buscar_fila_por_id(direccion, id, &ruta_data, &indice, NULL) != 0)
+		return gg_info_respuesta(0, "no_se_encontro_informacion");
+	char **indices = NULL;
+	char **valores = NULL;
+	int n_indices = split_con_numero_de_celdas(cols_str, GG_caracter_separacion_funciones_espesificas[4], &indices);
+	int n_valores = split_con_numero_de_celdas(vals_str, GG_caracter_separacion_funciones_espesificas[4], &valores);
+	int n = n_indices < n_valores ? n_indices : n_valores;
+	int resultado = n > 0 && indices != NULL && valores != NULL
+		? gg_editar_campos_en_archivo(ruta_data, indice, indices, valores, n) : -1;
+	if(indices != NULL) free_split_con_numero_de_celdas(indices);
+	if(valores != NULL) free_split_con_numero_de_celdas(valores);
+	sistema_memoria_liberar(ruta_data, NULL, 0);
+	return gg_info_respuesta(resultado == 0 ? 1 : 0,
+		resultado == 0 ? "informacion_editada" : "no_se_encontro_informacion");
+}
+
+char *editar_id_info_dividida(const char *direccion, const char *id, const char *info_a_comparar, const char *col_comparar, const char *nuevos_datos, int col_editar)
+{
+	char *ruta_data = NULL;
+	int indice = -1;
+	char *fila = NULL;
+	if(gg_buscar_fila_por_id(direccion, id, &ruta_data, &indice, &fila) != 0)
+		return gg_info_respuesta(0, "no_se_encontro_informacion");
+	int coincide = 1;
+	if(info_a_comparar != NULL && info_a_comparar[0] != '\0' &&
+		col_comparar != NULL && col_comparar[0] != '\0')
+	{
+		int columna = -1;
+		char **celdas = NULL;
+		int n = split_con_numero_de_celdas(fila, GG_caracter_separacion[0], &celdas);
+		coincide = texto_a_int_seguro(col_comparar, &columna) == 0 &&
+			n > columna && columna >= 0 && celdas != NULL &&
+			strcmp(celdas[columna], info_a_comparar) == 0;
+		if(celdas != NULL) free_split_con_numero_de_celdas(celdas);
+	}
+	int resultado = -1;
+	if(coincide)
+	{
+		char *columna_texto = variable_string("%d", col_editar);
+		char *valor_texto = variable_string("%s", nuevos_datos != NULL ? nuevos_datos : "");
+		if(columna_texto != NULL && valor_texto != NULL)
+		{
+			char *indices[] = {columna_texto};
+			char *valores[] = {valor_texto};
+			resultado = gg_editar_campos_en_archivo(ruta_data, indice, indices, valores, 1);
+		}
+		sistema_memoria_liberar(columna_texto, NULL, 0);
+		sistema_memoria_liberar(valor_texto, NULL, 0);
+	}
+	sistema_memoria_liberar(fila, NULL, 0);
+	sistema_memoria_liberar(ruta_data, NULL, 0);
+	return gg_info_respuesta(resultado == 0 ? 1 : 0,
+		resultado == 0 ? "informacion_editada" : "no_se_encontro_informacion");
+}
+
+static int gg_incrementar_campos(const char *direccion, const char *id, const char *indices_texto, const char *cantidades_texto, int copia_si_vacio, const char *fuentes_texto, char **fila_resultado)
+{
+	if(fila_resultado != NULL) *fila_resultado = NULL;
+	char *ruta_data = NULL;
+	int indice = -1;
+	char *fila = NULL;
+	if(gg_buscar_fila_por_id(direccion, id, &ruta_data, &indice, &fila) != 0) return -1;
+	char **indices = NULL;
+	char **cantidades = NULL;
+	char **fuentes = NULL;
+	int n_indices = split_con_numero_de_celdas(indices_texto, GG_caracter_separacion_funciones_espesificas[4], &indices);
+	int n_cantidades = split_con_numero_de_celdas(cantidades_texto, GG_caracter_separacion_funciones_espesificas[4], &cantidades);
+	int n_fuentes = copia_si_vacio
+		? split_con_numero_de_celdas(fuentes_texto != NULL ? fuentes_texto : "", GG_caracter_separacion_funciones_espesificas[4], &fuentes)
+		: 0;
+	char **celdas = NULL;
+	int n_celdas = split_con_numero_de_celdas(fila, GG_caracter_separacion[0], &celdas);
+	int n = n_indices < n_cantidades ? n_indices : n_cantidades;
+	int hubo_deficit = 0;
+	int bultos = 0;
+	int error = n <= 0 || n_celdas <= 0 || indices == NULL || cantidades == NULL || celdas == NULL;
+	for(int i = 0; !error && i < n; ++i)
+	{
+		int columna = -1;
+		char *fin_numero = NULL;
+		double incremento = strtod(cantidades[i], &fin_numero);
+		if(texto_a_int_seguro(indices[i], &columna) != 0 || columna < 0 || columna >= n_celdas ||
+			fin_numero == cantidades[i] || *fin_numero != '\0')
+			continue;
+		fin_numero = NULL;
+		double actual = strtod(celdas[columna] != NULL ? celdas[columna] : "0", &fin_numero);
+		if(fin_numero == celdas[columna] || (fin_numero != NULL && *fin_numero != '\0')) actual = 0.0;
+		double total = actual + incremento;
+		if(copia_si_vacio && (total <= 0.0 || celdas[columna] == NULL || celdas[columna][0] == '\0'))
+		{
+			hubo_deficit = 1;
+			if(total < 0.0) bultos = (int)(-total) + 1;
+			if(i < n_fuentes && fuentes != NULL)
+			{
+				int fuente = -1;
+				if(texto_a_int_seguro(fuentes[i], &fuente) == 0 && fuente >= 0 && fuente < n_celdas)
+				{
+					char *copia = variable_string("%s", celdas[fuente] != NULL ? celdas[fuente] : "");
+					if(copia == NULL) { error = 1; break; }
+					sistema_memoria_liberar(celdas[columna], NULL, 0);
+					celdas[columna] = copia;
+				}
+			}
+		}
+		char *nuevo = variable_string("%.17g", total);
+		if(nuevo == NULL) { error = 1; break; }
+		sistema_memoria_liberar(celdas[columna], NULL, 0);
+		celdas[columna] = nuevo;
+	}
+	char *nueva_fila = NULL;
+	if(!error) nueva_fila = gg_reconstruir_fila_info(celdas, n_celdas);
+	if(nueva_fila == NULL) error = 1;
+	if(!error)
+	{
+		int n_filas = 0;
+		char **lineas = leer_archivo(ruta_data, &n_filas);
+		if(lineas == NULL || indice >= n_filas) error = 1;
+		else
+		{
+			sistema_memoria_liberar(lineas[indice], NULL, 0);
+			lineas[indice] = variable_string("%s", nueva_fila);
+			if(lineas[indice] == NULL || gg_guardar_archivo(ruta_data, lineas, n_filas) != 0) error = 1;
+			free_lineas(lineas, n_filas);
+		}
+	}
+	if(fila_resultado != NULL && !error) *fila_resultado = variable_string("%s", nueva_fila);
+	sistema_memoria_liberar(nueva_fila, NULL, 0);
+	if(celdas != NULL) free_split_con_numero_de_celdas(celdas);
+	if(indices != NULL) free_split_con_numero_de_celdas(indices);
+	if(cantidades != NULL) free_split_con_numero_de_celdas(cantidades);
+	if(fuentes != NULL) free_split_con_numero_de_celdas(fuentes);
+	sistema_memoria_liberar(fila, NULL, 0);
+	sistema_memoria_liberar(ruta_data, NULL, 0);
+	if(error) return -1;
+	return hubo_deficit ? bultos + 2 : 1;
+}
+
+char *incrementa_celda_id_info_dividida(const char *direccion, const char *id, const char *cols_str, const char *cants_str)
+{
+	char *fila = NULL;
+	int resultado = gg_incrementar_campos(direccion, id, cols_str, cants_str, 0, NULL, &fila);
+	if(resultado < 0) return gg_info_respuesta(0, "no_se_encontro_informacion");
+	char *respuesta = gg_info_respuesta_fila(1, fila);
+	sistema_memoria_liberar(fila, NULL, 0);
+	return respuesta;
+}
+
+char *incrementa_celda_id_info_dividida_copia_si_cero(const char *direccion, const char *id, const char *cols_str, const char *cants_str, const char *cols_fuente_str)
+{
+	char *fila = NULL;
+	int resultado = gg_incrementar_campos(direccion, id, cols_str, cants_str, 1, cols_fuente_str, &fila);
+	if(resultado < 0) return gg_info_respuesta(0, "no_se_encontro_informacion");
+	char *respuesta = resultado > 1
+		? variable_string("2%s%s%s%d", GG_caracter_para_confirmacion_o_error[0], fila,
+			GG_caracter_para_confirmacion_o_error[0], resultado - 2)
+		: gg_info_respuesta_fila(1, fila);
+	sistema_memoria_liberar(fila, NULL, 0);
+	return respuesta;
+}
+
+char *agregar_sino_existe_info_dividida(const char *direccion, long col_comp, const char *comparar, const char *texto_agr, const char *nom_cols)
+{
+	if(direccion == NULL || comparar == NULL || col_comp < 0)
+		return gg_info_respuesta(0, "parametros_invalidos");
+	long id_total = 0;
+	long por_archivo = 100;
+	if(!existe_archivo(direccion) && gg_crear_metadata_info(direccion, nom_cols) < 0)
+		return gg_info_respuesta(0, "error_no_pudo_crear_metadata");
+	if(gg_leer_config_metadata(direccion, &id_total, &por_archivo) != 0)
+		return gg_info_respuesta(0, "error_no_pudo_leer_metadata");
+	for(long id = 1; id <= id_total; ++id)
+	{
+		char *fila = NULL;
+		char *texto_id = variable_string("%ld", id);
+		if(texto_id == NULL) return gg_info_respuesta(0, "error_de_memoria");
+		int encontrado = gg_buscar_fila_por_id(direccion, texto_id, NULL, NULL, &fila) == 0;
+		sistema_memoria_liberar(texto_id, NULL, 0);
+		if(!encontrado) continue;
+		char **celdas = NULL;
+		int n = split_con_numero_de_celdas(fila, GG_caracter_separacion[0], &celdas);
+		int coincide = n > col_comp && celdas != NULL && strcmp(celdas[col_comp], comparar) == 0;
+		if(celdas != NULL) free_split_con_numero_de_celdas(celdas);
+		if(coincide)
+		{
+			char *respuesta = variable_string("0%sya_existe%s%s",
+				GG_caracter_para_confirmacion_o_error[0], GG_caracter_para_confirmacion_o_error[0], fila);
+			sistema_memoria_liberar(fila, NULL, 0);
+			return respuesta;
+		}
+		sistema_memoria_liberar(fila, NULL, 0);
+	}
+	return agregar_info_dividida(direccion, texto_agr, nom_cols);
+}
+
+char *buscar_info_dividida(const char *direccion, const char *dato_buscar, int col_buscar, int id_hint)
+{
+	if(direccion == NULL || dato_buscar == NULL || col_buscar < 0)
+		return gg_info_respuesta(0, "parametros_invalidos");
+	long id_total = 0;
+	long por_archivo = 100;
+	if(gg_leer_config_metadata(direccion, &id_total, &por_archivo) != 0)
+		return gg_info_respuesta(0, "error_al_leer_metadata");
+	if(id_hint >= 1 && id_hint <= id_total)
+	{
+		char *fila = NULL;
+		char *texto_id = variable_string("%d", id_hint);
+		if(texto_id != NULL && gg_buscar_fila_por_id(direccion, texto_id, NULL, NULL, &fila) == 0)
+		{
+			char **celdas = NULL;
+			int n = split_con_numero_de_celdas(fila, GG_caracter_separacion[0], &celdas);
+			if(n > col_buscar && celdas != NULL && strcmp(celdas[col_buscar], dato_buscar) == 0)
+			{
+				char *respuesta = variable_string("1%s%s%s%d", GG_caracter_para_confirmacion_o_error[0], fila,
+					GG_caracter_para_confirmacion_o_error[0], id_hint);
+				if(celdas != NULL) free_split_con_numero_de_celdas(celdas);
+				sistema_memoria_liberar(fila, NULL, 0);
+				sistema_memoria_liberar(texto_id, NULL, 0);
+				return respuesta;
+			}
+			if(celdas != NULL) free_split_con_numero_de_celdas(celdas);
+			sistema_memoria_liberar(fila, NULL, 0);
+		}
+		sistema_memoria_liberar(texto_id, NULL, 0);
+	}
+	for(long id = 1; id <= id_total; ++id)
+	{
+		char *fila = NULL;
+		char *texto_id = variable_string("%ld", id);
+		if(texto_id == NULL) return gg_info_respuesta(0, "error_de_memoria");
+		if(gg_buscar_fila_por_id(direccion, texto_id, NULL, NULL, &fila) != 0)
+		{
+			sistema_memoria_liberar(texto_id, NULL, 0);
+			continue;
+		}
+		sistema_memoria_liberar(texto_id, NULL, 0);
+		char **celdas = NULL;
+		int n = split_con_numero_de_celdas(fila, GG_caracter_separacion[0], &celdas);
+		if(n > col_buscar && celdas != NULL && strcmp(celdas[col_buscar], dato_buscar) == 0)
+		{
+			char *respuesta = variable_string("1%s%s%s%ld",
+				GG_caracter_para_confirmacion_o_error[0], fila,
+				GG_caracter_para_confirmacion_o_error[0], id);
+			if(celdas != NULL) free_split_con_numero_de_celdas(celdas);
+			sistema_memoria_liberar(fila, NULL, 0);
+			return respuesta;
+		}
+		if(celdas != NULL) free_split_con_numero_de_celdas(celdas);
+		sistema_memoria_liberar(fila, NULL, 0);
+	}
+	return gg_info_respuesta(0, "no_encontro_el_producto");
+}
+
+char *incrementa_celda_busqueda_info_dividida(const char *direccion, const char *dato_a_buscar, int col_buscar, const char *cols_inc_str, const char *cants_inc_str, const char *agregar_fallback)
+{
+	char *busqueda = buscar_info_dividida(direccion, dato_a_buscar, col_buscar, -1);
+	if(busqueda != NULL && busqueda[0] == '1')
+	{
+		char **partes = NULL;
+		int n = split_con_numero_de_celdas(busqueda, GG_caracter_para_confirmacion_o_error[0], &partes);
+		if(partes != NULL)
+		{
+			char *resultado = n > 2
+				? incrementa_celda_id_info_dividida(direccion, partes[2], cols_inc_str, cants_inc_str)
+				: gg_info_respuesta(0, "no_se_encontro_informacion");
+			free_split_con_numero_de_celdas(partes);
+			sistema_memoria_liberar(busqueda, NULL, 0);
+			return resultado;
+		}
+	}
+	sistema_memoria_liberar(busqueda, NULL, 0);
+	if(agregar_fallback != NULL && agregar_fallback[0] != '\0')
+		return agregar_info_dividida(direccion, agregar_fallback, NULL);
+	return gg_info_respuesta(0, "no_se_encontro_informacion");
+}
+
+#else
+
+int crearDirectorio(const char *ruta) { (void)ruta; return -1; }
+int crearArchivo(const char *ruta, const char *cabecera) { (void)ruta; (void)cabecera; return -1; }
+char **leer_archivo(const char *ruta, int *n_lineas_out) { (void)ruta; if(n_lineas_out != NULL) *n_lineas_out = 0; return NULL; }
+void guardar_archivo(const char *ruta, char **lineas, int n_lineas) { (void)ruta; (void)lineas; (void)n_lineas; }
+void free_lineas(char **lineas, int n_lineas) { (void)lineas; (void)n_lineas; }
+void agregar_fila(const char *ruta, const char *fila) { (void)ruta; (void)fila; }
+int existe_archivo(const char *ruta) { (void)ruta; return 0; }
+void generar_ruta_archivo(const char *ruta, long id, long cantidad, char *salida, size_t capacidad) { (void)ruta; (void)id; (void)cantidad; if(salida != NULL && capacidad > 0) salida[0] = '\0'; }
+char *leer_info_dividida(const char *ruta) { (void)ruta; return NULL; }
+char *agregar_info_dividida(const char *direccion, const char *agregando, const char *nom_columnas) { (void)direccion; (void)agregando; (void)nom_columnas; return NULL; }
+char *leer_todo_info_dividida(const char *ruta) { (void)ruta; return NULL; }
+char *agregar_sino_existe_info_dividida(const char *direccion, long col, const char *comparar, const char *fila, const char *columnas) { (void)direccion; (void)col; (void)comparar; (void)fila; (void)columnas; return NULL; }
+char *seleccionar_id_info_dividida(const char *direccion, const char *id) { (void)direccion; (void)id; return NULL; }
+char *seleccionar_id_info_dividida_extrae(const char *direccion, const char *id) { (void)direccion; (void)id; return NULL; }
+char *editar_id_info_dividida(const char *direccion, const char *id, const char *comparar, const char *columna, const char *nuevo, int editar) { (void)direccion; (void)id; (void)comparar; (void)columna; (void)nuevo; (void)editar; return NULL; }
+char *editar_celda_id_info_dividida(const char *direccion, const char *id, const char *cols, const char *vals) { (void)direccion; (void)id; (void)cols; (void)vals; return NULL; }
+char *incrementa_celda_id_info_dividida(const char *direccion, const char *id, const char *cols, const char *cants) { (void)direccion; (void)id; (void)cols; (void)cants; return NULL; }
+char *incrementa_celda_id_info_dividida_copia_si_cero(const char *direccion, const char *id, const char *cols, const char *cants, const char *fuentes) { (void)direccion; (void)id; (void)cols; (void)cants; (void)fuentes; return NULL; }
+char *incrementa_celda_busqueda_info_dividida(const char *direccion, const char *dato, int col, const char *cols, const char *cants, const char *fallback) { (void)direccion; (void)dato; (void)col; (void)cols; (void)cants; (void)fallback; return NULL; }
+char *buscar_info_dividida(const char *direccion, const char *dato, int col, int hint) { (void)direccion; (void)dato; (void)col; (void)hint; return NULL; }
+
+#endif
+
+#pragma endregion FUNCIONES_INFO_DIVIDIDA
  
  // ============================================================================
  // FUNCIONES OPERACIONES DE MENSAJERÍA
