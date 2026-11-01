@@ -1,0 +1,2 @@
+ID|Usuario|Contraseña|Directorio_Archivo_permisos_usuarios|Nivel
+20261101155807_esp_1|ad_1|con_1||1

@@ -1,0 +1,2 @@
+ID|Usuario|Contraseña|Directorio_Archivo_permisos_usuarios|Nivel
+20261101144430_primer_espacio|amid|dima||1

@@ -1,0 +1,3 @@
+ID|Usuario|Contraseña|Directorio_Archivo_permisos_usuarios|Nivel
+20261101144430_primer_espacio|amid|dima|espacios/20261101144430_primer_espacio/20261101144430_primer_espacio.txt|2
+20261101155807_esp_1|ad_1|con_1|espacios/20261101155807_esp_1/20261101155807_esp_1.txt|2
