@@ -160,6 +160,13 @@
  * Activa la configuración regional de escritorio para mostrar texto UTF-8.
  * En el backend semiconductor no se llama setlocale ni se presupone una consola.
  */
+/*
+ * Propósito: habilitar la configuración regional del entorno de escritorio.
+ * Entrada: no recibe parámetros.
+ * Salida y efectos: no devuelve valor; en Windows/Linux llama setlocale(LC_ALL, "").
+ * Entrada de ejemplo: configurarConsolaUTF8().
+ * Salida de ejemplo: sin valor de retorno; queda activa la configuración regional disponible.
+ */
  static void configurarConsolaUTF8(void)
  {
 	#if defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
@@ -367,7 +374,33 @@ const char *obtener_ultimo_retorno_formateado(void);
  char * mandar_mensje_a_contacto(const char * mensaje,const char * contactos,int id_opcional,char *error_o_datos_a_retornar,int nivel_de_profundidad);
  char * mandar_mensje_al_primero_que_responda(const char * mensaje_pregunta,const char * mensaje_de_que_ya_alguien_lo_acepto,const char * menaje_respuesta_al_quien_lo_logro,char *error_o_datos_a_retornar,int nivel_de_profundidad);
  char * checar_si_hay_mensajes_no_leido(char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ int monitoreo_archivo_entrada(char ***retorno_comando, int *retorno_numero_lineas);
+ void respuesta(const char *info, const char *programa_enviar, const char *info_espejo);
+ int datos_recibidos_a_procesar_y_borrar(char ***retorno_comando, int *retorno_numero_lineas);
+ int finalizar_comando_procesado(const char *linea_original, int estado_ejecucion);
+ int cambiar_id_programa_al_siguiente(char **usuarios, int total_usuarios);
+ int quitar_id_prog_del_archivo(void);
+ int checar_numero_de_direccion_de_archivo_atras_actual_adelante(
+   int posicion_bandera, int numero_actual_posicion, int arr_devolver[3]);
  #pragma endregion DECLARACIÓN DE FUNCIONES DE MENSAJERÍA
+ // ============================================================================
+ // DECLARACIÓN DE FUNCIONES DE PERMISOS
+ // ============================================================================
+ int checar_permiso(
+	 int nivel_minimo,
+	 const char *ruta_archivo,
+	 const char *id_de_espacio,
+	 const char *usuario,
+	 const char *contrasena,
+	 char **retorna_direccion_espacio_negocio,
+	 int *retornar_nivel);
+ int checar_permiso_negocios(
+	 int nivel_minimo,
+	 const char *ruta_archivo,
+	 const char *id_de_espacio,
+	 const char *usuario,
+	 const char *contrasena,
+	 int *retornar_nivel);
  // ============================================================================
  // DECLARACIÓN DE FUNCIONES DE OPERACIONES DE TEXTO
  // ============================================================================
@@ -383,6 +416,7 @@ const char *obtener_ultimo_retorno_formateado(void);
  char *variable_string(const char *format, ...);
  int split_con_numero_de_celdas(const char *txt, const char *sep, char ***salida);
  void free_split_con_numero_de_celdas(char **arreglo);
+ void agregar_texto_a_arreglo(char ***arreglo, const char *texto);
  int texto_a_int_seguro(const char *texto, int *var_a_retornar);
  int texto_a_float_seguro(const char *texto, float *var_a_retornar);
  int concatenar_formato_separado_por_variable(char **destino, const char *separador, const char *formato, ...);
@@ -416,6 +450,9 @@ const char *obtener_ultimo_retorno_formateado(void);
   void agregar_fila(const char *ruta, const char *fila);
   int existe_archivo(const char *ruta);
   void generar_ruta_archivo(const char *ruta, long id, long cant_por_arch, char *salida, size_t tam_salida);
+  int crear_espacios(char *nom_espacio, char *usuario, char *contrasena, char **retorno_nombre_completo_espacio);
+  int crear_archivos_base_negocio(const char *id_espacio);
+  int creacion_de_estructura_base(char *nombre_de_structura, char *direccion_del_espacio);
   char *leer_info_dividida(const char *ruta);
   char *agregar_info_dividida(const char *direccion, const char *agregando, const char *nom_columnas);
   char *leer_todo_info_dividida(const char *ruta);
@@ -472,6 +509,13 @@ const char *obtener_ultimo_retorno_formateado(void);
   * Devuelve al llamador el resultado codificado de la operación seleccionada.
   */
  char* prueba(int nivel_de_profundidad);
+/*
+* Propósito: mostrar el menú de pruebas y codificar la acción elegida.
+* Entrada: nivel_de_profundidad indica la profundidad para registrar el resultado.
+* Salida y efectos: devuelve una cadena asignada con el protocolo de transferencia o un resultado de error; escribe el menú en consola.
+* Entrada de ejemplo: prueba(0), con entrada de consola "6".
+* Salida de ejemplo: "QU1R30N_SISTEMA_DEFINITIVO┴prueba■salir■0■INFORMACION_ESPEJO_NO_SE_MODIFICA".
+*/
 char* prueba(int nivel_de_profundidad)
  {
 	
@@ -774,6 +818,13 @@ char* prueba(int nivel_de_profundidad)
 	return resultado;
  }
 
+/*
+ * Propósito: mostrar en consola una sección del catálogo del negocio.
+ * Entradas: seccion selecciona el grupo (1–6); error_o_datos_a_retornar es el contexto de error de consola; nivel_de_profundidad identifica la profundidad del mensaje.
+ * Salida y efectos: no devuelve valor; imprime los nombres y rutas correspondientes, excepto para seccion 7 o valores no reconocidos, que no imprimen.
+ * Entrada de ejemplo: mostrar_seccion_negocio(7, NULL, 0).
+ * Salida de ejemplo: sin valor de retorno ni texto en consola.
+ */
 static void mostrar_seccion_negocio(int seccion, char *error_o_datos_a_retornar, int nivel_de_profundidad)
 {
 	const int cantidadSecciones = (int)(sizeof(GG_secciones_negocio) / sizeof(GG_secciones_negocio[0])) - 1;
@@ -830,6 +881,13 @@ static void mostrar_seccion_negocio(int seccion, char *error_o_datos_a_retornar,
 /*
  * Garantiza que exista NOMBRE_ARCHIVO sin borrar su contenido si ya existe.
  */
+/*
+ * Propósito: asegurar que exista el archivo inicial sin truncar su contenido.
+ * Entradas: error_o_datos_a_retornar aporta contexto para errores; nivel_de_profundidad identifica la llamada.
+ * Salida y efectos: devuelve una cadena de resultado asignada y abre/cierra datos.txt en modo append, creándolo si falta.
+ * Entrada de ejemplo: inicio(NULL, 0), con acceso de escritura permitido.
+ * Salida de ejemplo: "°1"; datos.txt existe y su contenido previo se conserva.
+ */
 static char * inicio(char *error_o_datos_a_retornar, int nivel_de_profundidad)
 {
 	SistemaArchivo *archivo = sistema_archivo_abrir(NOMBRE_ARCHIVO,"a",error_o_datos_a_retornar,nivel_de_profundidad);
@@ -847,6 +905,13 @@ static char * inicio(char *error_o_datos_a_retornar, int nivel_de_profundidad)
  /*
   * Punto de entrada: muestra el menú y distribuye las opciones.
   */
+/*
+ * Propósito: inicializar la aplicación y despachar el menú interactivo.
+ * Entrada: no recibe parámetros; consume opciones desde la consola.
+ * Salida y efectos: devuelve 0 al elegir salir, o un código negativo ante error; prepara datos.txt y escribe mensajes en consola.
+ * Entrada de ejemplo: main() con stdin="6\n" y acceso de escritura a datos.txt.
+ * Salida de ejemplo: devuelve 0 después de mostrar el menú de pruebas y recibir la opción de salida.
+ */
 int main(void)
 {
 	configurarConsolaUTF8();
@@ -994,6 +1059,13 @@ int main(void)
  * Menú de lectura y CRUD del archivo datos.txt.
  * Ejemplo: una entrada "3" solicita ID y texto y reemplaza la línea 3.
  * Devuelve una cadena de resultado codificada; el llamador debe liberarla.
+ */
+/*
+ * Propósito: ejecutar o mostrar las opciones CRUD del archivo datos.txt.
+ * Entradas: parametros_en_texto_a_splitear es una lista informativa separada por comas; error_o_datos_a_retornar es el contexto de error; nivel_de_profundidad marca la traza; opcion_seleccionada elige una acción (0 solicita menú, 8 vuelve).
+ * Salida y efectos: devuelve una cadena de resultado asignada y puede leer/escribir datos.txt o solicitar datos por consola.
+ * Entrada de ejemplo: submenu_tex_base("leer,escribir", NULL, 1, 8).
+ * Salida de ejemplo: "¬11"; no modifica el archivo en la opción de volver.
  */
  char * submenu_tex_base(const char * parametros_en_texto_a_splitear, char *error_o_datos_a_retornar,int nivel_de_profundidad,int opcion_seleccionada)
  {
@@ -1146,6 +1218,13 @@ int main(void)
  * Ejemplo: "Hola" a todos agrega la línea "Hola" al archivo de mensajes.
  * Cada resultado devuelto usa el protocolo crearResultado() y pertenece al llamador.
  */
+/*
+ * Propósito: mostrar y despachar las opciones de envío y consulta de mensajes.
+ * Entradas: parametros_en_texto_a_splitear contiene opciones informativas separadas por comas; error_o_datos_a_retornar aporta contexto de error; nivel_de_profundidad marca la traza; opcion_seleccionada elige la acción (0 solicita menú, 5 vuelve).
+ * Salida y efectos: devuelve una cadena de resultado asignada; las acciones de envío pueden agregar mensajes a los archivos configurados y usar la consola.
+ * Entrada de ejemplo: submenu_enlasador_mandar_mensajes("todos,contacto", NULL, 1, 5).
+ * Salida de ejemplo: "¬11"; no escribe mensajes al elegir volver.
+ */
  char * submenu_enlasador_mandar_mensajes(const char * parametros_en_texto_a_splitear, char *error_o_datos_a_retornar,int nivel_de_profundidad,int opcion_seleccionada)
  {
 	nivel_de_profundidad++;
@@ -1286,6 +1365,13 @@ int main(void)
 /*
  * Menú de demostración de split(), modificarColumna() y lectura de consola.
  * Ejemplo: "a,b,c", columna 2 y "B" produce "a,B,c".
+ */
+/*
+ * Propósito: despachar ejemplos interactivos de split, modificación de columna y lectura de texto.
+ * Entradas: parametros_en_texto_a_splitear contiene opciones informativas separadas por comas; error_o_datos_a_retornar aporta contexto de error; nivel_de_profundidad marca la traza; opcion_seleccionada elige la opción (0 solicita menú, 4 vuelve).
+ * Salida y efectos: devuelve una cadena de resultado asignada; puede leer la consola y mostrar el resultado de la operación elegida.
+ * Entrada de ejemplo: submenu_operaciones_de_texto("split,modificar", NULL, 1, 4).
+ * Salida de ejemplo: "¬11"; no solicita datos al elegir volver.
  */
  char * submenu_operaciones_de_texto(const char * parametros_en_texto_a_splitear, char *error_o_datos_a_retornar,int nivel_de_profundidad,int opcion_seleccionada)
  {
@@ -1460,6 +1546,13 @@ int main(void)
  * También conserva campos vacíos: split("a,,b", ",") produce ["a", "", "b"].
  * La lista termina en NULL; quien la recibe libera con liberarSplit().
  */
+/*
+ * Propósito: dividir texto por todas las apariciones del separador, conservando campos vacíos.
+ * Entradas: texto es la cadena a dividir; separador es el delimitador no vacío; cantidad recibe el número de partes; error_o_datos_a_retornar y nivel_de_profundidad dan contexto de memoria.
+ * Salida y efectos: devuelve un arreglo terminado en NULL, liberable con liberarSplit(); si cantidad no es NULL, lo pone en 0 antes de validar texto/separador y en el total al completar; no altera texto.
+ * Entrada de ejemplo: split("a,,b", ",", &cantidad, NULL, 0), con cantidad inicialmente 99.
+ * Salida de ejemplo: retorna {"a", "", "b", NULL} y cantidad pasa de 99 a 3.
+ */
  char ** split(const char *texto, const char *separador, int *cantidad, char *error_o_datos_a_retornar,int nivel_de_profundidad)
  {
 	nivel_de_profundidad++;
@@ -1535,6 +1628,13 @@ int main(void)
  * Formatea una cadena nueva con memoria de la capa común.
  * El llamador debe liberar el resultado con sistema_memoria_liberar().
  */
+/*
+ * Propósito: crear una cadena nueva aplicando un formato printf.
+ * Entradas: format contiene los especificadores; los argumentos variables deben corresponder en tipo y orden a esos especificadores.
+ * Salida y efectos: devuelve memoria nueva que el llamador libera con sistema_memoria_liberar(); en SEMICONDUCTOR sin PIC16F devuelve NULL.
+ * Entrada de ejemplo: variable_string("%s:%d", "id", 7) en escritorio.
+ * Salida de ejemplo: retorna la cadena asignada "id:7".
+ */
 char *variable_string(const char *format, ...)
 {
 #if defined(PLATAFORMA_SEMICONDUCTOR) && !defined(PIC16F)
@@ -1577,6 +1677,13 @@ char *variable_string(const char *format, ...)
  * Construye el retorno estándar sin cambiar el formato de traza de crearResultado().
  * El resultado pertenece al llamador y se libera con sistema_memoria_liberar().
  */
+/*
+ * Propósito: construir un retorno compacto con código, mensaje y datos.
+ * Entradas: codigo es el estado numérico; separador delimita campos (NULL usa el marcador global); mensaje y datos_extra son sus textos, con valores predeterminados si son NULL.
+ * Salida y efectos: devuelve una cadena nueva que debe liberarse con sistema_memoria_liberar(); no modifica los argumentos.
+ * Entrada de ejemplo: construir_retorno_estandar(1, NULL, "ok", NULL).
+ * Salida de ejemplo: retorna "1╣ok╣sin_datos".
+ */
 char *construir_retorno_estandar(
 	int codigo,
 	const char *separador,
@@ -1604,6 +1711,13 @@ char *construir_retorno_estandar(
  * Adaptador compatible con la interfaz anterior de split.
  * Devuelve el número de celdas o -1 si no pudo dividir.
  */
+/*
+ * Propósito: adaptar split() a la interfaz que devuelve la cantidad como retorno.
+ * Entradas: txt es el texto a dividir; sep es el delimitador; salida recibe el arreglo creado.
+ * Salida y efectos: devuelve el número de celdas o -1; inicializa *salida en NULL y, si tiene éxito, transfiere al llamador el arreglo que debe liberar.
+ * Entrada de ejemplo: salida=NULL; split_con_numero_de_celdas("rojo,azul", ",", &salida).
+ * Salida de ejemplo: retorna 2 y salida pasa de NULL a {"rojo", "azul", NULL}.
+ */
 int split_con_numero_de_celdas(const char *txt, const char *sep, char ***salida)
 {
 	if(salida == NULL) return -1;
@@ -1617,6 +1731,13 @@ int split_con_numero_de_celdas(const char *txt, const char *sep, char ***salida)
 	return cantidad;
 }
 
+/*
+ * Propósito: liberar un arreglo de cadenas terminado en NULL.
+ * Entrada: arreglo es el vector previamente obtenido con el adaptador de split.
+ * Salida y efectos: no devuelve valor; libera sus cadenas y el vector, pero no puede cambiar la variable del llamador.
+ * Entrada de ejemplo: free_split_con_numero_de_celdas(arreglo), donde arreglo contiene {"x", NULL}.
+ * Salida de ejemplo: memoria liberada; la variable arreglo conserva su valor anterior y debe dejarse de usar o ponerse a NULL.
+ */
 void free_split_con_numero_de_celdas(char **arreglo)
 {
 	if(arreglo == NULL) return;
@@ -1633,7 +1754,82 @@ void free_split_con_numero_de_celdas(char **arreglo)
 	liberarSplit(arreglo, cantidad, NULL, 0);
 }
 
+/*
+ * Propósito: copiar texto al final de un vector dinámico terminado en NULL.
+ * Entradas: arreglo apunta al vector (NULL si está vacío); texto es la cadena que se copia.
+ * Salida y efectos: no devuelve valor; puede reasignar *arreglo y reserva una nueva copia del texto.
+ * Entrada de ejemplo: con lista=NULL, agregar_texto_a_arreglo(&lista, "uno").
+ * Salida de ejemplo: lista pasa de NULL a {"uno", NULL}.
+ */
+void agregar_texto_a_arreglo(char ***arreglo, const char *texto)
+{
+	if(arreglo == NULL || texto == NULL)
+		return;
+
+	size_t cantidad_actual = 0;
+	if(*arreglo != NULL)
+	{
+		while((*arreglo)[cantidad_actual] != NULL)
+		{
+			if(cantidad_actual >= (size_t)-1 / sizeof(**arreglo) - 2)
+			{
+				imprimirMensaje_para_depurar(NULL, 0,
+					"[agregar_texto_a_arreglo] el arreglo excede el tamaño representable\n");
+				return;
+			}
+			cantidad_actual++;
+		}
+	}
+
+	size_t largo_texto = strlen(texto);
+	if(largo_texto == (size_t)-1)
+	{
+		imprimirMensaje_para_depurar(NULL, 0,
+			"[agregar_texto_a_arreglo] el texto excede el tamaño representable\n");
+		return;
+	}
+
+	char *texto_nuevo = sistema_memoria_reservar(largo_texto + 1, NULL, 0);
+	if(texto_nuevo == NULL)
+	{
+		imprimirMensaje_para_depurar(NULL, 0,
+			"[agregar_texto_a_arreglo] no se pudo reservar el texto\n");
+		return;
+	}
+	memcpy(texto_nuevo, texto, largo_texto + 1);
+
+	size_t elementos = cantidad_actual + 2;
+	if(elementos > (size_t)-1 / sizeof(**arreglo))
+	{
+		sistema_memoria_liberar(texto_nuevo, NULL, 0);
+		imprimirMensaje_para_depurar(NULL, 0,
+			"[agregar_texto_a_arreglo] el arreglo excede el tamaño representable\n");
+		return;
+	}
+
+	char **nuevo_arreglo = sistema_memoria_redimensionar(
+		*arreglo, elementos * sizeof(**arreglo), NULL, 0);
+	if(nuevo_arreglo == NULL)
+	{
+		sistema_memoria_liberar(texto_nuevo, NULL, 0);
+		imprimirMensaje_para_depurar(NULL, 0,
+			"[agregar_texto_a_arreglo] no se pudo ampliar el arreglo\n");
+		return;
+	}
+
+	nuevo_arreglo[cantidad_actual] = texto_nuevo;
+	nuevo_arreglo[cantidad_actual + 1] = NULL;
+	*arreglo = nuevo_arreglo;
+}
+
 /* Devuelve 0 si convierte todo el texto y -1 si el valor no es válido. */
+/*
+ * Propósito: convertir texto a entero mediante el conversor validado del programa.
+ * Entradas: texto contiene el entero decimal completo; var_a_retornar recibe el valor convertido.
+ * Salida y efectos: devuelve 0 si la conversión es válida o -1 si falla; solo escribe el puntero de salida en una conversión válida.
+ * Entrada de ejemplo: texto="42", var_a_retornar apunta inicialmente a 5.
+ * Salida de ejemplo: texto_a_int_seguro("42", &valor) devuelve 0 y valor pasa de 5 a 42.
+ */
 int texto_a_int_seguro(const char *texto, int *var_a_retornar)
 {
 	return textoAEntero(texto, var_a_retornar, NULL, 0) ? 0 : -1;
@@ -1646,6 +1842,13 @@ typedef struct
 	size_t capacidad;
 } GG_CadenaDinamica;
 
+/*
+ * Propósito: inicializar una cadena dinámica vacía.
+ * Entrada: cadena apunta a la estructura que recibirá los datos, longitud y capacidad.
+ * Salida y efectos: no devuelve valor; reserva un byte para la cadena vacía o deja datos=NULL y capacidad=0 si falla.
+ * Entrada de ejemplo: gg_cadena_iniciar(&c), con c sin inicializar.
+ * Salida de ejemplo: en caso de reserva exitosa, c queda con datos="", longitud=0 y capacidad=1.
+ */
 static void gg_cadena_iniciar(GG_CadenaDinamica *cadena)
 {
 	cadena->datos = sistema_memoria_reservar(1, NULL, 0);
@@ -1654,6 +1857,13 @@ static void gg_cadena_iniciar(GG_CadenaDinamica *cadena)
 	if(cadena->datos != NULL) cadena->datos[0] = '\0';
 }
 
+/*
+ * Propósito: añadir una cantidad exacta de bytes a una cadena dinámica.
+ * Entradas: cadena es la estructura inicializada; texto apunta a los bytes; longitud indica cuántos copiar.
+ * Salida y efectos: devuelve 1 al agregar o 0 ante argumento inválido, falta de memoria o desbordamiento; amplía y actualiza la cadena.
+ * Entrada de ejemplo: c ya contiene ""; gg_cadena_agregar_n(&c, "sol", 3).
+ * Salida de ejemplo: devuelve 1 y c.datos pasa a "sol", con longitud=3.
+ */
 static int gg_cadena_agregar_n(GG_CadenaDinamica *cadena, const char *texto, size_t longitud)
 {
 	if(cadena == NULL || (texto == NULL && longitud > 0)) return 0;
@@ -1685,6 +1895,13 @@ static int gg_cadena_agregar_n(GG_CadenaDinamica *cadena, const char *texto, siz
 	return 1;
 }
 
+/*
+ * Propósito: añadir una cadena C completa a una cadena dinámica.
+ * Entradas: cadena es la estructura inicializada; texto es el texto a concatenar (NULL se trata como agregado vacío).
+ * Salida y efectos: devuelve el resultado de la operación de agregado; puede ampliar la memoria de cadena.
+ * Entrada de ejemplo: c.datos="sol"; gg_cadena_agregar(&c, " y luna").
+ * Salida de ejemplo: devuelve 1 y c.datos queda "sol y luna".
+ */
 static int gg_cadena_agregar(GG_CadenaDinamica *cadena, const char *texto)
 {
 	return texto != NULL
@@ -1692,6 +1909,13 @@ static int gg_cadena_agregar(GG_CadenaDinamica *cadena, const char *texto)
 		: 1;
 }
 
+/*
+ * Propósito: liberar y reiniciar una cadena dinámica.
+ * Entrada: cadena apunta a una estructura que puede contener memoria asignada.
+ * Salida y efectos: no devuelve valor; libera datos y deja datos=NULL, longitud=0 y capacidad=0.
+ * Entrada de ejemplo: c.datos="sol"; gg_cadena_liberar(&c).
+ * Salida de ejemplo: c pasa de {"sol", 3, capacidad} a {NULL, 0, 0}.
+ */
 static void gg_cadena_liberar(GG_CadenaDinamica *cadena)
 {
 	if(cadena == NULL) return;
@@ -1701,6 +1925,13 @@ static void gg_cadena_liberar(GG_CadenaDinamica *cadena)
 	cadena->capacidad = 0;
 }
 
+/*
+ * Propósito: transferir al llamador la propiedad del búfer de una cadena dinámica.
+ * Entrada: cadena apunta a la estructura cuyo búfer se entrega.
+ * Salida y efectos: devuelve el puntero al búfer y reinicia la estructura sin liberar ese búfer.
+ * Entrada de ejemplo: c.datos="sol"; resultado=gg_cadena_entregar(&c).
+ * Salida de ejemplo: resultado apunta a "sol" y c pasa a {NULL, 0, 0}.
+ */
 static char *gg_cadena_entregar(GG_CadenaDinamica *cadena)
 {
 	if(cadena == NULL) return NULL;
@@ -1711,6 +1942,13 @@ static char *gg_cadena_entregar(GG_CadenaDinamica *cadena)
 	return resultado;
 }
 
+/*
+ * Propósito: aplicar formato printf a una lista va_list y reservar el resultado.
+ * Entradas: formato define los especificadores; argumentos contiene los valores correspondientes y debe estar inicializado por el llamador.
+ * Salida y efectos: devuelve una cadena nueva para liberar con sistema_memoria_liberar(); en SEMICONDUCTOR sin PIC16F devuelve NULL.
+ * Entrada de ejemplo: va_list con "%s-%d" y los valores "id", 7, recibido desde una función variádica.
+ * Salida de ejemplo: en un backend con vsnprintf retorna "id-7".
+ */
 static char *gg_formatear_argumentos(const char *formato, va_list argumentos)
 {
 #if defined(PLATAFORMA_SEMICONDUCTOR) && !defined(PIC16F)
@@ -1739,6 +1977,13 @@ static char *gg_formatear_argumentos(const char *formato, va_list argumentos)
 #endif
 }
 
+/*
+ * Propósito: convertir una lista textual de índices no negativos en un arreglo de int.
+ * Entradas: texto contiene los índices separados; separador es no vacío; indices_salida recibe el arreglo; cantidad_salida recibe su longitud.
+ * Salida y efectos: devuelve 1 si todos los campos son enteros no negativos o 0 si falla; inicializa las salidas a NULL y 0 antes de procesar.
+ * Entrada de ejemplo: indices=NULL y cantidad=9; gg_indices_desde_texto("1|3", "|", &indices, &cantidad).
+ * Salida de ejemplo: devuelve 1, indices pasa de NULL a {1, 3} y cantidad de 9 a 2.
+ */
 static int gg_indices_desde_texto(const char *texto, const char *separador, int **indices_salida, int *cantidad_salida)
 {
 	if(texto == NULL || separador == NULL || separador[0] == '\0' ||
@@ -1776,6 +2021,13 @@ static int gg_indices_desde_texto(const char *texto, const char *separador, int 
 	return 1;
 }
 
+/*
+ * Propósito: convertir una cadena decimal simple en float, validando todo su contenido.
+ * Entradas: texto contiene signo opcional y dígitos con punto decimal opcional; var_a_retornar recibe el valor.
+ * Salida y efectos: devuelve 0 si convierte o -1 si el texto está vacío, mal formado o excede FLT_MAX; escribe la salida solo al tener éxito.
+ * Entrada de ejemplo: texto="-2.5", salida inicialmente 0.0f.
+ * Salida de ejemplo: texto_a_float_seguro("-2.5", &valor) devuelve 0 y valor pasa de 0.0f a -2.5f.
+ */
 int texto_a_float_seguro(const char *texto, float *var_a_retornar)
 {
 	if(texto == NULL || var_a_retornar == NULL || texto[0] == '\0') return -1;
@@ -1816,6 +2068,13 @@ int texto_a_float_seguro(const char *texto, float *var_a_retornar)
 	return 0;
 }
 
+/*
+ * Propósito: formatear texto y anexarlo a una cadena asignada dinámicamente.
+ * Entradas: destino apunta a la cadena existente o NULL; separador se agrega después de cada conversión del formato (NULL o vacío no agrega texto); formato y argumentos definen el fragmento.
+ * Salida y efectos: devuelve 0 al reemplazar *destino por la cadena combinada o -1 ante error; libera la cadena anterior al éxito.
+ * Entrada de ejemplo: destino=NULL; concatenar_formato_separado_por_variable(&destino, NULL, "id%d", 7).
+ * Salida de ejemplo: devuelve 0 y destino pasa de NULL a "id7".
+ */
 int concatenar_formato_separado_por_variable(char **destino, const char *separador, const char *formato, ...)
 {
 	if(destino == NULL || formato == NULL) return -1;
@@ -1879,6 +2138,13 @@ error_formato_expandido:
 	return -1;
 }
 
+/*
+ * Propósito: anexar texto formateado y, opcionalmente, un separador a un búfer existente.
+ * Entradas: destino es el búfer terminado en NUL; capacidad es su tamaño total; separador se agrega al final si no es NULL; formato y argumentos definen el texto.
+ * Salida y efectos: devuelve 0 si anexa todo o -1 si los argumentos son inválidos, falla el formato o no cabe; modifica destino solo al éxito.
+ * Entrada de ejemplo: destino="id:", capacidad=16; concatenar_formato(destino, 16, "|", "%d", 7).
+ * Salida de ejemplo: devuelve 0 y destino pasa de "id:" a "id:7|".
+ */
 int concatenar_formato(char *destino, size_t capacidad, const char *separador, const char *formato, ...)
 {
 if(destino == NULL || capacidad == 0 || formato == NULL ||
@@ -1911,21 +2177,49 @@ char *nuevo_texto = gg_formatear_argumentos(formato, argumentos);
 	return 0;
 }
 
+/*
+ * Propósito: obtener el separador configurado para columnas o su alternativa.
+ * Entrada: no recibe parámetros.
+ * Salida y efectos: devuelve una vista al separador global de columnas, o "|" si el valor global es NULL.
+ * Entrada de ejemplo: gg_separador_columnas() con GG_caracter_separacion[1]="°".
+ * Salida de ejemplo: retorna el puntero a "°"; no modifica estado.
+ */
 static const char *gg_separador_columnas(void)
 {
 	return GG_caracter_separacion[1] != NULL ? GG_caracter_separacion[1] : "|";
 }
 
+/*
+ * Propósito: obtener el separador configurado para filas o su alternativa.
+ * Entrada: no recibe parámetros.
+ * Salida y efectos: devuelve una vista al separador global de filas, o "|" si el valor global es NULL.
+ * Entrada de ejemplo: gg_separador_filas() con GG_caracter_separacion[0]="|".
+ * Salida de ejemplo: retorna el puntero a "|"; no modifica estado.
+ */
 static const char *gg_separador_filas(void)
 {
 	return GG_caracter_separacion[0] != NULL ? GG_caracter_separacion[0] : "|";
 }
 
+/*
+ * Propósito: unir una cantidad de cadenas mediante un separador.
+ * Entradas: partes es el arreglo de cadenas; cantidad indica cuántas leer; separador se intercala entre ellas.
+ * Salida y efectos: devuelve una cadena asignada por join() o NULL si falla; no modifica las partes.
+ * Entrada de ejemplo: con partes={"a", "b"}, gg_unir_partes(partes, 2, "|").
+ * Salida de ejemplo: retorna "a|b".
+ */
 static char *gg_unir_partes(char **partes, int cantidad, const char *separador)
 {
 	return join(partes, cantidad, separador, NULL, 0);
 }
 
+/*
+ * Propósito: unir filas, opcionalmente extrayendo columnas indicadas por índices.
+ * Entradas: caracter_union_filas separa filas; texto y n_texto describen las filas; columnas_extraer lista índices de columnas o es NULL/vacía para filas completas; caracter_union_columnas define el separador de celdas o usa el global.
+ * Salida y efectos: devuelve una cadena nueva unida o NULL si los argumentos/formato de índices fallan; no modifica entradas.
+ * Entrada de ejemplo: join_paresido_simple(';', (char *[]){"uno", "dos"}, 2, NULL, NULL).
+ * Salida de ejemplo: retorna "uno;dos".
+ */
 char *join_paresido_simple(
 	char caracter_union_filas,
 	char **texto,
@@ -2034,6 +2328,13 @@ error_join_paresido:
 	return NULL;
 }
 
+/*
+ * Propósito: quitar un número de filas iniciales o finales y unir las restantes.
+ * Entradas: data contiene filas separadas por el separador global; restar_cuantas indica cuántas quitar; restar_primera_celda selecciona quitar desde el inicio (distinto de cero) o el final (cero).
+ * Salida y efectos: devuelve una cadena nueva o NULL si no puede dividir/reservar; no modifica data.
+ * Entrada de ejemplo: joineada_paraesida_y_quitador_de_extremos("a|b|c", 1, 1).
+ * Salida de ejemplo: retorna "b|c".
+ */
 char *joineada_paraesida_y_quitador_de_extremos(const char *data, int restar_cuantas, int restar_primera_celda)
 {
 	if(data == NULL || restar_cuantas < 0) return NULL;
@@ -2050,6 +2351,13 @@ char *joineada_paraesida_y_quitador_de_extremos(const char *data, int restar_cua
 	return resultado;
 }
 
+/*
+ * Propósito: eliminar campos vacíos al final de una cadena dividida en filas.
+ * Entrada: texto contiene campos separados por el separador global de filas.
+ * Salida y efectos: devuelve una cadena nueva sin campos finales vacíos, o NULL si falla; no cambia texto.
+ * Entrada de ejemplo: Trimend_paresido("a|b||").
+ * Salida de ejemplo: retorna "a|b".
+ */
 char *Trimend_paresido(const char *texto)
 {
 	if(texto == NULL) return NULL;
@@ -2064,6 +2372,13 @@ char *Trimend_paresido(const char *texto)
 	return resultado;
 }
 
+/*
+ * Propósito: leer todas las líneas de un archivo y unirlas en una cadena.
+ * Entradas: ruta_archivo identifica el archivo existente; poner_num_fila indica si se antepone a cada línea su índice desde cero.
+ * Salida y efectos: devuelve las líneas unidas por el separador global de filas, o NULL ante error; abre y cierra el archivo sin modificarlo.
+ * Entrada de ejemplo: archivo con líneas "a" y "b"; concatenacion_filas_de_un_archivo("datos.txt", 0).
+ * Salida de ejemplo: retorna "a|b".
+ */
 char *concatenacion_filas_de_un_archivo(const char *ruta_archivo, int poner_num_fila)
 {
 	if(ruta_archivo == NULL) return NULL;
@@ -2128,6 +2443,13 @@ char *concatenacion_filas_de_un_archivo(const char *ruta_archivo, int poner_num_
 	return gg_cadena_entregar(&salida);
 }
 
+/*
+ * Propósito: unir las cadenas no NULL de un arreglo, opcionalmente prefijándolas con su índice.
+ * Entradas: arreglo contiene hasta n_arreglo cadenas; n_arreglo es la cantidad de elementos; poner_num_fila activa el prefijo "índice) ".
+ * Salida y efectos: devuelve una cadena nueva o NULL si falla; no modifica el arreglo.
+ * Entrada de ejemplo: arreglo={"a", "b"}; concatenacion_filas_de_un_arreglo(arreglo, 2, 1).
+ * Salida de ejemplo: retorna "0) a|1) b".
+ */
 char *concatenacion_filas_de_un_arreglo(char **arreglo, int n_arreglo, int poner_num_fila)
 {
 	if(n_arreglo < 0 || (n_arreglo > 0 && arreglo == NULL)) return NULL;
@@ -2160,6 +2482,13 @@ error_concatenar_filas:
 	return NULL;
 }
 
+/*
+ * Propósito: anexar un texto a otro e intercalar un separador cuando el primero no está vacío.
+ * Entradas: texto_actual es el prefijo opcional; texto_agregar es obligatorio; separador se intercala si existe prefijo y no es NULL.
+ * Salida y efectos: devuelve una cadena nueva o NULL si falla; no modifica los argumentos.
+ * Entrada de ejemplo: concatenacion_caracter_separacion("uno", "dos", "|").
+ * Salida de ejemplo: retorna "uno|dos".
+ */
 char *concatenacion_caracter_separacion(const char *texto_actual, const char *texto_agregar, const char *separador)
 {
 	if(texto_agregar == NULL) return NULL;
@@ -2183,6 +2512,13 @@ char *concatenacion_caracter_separacion(const char *texto_actual, const char *te
 	return gg_cadena_entregar(&salida);
 }
 
+/*
+ * Propósito: generar una cadena con la fecha/hora local usando strftime.
+ * Entrada: formato_fecha_hora es un formato strftime; NULL usa "%y%m%d%H%M%S".
+ * Salida y efectos: devuelve una cadena asignada o NULL si la plataforma no está soportada, falla el reloj/formato o no cabe; consulta la hora local sin cambiarla.
+ * Entrada de ejemplo: generar_folio("%Y").
+ * Salida de ejemplo: devuelve el año local de cuatro dígitos (por ejemplo, "2026"); el valor exacto depende del reloj del sistema en la llamada.
+ */
 char *generar_folio(const char *formato_fecha_hora)
 {
 #if defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
@@ -2202,6 +2538,13 @@ char *generar_folio(const char *formato_fecha_hora)
 #endif
 }
 
+/*
+ * Propósito: separar una ruta en directorio, nombre base y extensión.
+ * Entradas: direccion es la ruta; cada puntero de salida debe apuntar a un char* que recibirá una cadena asignada.
+ * Salida y efectos: devuelve 0 si completa las tres salidas o -1 ante argumentos inválidos/fallo de memoria; inicializa las salidas en NULL y no modifica la ruta.
+ * Entrada de ejemplo: las tres salidas son NULL; desfragmentar_direccion("C:\\datos\\inventario.txt", &dir, &nombre, &ext).
+ * Salida de ejemplo: devuelve 0; dir pasa a "C:\\datos", nombre a "inventario" y ext a "txt".
+ */
 int desfragmentar_direccion(
 	const char *direccion,
 	char **retorna_directorios,
@@ -2249,6 +2592,13 @@ int desfragmentar_direccion(
 	return 0;
 }
 
+/*
+ * Propósito: sustituir todas las coincidencias no solapadas de una subcadena.
+ * Entradas: texto es la cadena original; buscar debe ser no vacío; reemplazo es el texto sustituto, incluso si es vacío.
+ * Salida y efectos: devuelve una cadena nueva o NULL ante entradas inválidas/fallo de memoria; no modifica los argumentos.
+ * Entrada de ejemplo: gg_reemplazar_texto("casa y casa", "casa", "hogar").
+ * Salida de ejemplo: retorna "hogar y hogar".
+ */
 static char *gg_reemplazar_texto(const char *texto, const char *buscar, const char *reemplazo)
 {
 	if(texto == NULL || buscar == NULL || reemplazo == NULL || buscar[0] == '\0') return NULL;
@@ -2277,6 +2627,13 @@ static char *gg_reemplazar_texto(const char *texto, const char *buscar, const ch
 	return gg_cadena_entregar(&salida);
 }
 
+/*
+ * Propósito: aplicar en secuencia varias sustituciones de subcadenas.
+ * Entradas: info es el texto fuente; caracteres_sep y caracteres_sustitucion contienen pares de búsqueda/reemplazo; n_sep indica el número de pares.
+ * Salida y efectos: devuelve una copia transformada o NULL si falla; omite pares nulos o con búsqueda vacía y no modifica los arreglos.
+ * Entrada de ejemplo: info="a-b-c", búsqueda={"-"}, reemplazo={"|"}, n_sep=1.
+ * Salida de ejemplo: retorna "a|b|c".
+ */
 char *ReemplazarCaracteres_de_texto_arreglo(
 	const char *info,
 	char **caracteres_sep,
@@ -2304,6 +2661,13 @@ char *ReemplazarCaracteres_de_texto_arreglo(
 	return resultado;
 }
 
+/*
+ * Propósito: sustituir en una cadena todas las apariciones de un separador por otro texto.
+ * Entradas: info es el texto fuente; sep es la subcadena buscada; sust es el reemplazo.
+ * Salida y efectos: devuelve una cadena nueva; si sep/sust son NULL o sep está vacío, devuelve una copia de info; info NULL produce NULL.
+ * Entrada de ejemplo: ReemplazarCaracteres_de_texto_string("ana-rosa", "-", " ").
+ * Salida de ejemplo: retorna "ana rosa".
+ */
 char *ReemplazarCaracteres_de_texto_string(const char *info, const char *sep, const char *sust)
 {
 	if(info == NULL) return NULL;
@@ -2311,6 +2675,14 @@ char *ReemplazarCaracteres_de_texto_string(const char *info, const char *sep, co
 	return gg_reemplazar_texto(info, sep, sust);
 }
 
+/*
+ * Comprueba si algún campo indicado coincide exactamente con valor.
+ * Entradas: campos/cantidad_campos describen la fila; indices/cantidad_indices
+ * señalan campos (índices desde cero); valor es el texto buscado.
+ * Salida y efectos: 1 si hay coincidencia, 0 si no; no modifica los argumentos.
+ * Entrada de ejemplo: campos={"Ana","QA"}, indices={1}, valor="QA".
+ * Salida de ejemplo: 1.
+ */
 static int gg_indices_coinciden(char **campos, int cantidad_campos, const int *indices, int cantidad_indices, const char *valor)
 {
 	if(campos == NULL || indices == NULL || valor == NULL) return 0;
@@ -2321,6 +2693,14 @@ static int gg_indices_coinciden(char **campos, int cantidad_campos, const int *i
 	return 0;
 }
 
+/*
+ * Evalúa en una fila todas las condiciones codificadas como índice:valor.
+ * Entradas: fila es la fila separada por columnas; comparaciones contiene
+ * condiciones separadas por "|" con índices de columna desde cero.
+ * Salida y efectos: 1 si todas coinciden, 0 ante fallo o alguna discrepancia.
+ * Entrada de ejemplo: fila="Ana,30", comparaciones="0:Ana|1:30".
+ * Salida de ejemplo: 1.
+ */
 static int gg_fila_cumple_comparaciones(const char *fila, const char *comparaciones)
 {
 	if(fila == NULL || comparaciones == NULL) return 0;
@@ -2358,6 +2738,14 @@ static int gg_fila_cumple_comparaciones(const char *fila, const char *comparacio
 	return cumple;
 }
 
+/*
+ * Devuelve todas las filas cuyo campo indicado coincide con comparar.
+ * Entradas: texto contiene filas y columnas; columnas_recorrer lista índices
+ * de columna desde cero separados por "|"; comparar es el valor exacto.
+ * Salida y efectos: cadena dinámica de filas coincidentes o NULL; no altera texto.
+ * Entrada de ejemplo: ("Ana,30|Luis,25", "1", "30").
+ * Salida de ejemplo: cadena dinámica "Ana,30" (liberable con sistema_memoria_liberar).
+ */
 char *busqueda_profunda_string(const char *texto, const char *columnas_recorrer, const char *comparar)
 {
 	if(texto == NULL || columnas_recorrer == NULL || comparar == NULL) return NULL;
@@ -2404,6 +2792,15 @@ error_busqueda:
 	return NULL;
 }
 
+/*
+ * Obtiene la última fila cuyo campo en cualquiera de los índices coincide.
+ * Entradas: texto son filas, columnas_recorrer enumera índices desde cero con
+ * "|", y comparar es el valor a buscar.
+ * Salida y efectos: copia dinámica de la última fila coincidente, "" si no hay
+ * coincidencia, o NULL ante error; no modifica texto.
+ * Entrada de ejemplo: ("Ana,30|Luis,30", "1", "30").
+ * Salida de ejemplo: cadena dinámica "Luis,30".
+ */
 char *busqueda_profunda_comparacion_final_string(const char *texto, const char *columnas_recorrer, const char *comparar)
 {
 	if(texto == NULL || columnas_recorrer == NULL || comparar == NULL) return NULL;
@@ -2438,6 +2835,15 @@ char *busqueda_profunda_comparacion_final_string(const char *texto, const char *
 	return resultado;
 }
 
+/*
+ * Filtra filas aplicando a cada una las condiciones índice:valor.
+ * Entradas: texto contiene filas; columnas_recorrer se ignora en esta
+ * implementación; comparaciones usa "0:valor|1:valor" con índices desde cero.
+ * Salida y efectos: filas coincidentes unidas por el separador de filas, NULL
+ * ante error; no modifica texto.
+ * Entrada de ejemplo: ("Ana,30|Luis,25", "", "1:30").
+ * Salida de ejemplo: cadena dinámica "Ana,30".
+ */
 char *busqueda_con_YY_profunda_texto_id_archivo(const char *texto, const char *columnas_recorrer, const char *comparaciones)
 {
 	(void)columnas_recorrer;
@@ -2469,6 +2875,15 @@ error_busqueda_yy:
 	return NULL;
 }
 
+/*
+ * Reemplaza o incrementa los campos seleccionados, opcionalmente filtrando valor.
+ * Entradas: campos y cantidad_campos son la fila editable; indices y su cantidad
+ * eligen columnas desde cero; valor es el reemplazo; incrementar!=0 suma uno;
+ * comparar, si no es NULL, exige coincidencia previa.
+ * Salida y efectos: 1 al completar, 0 ante error; libera y sustituye los campos.
+ * Entrada de ejemplo: campos={"Ana","25"}, indices={1}, valor="30", incrementar=0.
+ * Salida de ejemplo: devuelve 1 y campos queda {"Ana","30"}.
+ */
 static int gg_editar_campos(char **campos, int cantidad_campos, const int *indices, int cantidad_indices, const char *valor, int incrementar, const char *comparar)
 {
 	if(campos == NULL || (cantidad_indices > 0 && indices == NULL)) return 0;
@@ -2495,11 +2910,27 @@ static int gg_editar_campos(char **campos, int cantidad_campos, const int *indic
 	return 1;
 }
 
+/*
+ * Une campos en una fila usando el separador de columnas configurado.
+ * Entradas: campos es el vector de textos y cantidad_campos su longitud.
+ * Salida y efectos: cadena dinámica con la fila o NULL si falla; no altera campos.
+ * Entrada de ejemplo: ({"Ana","30","QA"}, 3).
+ * Salida de ejemplo: cadena dinámica "Ana,30,QA".
+ */
 static char *gg_reconstruir_fila(char **campos, int cantidad_campos)
 {
 	return join(campos, cantidad_campos, gg_separador_columnas(), NULL, 0);
 }
 
+/*
+ * Edita las columnas indicadas en una o varias filas y reconstruye el texto.
+ * Entradas: texto es la tabla; indices/cantidad_indices eligen columnas; valor
+ * es el reemplazo; incrementar!=0 suma uno; fila_objetivo es índice de fila
+ * desde cero o -1 para todas; comparar_campos filtra campos si no es NULL.
+ * Salida y efectos: tabla dinámica editada o NULL; no modifica texto original.
+ * Entrada de ejemplo: ("Ana,25|Luis,30", {1}, 1, "31", 0, 1, NULL).
+ * Salida de ejemplo: cadena dinámica "Ana,25|Luis,31".
+ */
 static char *gg_editar_filas(
 	const char *texto,
 	const int *indices,
@@ -2557,6 +2988,14 @@ error_editar_filas:
 	return NULL;
 }
 
+/*
+ * Edita las columnas seleccionadas en todas las filas, o las incrementa en uno.
+ * Entradas: texto es la tabla; columnas_recorrer lista índices desde cero con
+ * "|"; info_sustituir es el nuevo texto; edit_0_increm_1 igual a "1" activa suma.
+ * Salida y efectos: tabla nueva o NULL ante error; conserva texto de entrada.
+ * Entrada de ejemplo: ("Ana,25", "1", "30", "0").
+ * Salida de ejemplo: cadena dinámica "Ana,30".
+ */
 char *editar_incr_string_funcion_recursiva(
 	const char *texto,
 	const char *columnas_recorrer,
@@ -2573,6 +3012,14 @@ char *editar_incr_string_funcion_recursiva(
 	return resultado;
 }
 
+/*
+ * Adaptador público que delega la edición múltiple a la rutina recursiva.
+ * Entradas: texto es la tabla; indices_editar lista columnas; info_editar es el
+ * reemplazo; edit_0_increm_1 igual a "1" activa incremento en vez de reemplazo.
+ * Salida y efectos: tabla dinámica resultante o NULL; no modifica texto.
+ * Entrada de ejemplo: ("Ana,25", "1", "26", "0").
+ * Salida de ejemplo: cadena dinámica "Ana,26".
+ */
 char *editar_inc_edicion_profunda_multiple_string(
 	const char *texto,
 	const char *indices_editar,
@@ -2583,6 +3030,14 @@ char *editar_inc_edicion_profunda_multiple_string(
 	return editar_incr_string_funcion_recursiva(texto, indices_editar, info_editar, edit_0_increm_1);
 }
 
+/*
+ * Edita únicamente la última fila, reemplazando o incrementando sus columnas.
+ * Entradas: texto es la tabla; indices_editar enumera columnas; info_editar es
+ * el valor; edit_0_increm_1 igual a "1" activa incremento.
+ * Salida y efectos: copia dinámica de la tabla editada o NULL; texto se conserva.
+ * Entrada de ejemplo: ("Ana,25|Luis,30", "1", "31", "0").
+ * Salida de ejemplo: cadena dinámica "Ana,25|Luis,31".
+ */
 char *editar_inc_edicion_profunda_multiple_AL_FINAL_string(
 	const char *texto,
 	const char *indices_editar,
@@ -2611,6 +3066,15 @@ char *editar_inc_edicion_profunda_multiple_AL_FINAL_string(
 	return resultado;
 }
 
+/*
+ * Edita la última fila con coincidencia en las columnas elegidas.
+ * Entradas: texto es la tabla; indices_editar selecciona columnas; info_editar
+ * es el valor nuevo; comparacion es el valor de búsqueda; edit_0_increm_1 activa
+ * incremento cuando vale "1".
+ * Salida y efectos: tabla dinámica actualizada o NULL; no altera texto original.
+ * Entrada de ejemplo: ("Ana,25|Luis,25", "1", "30", "25", "0").
+ * Salida de ejemplo: cadena dinámica "Ana,25|Luis,30".
+ */
 char *editar_inc_agregar_edicion_profunda_multiple_comparacion_final_string(
 	const char *texto,
 	const char *indices_editar,
@@ -2652,6 +3116,14 @@ char *editar_inc_agregar_edicion_profunda_multiple_comparacion_final_string(
 	return resultado;
 }
 
+/*
+ * Decodifica una solicitud compacta y aplica una edición a la tabla incluida.
+ * Entrada: datos contiene texto|índices|reemplazo|indicador_incremento.
+ * Salida y efectos: tabla dinámica editada; con menos de tres campos devuelve
+ * "" y ante error NULL; no modifica datos.
+ * Entrada de ejemplo: "Ana,25|1|30|0".
+ * Salida de ejemplo: cadena dinámica "Ana,30".
+ */
 char *ARR_FUN_SOLO_TEXTO_editar_inc_agregar_edicion_profunda_multiple(const char *datos)
 {
 	if(datos == NULL) return NULL;
@@ -2673,6 +3145,15 @@ char *ARR_FUN_SOLO_TEXTO_editar_inc_agregar_edicion_profunda_multiple(const char
 	return resultado;
 }
 
+/*
+ * Edita las columnas seleccionadas en filas cuyo campo coincida con un valor.
+ * Entradas: texto es la tabla; indices_editar lista índices; comparacion_con_edicion
+ * es "valor_buscar,valor_nuevo" (o solo el valor buscado, que edita a vacío);
+ * edit_0_increm_1 igual a "1" activa incremento.
+ * Salida y efectos: nueva tabla o NULL; el original no se modifica.
+ * Entrada de ejemplo: ("Ana,25|Luis,30", "1", "25,26", "0").
+ * Salida de ejemplo: cadena dinámica "Ana,26|Luis,30".
+ */
 char *editar_inc_agregar_edicion_profunda_multiple_comparacion_MULTIPLE_A_CHECAR(
 	const char *texto,
 	const char *indices_editar,
@@ -2715,6 +3196,14 @@ char *editar_inc_agregar_edicion_profunda_multiple_comparacion_MULTIPLE_A_CHECAR
 	return resultado;
 }
 
+/*
+ * Recorta del inicio ("izq") o del final un número de campos separados por filas.
+ * Entradas: contenidoFila es el texto separado por el delimitador de filas;
+ * izquierda_o_derecha selecciona el lado; numero_veses es cuántos campos quitar.
+ * Salida y efectos: texto dinámico restante o NULL si falla; no modifica entrada.
+ * Entrada de ejemplo: ("a|b|c", "izq", 1).
+ * Salida de ejemplo: cadena dinámica "b|c".
+ */
 char *recorrer_caracter_separacion(const char *contenidoFila, const char *izquierda_o_derecha, int numero_veses)
 {
 	if(contenidoFila == NULL || numero_veses < 0) return NULL;
@@ -2731,6 +3220,15 @@ char *recorrer_caracter_separacion(const char *contenidoFila, const char *izquie
 	return resultado;
 }
 
+/*
+ * Recorta campos usando el delimitador específico configurado, con fallback de filas.
+ * Entradas: contenidoFila es el texto; izquierda_o_derecha es "izq" para quitar
+ * desde el inicio o cualquier otro valor para quitar desde el final; numero_veses
+ * indica cuántos elementos recortar.
+ * Salida y efectos: cadena dinámica restante o NULL; no modifica contenidoFila.
+ * Entrada de ejemplo: ("a~b~c", "izq", 1), con separador específico "~".
+ * Salida de ejemplo: cadena dinámica "b~c".
+ */
 char *recorrer_caracter_separacion_funciones_espesificas(
 	const char *contenidoFila,
 	const char *izquierda_o_derecha,
@@ -2757,6 +3255,14 @@ char *recorrer_caracter_separacion_funciones_espesificas(
  * Libera todas las cadenas devueltas por split() y después el vector.
  * Ejemplo: para ["a","b"] libera primero partes[0], partes[1] y el vector.
  */
+/*
+ * Libera cada cadena de un split y después el vector recibido.
+ * Entradas: partes es el vector reservado por split; cantidad es su longitud;
+ * error_o_datos_a_retornar y nivel_de_profundidad se reenvían al liberador.
+ * Salida y efectos: no retorna valor; libera todo el almacenamiento de partes.
+ * Entrada de ejemplo: partes={"a","b"}, cantidad=2.
+ * Salida de ejemplo: ambos textos y el vector quedan liberados; partes no se reutiliza.
+ */
  void liberarSplit(char **partes, int cantidad, char *error_o_datos_a_retornar,int nivel_de_profundidad)
  {
 	nivel_de_profundidad++;
@@ -2769,6 +3275,15 @@ char *recorrer_caracter_separacion_funciones_espesificas(
  * Ejemplo: ["rojo","azul"], 2, "|" produce "rojo|azul".
  * Los elementos NULL se tratan como cadenas vacías; el resultado se libera con
  * sistema_memoria_liberar().
+ */
+/*
+ * Concatena elementos de un vector, intercalando el separador indicado.
+ * Entradas: arreglo contiene cantidad cadenas; carcter_separacion es el delimitador
+ * (NULL equivale a vacío); error_o_datos_a_retornar y nivel_de_profundidad se usan
+ * en la reserva. Elementos NULL se tratan como "".
+ * Salida y efectos: cadena dinámica nueva o NULL si argumentos/reserva fallan.
+ * Entrada de ejemplo: ({"rojo","azul"}, 2, "|", NULL, 0).
+ * Salida de ejemplo: cadena dinámica "rojo|azul".
  */
  char * join(char **arreglo, int cantidad, const char *carcter_separacion, char *error_o_datos_a_retornar,int nivel_de_profundidad)
  {
@@ -2820,6 +3335,15 @@ char *recorrer_caracter_separacion_funciones_espesificas(
  * Construye una cadena con formato printf limitado a %s, %d y %%.
  * El resultado dinámico pertenece al llamador y se libera con
  * sistema_memoria_liberar(). Los argumentos de cadena NULL se tratan como "".
+ */
+/*
+ * Construye una cadena dinámica con formato limitado a %s, %d y %%.
+ * Entradas: formato es la plantilla y los argumentos variádicos aportan valores
+ * en el mismo orden; las cadenas NULL se convierten en vacías.
+ * Salida y efectos: resultado reservado para el llamador o NULL ante formato
+ * inválido/error de memoria; no imprime nada.
+ * Entrada de ejemplo: concatenar("id=%d %s", 7, "Ana").
+ * Salida de ejemplo: cadena dinámica "id=7 Ana".
  */
  char * concatenar(const char *formato, ...)
  {
@@ -2917,6 +3441,14 @@ error_formato_concatenar:
  * directamente, lo que evita desbordar el entero con signo.
  * Devuelve buffer o NULL si el buffer no alcanza.
  */
+/*
+ * Convierte un entero a decimal dentro del buffer proporcionado.
+ * Entradas: valor es el entero; buffer apunta al destino; capacidad incluye
+ * espacio para el terminador NUL.
+ * Salida y efectos: devuelve buffer y lo llena, o NULL si no cabe/está invalidado.
+ * Entrada de ejemplo: valor=42, buffer inicialmente "", capacidad=8.
+ * Salida de ejemplo: devuelve el mismo buffer, ahora contiene "42".
+ */
  static char *enteroATexto(int valor, char *buffer, size_t capacidad)
  {
  	unsigned int magnitud; /* Valor absoluto representado sin signo. */
@@ -2950,6 +3482,14 @@ error_formato_concatenar:
  * Lee un entero decimal desde un tramo no necesariamente terminado en '\0'.
  * Ejemplos: " -12 " -> éxito y -12; "12x" o un número fuera de int -> fallo.
  * Devuelve 1 si se convirtió todo el tramo; 0 si hay sintaxis inválida/rango.
+ */
+/*
+ * Convierte un tramo decimal completo, permitiendo espacios alrededor.
+ * Entradas: texto y longitud definen el tramo; resultado apunta al entero destino.
+ * Salida y efectos: 1 en conversión válida y escribe resultado; 0 ante sintaxis,
+ * rango o punteros inválidos; en fallo no se garantiza cambiar el destino.
+ * Entrada de ejemplo: texto=" -12 ", longitud=5, resultado inicialmente 99.
+ * Salida de ejemplo: devuelve 1 y *resultado pasa de 99 a -12.
  */
  static int textoAEnteroN(const char *texto, size_t longitud, int *resultado)
  {
@@ -3008,6 +3548,14 @@ error_formato_concatenar:
  }
 
 /* Atajo para cadenas C: strlen() obtiene longitud y delega validación/rango. */
+/*
+ * Convierte una cadena C decimal delegando la validación al lector por longitud.
+ * Entradas: texto es la cadena terminada en NUL; resultado recibe el entero;
+ * error_o_datos_a_retornar y nivel_de_profundidad se ignoran por compatibilidad.
+ * Salida y efectos: 1 si convierte toda la cadena, 0 ante NULL o dato inválido.
+ * Entrada de ejemplo: texto="42", resultado inicialmente 0.
+ * Salida de ejemplo: devuelve 1 y *resultado pasa de 0 a 42.
+ */
  static int textoAEntero(const char *texto, int *resultado, /* #sym:textoAEntero */ char *error_o_datos_a_retornar,int nivel_de_profundidad)
  {
 	(void)nivel_de_profundidad;
@@ -3020,6 +3568,15 @@ error_formato_concatenar:
  * Formateador pequeño de la consola común: admite %s, %d y %% únicamente.
  * Ejemplo: ("línea %d: %s\n", 2, "Ana") escribe "línea 2: Ana".
  * Devuelve 0 al escribir todo y -1 si el formato o backend falla.
+ */
+/*
+ * Escribe en la consola texto con conversiones limitadas a %s, %d y %%.
+ * Entradas: error_o_datos_a_retornar y nivel_de_profundidad se reenvían al
+ * backend; formato y argumentos variádicos determinan el texto.
+ * Salida y efectos: escribe en consola; devuelve 0 si todo se escribe o -1
+ * ante formato no admitido, argumentos/canal inválidos o fallo de E/S.
+ * Entrada de ejemplo: sistema_consola_escribir_formato(NULL,0,"n=%d",7).
+ * Salida de ejemplo: escribe "n=7" y devuelve 0 si la consola acepta los bytes.
  */
  static int sistema_consola_escribir_formato(char *error_o_datos_a_retornar,int nivel_de_profundidad, const char *formato, ...)
  {
@@ -3095,6 +3652,16 @@ error_formato_concatenar:
  }
 
 /* Escribe un entero decimal en archivo como texto; 0 significa éxito. */
+/*
+ * Escribe en un archivo el valor entero convertido a texto decimal.
+ * Entradas: archivo es el flujo abierto; valor es el entero;
+ * error_o_datos_a_retornar es el puntero de diagnóstico reenviado y
+ * nivel_de_profundidad identifica el nivel de llamada.
+ * Salida y efectos: añade los dígitos al flujo; devuelve 0 si escribe o -1
+ * si falla la conversión o la escritura.
+ * Entrada de ejemplo: archivo abierto para escritura, valor=42.
+ * Salida de ejemplo: el flujo recibe "42" y la función devuelve 0 si no hay error.
+ */
  static int sistema_archivo_escribir_entero(SistemaArchivo *archivo, int valor, char *error_o_datos_a_retornar,int nivel_de_profundidad)
  {
  	char buffer[sizeof(int) * CHAR_BIT + 2];
@@ -3103,6 +3670,16 @@ error_formato_concatenar:
  }
 
 /* Escribe texto seguido de '\n'; -1 señala que falló cualquiera de los dos pasos. */
+/*
+ * Escribe un texto y después un salto de línea en el archivo abierto.
+ * Entradas: archivo es el flujo destino; texto no debe ser NULL;
+ * error_o_datos_a_retornar es el puntero de diagnóstico reenviado y
+ * nivel_de_profundidad identifica el nivel de llamada.
+ * Salida y efectos: modifica el archivo; devuelve 0 si ambas escrituras tienen
+ * éxito y -1 ante error.
+ * Entrada de ejemplo: flujo vacío abierto para escritura, texto="Ana".
+ * Salida de ejemplo: el flujo contiene "Ana\n" y la función devuelve 0.
+ */
  static int escribirLineaArchivo(SistemaArchivo *archivo, const char *texto, char *error_o_datos_a_retornar,int nivel_de_profundidad)
  {
  	if(texto == NULL || sistema_archivo_escribir_texto(archivo, texto,error_o_datos_a_retornar,  nivel_de_profundidad) != 0) return -1;
@@ -3126,6 +3703,15 @@ error_formato_concatenar:
  * leerCaracter(contexto) oculta el origen: archivo, consola o futuro UART.
  * La cadena devuelta se reserva dinámicamente y el llamador la libera.
  * Ejemplo: bytes 'h','o','l','a','\n' -> cadena "hola".
+ */
+/*
+ * Lee caracteres mediante una función callback hasta LF o fin de flujo.
+ * Entradas: leerCaracter obtiene cada byte usando contexto; contexto identifica
+ * la fuente; error_o_datos_a_retornar y nivel_de_profundidad se reenvían.
+ * Salida y efectos: cadena dinámica sin LF, o NULL si no hay bytes/error; no
+ * modifica el contexto por sí misma.
+ * Entrada de ejemplo: callback que entrega 'h','i','\n', luego EOF; contexto=NULL.
+ * Salida de ejemplo: devuelve una cadena reservada "hi".
  */
 static char *leerLineaDesde(
     int (*leerCaracter)(void *contexto, char *error_o_datos_a_retornar,int nivel_de_profundidad),
@@ -3254,12 +3840,32 @@ static char *leerLineaDesde(
     return linea;
 }
 
+/*
+ * Adaptador de callback que lee un carácter de un SistemaArchivo.
+ * Entradas: contexto debe apuntar al flujo abierto;
+ * error_o_datos_a_retornar es el puntero de diagnóstico reenviado y
+ * nivel_de_profundidad identifica el nivel de llamada.
+ * Salida y efectos: devuelve el byte leído o SISTEMA_ARCHIVO_FIN_LECTURA; avanza
+ * la posición del archivo.
+ * Entrada de ejemplo: contexto señala un archivo cuyo próximo byte es 'A'.
+ * Salida de ejemplo: devuelve 'A' y el cursor del archivo avanza un byte.
+ */
 static int leerCaracterArchivo(void *contexto, char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	/* El contexto es SistemaArchivo*; el backend traduce su EOF al valor común. */
 	return sistema_archivo_leer_caracter((SistemaArchivo *)contexto,error_o_datos_a_retornar,  nivel_de_profundidad);
 }
 
+/*
+ * Adaptador de callback que lee un carácter desde la consola.
+ * Entradas: contexto se ignora en la implementación actual;
+ * error_o_datos_a_retornar es el puntero de diagnóstico reenviado y
+ * nivel_de_profundidad identifica el nivel de llamada.
+ * Salida y efectos: devuelve el carácter leído o el marcador de fin; consume
+ * entrada estándar/consola.
+ * Entrada de ejemplo: con una consola que entrega primero 'S', contexto=NULL.
+ * Salida de ejemplo: devuelve 'S' y ese carácter queda consumido.
+ */
 static int leerCaracterConsola(void *contexto, char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	/* La consola no necesita objeto de contexto en la API actual. */
@@ -3268,6 +3874,16 @@ static int leerCaracterConsola(void *contexto, char *error_o_datos_a_retornar,in
 }
 
 /* Adaptador público interno: lee una línea desde un archivo ya abierto. */
+/*
+ * Lee una línea desde un archivo previamente abierto.
+ * Entradas: flujo es el SistemaArchivo;
+ * error_o_datos_a_retornar es el puntero de diagnóstico reenviado y
+ * nivel_de_profundidad identifica el nivel de llamada.
+ * Salida y efectos: devuelve cadena dinámica sin LF, o NULL al EOF sin datos
+ * o ante error; avanza el flujo.
+ * Entrada de ejemplo: flujo contiene como siguiente línea "hola\n".
+ * Salida de ejemplo: devuelve la cadena reservada "hola".
+ */
 static char *leerLineaDinamica(SistemaArchivo *flujo, char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	nivel_de_profundidad++;
@@ -3277,6 +3893,15 @@ static char *leerLineaDinamica(SistemaArchivo *flujo, char *error_o_datos_a_reto
 }
 
 /* Adaptador interno: misma lógica de línea, pero leyendo desde la consola. */
+/*
+ * Lee desde la consola una línea completa sin incluir el salto de línea.
+ * Entradas: error_o_datos_a_retornar y nivel_de_profundidad se reenvían a las
+ * rutinas de lectura y memoria.
+ * Salida y efectos: devuelve cadena dinámica o NULL si no hay caracteres/error;
+ * consume los caracteres de consola leídos.
+ * Entrada de ejemplo: la consola recibe "hola" seguido de Enter.
+ * Salida de ejemplo: devuelve la cadena reservada "hola".
+ */
 static char *leerLineaConsola(char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	nivel_de_profundidad++;
@@ -3288,6 +3913,16 @@ static char *leerLineaConsola(char *error_o_datos_a_retornar,int nivel_de_profun
  * Sustituye una columna (numeración desde 1) de una fila delimitada por comas.
  * Ejemplo: ("Ana,25,QA", 2, "30") -> "Ana,30,QA".
  * Devuelve una nueva cadena reservada o NULL si la fila/columna no es válida.
+ */
+/*
+ * Sustituye una columna numerada desde uno en una fila separada por comas.
+ * Entradas: lineaOriginal es la fila; columnaTarget es el índice desde uno;
+ * nuevoValor es el reemplazo; error_o_datos_a_retornar es el puntero de
+ * diagnóstico reenviado y nivel_de_profundidad identifica el nivel de llamada.
+ * Salida y efectos: fila nueva dinámica o NULL ante entrada/columna inválida;
+ * no altera la cadena original.
+ * Entrada de ejemplo: modificarColumna("Ana,25,QA",2,"30",NULL,0).
+ * Salida de ejemplo: cadena dinámica "Ana,30,QA".
  */
 char * modificarColumna(const char * lineaOriginal,
  	int columnaTarget,
@@ -3326,6 +3961,15 @@ char * modificarColumna(const char * lineaOriginal,
  * Flujo de ejemplo: datos.txt -> temp_qu1ron.bak; temp.txt -> datos.txt;
  * finalmente elimina el respaldo. Devuelve 0 si completa todos los pasos.
  */
+/*
+ * Reemplaza ruta por el archivo temporal, usando un respaldo intermedio.
+ * Entradas: ruta es el archivo original; error_o_datos_a_retornar es el puntero
+ * de diagnóstico reenviado y nivel_de_profundidad identifica el nivel de llamada.
+ * Salida y efectos: modifica/renombra archivos; devuelve 0 si todo concluye,
+ * -1 si algún paso falla, intentando restaurar el original.
+ * Entrada de ejemplo: ruta="datos.txt", original y temporal existentes, respaldo ausente.
+ * Salida de ejemplo: sustituye datos.txt por el temporal, elimina respaldo y devuelve 0.
+ */
 static int reemplazarArchivoTemporal(const char *ruta, char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	const char *temporal = RUTA_ARCHIVO_TEMPORAL; /* Archivo nuevo construido aparte. */
@@ -3355,6 +3999,17 @@ static int reemplazarArchivoTemporal(const char *ruta, char *error_o_datos_a_ret
  * Núcleo del CRUD por línea; operacion: 0=reemplazar, 1=eliminar,
  * 2=vaciar y 3=modificar columna. Reescribe el archivo a un temporal y luego
  * lo sustituye. Devuelve 0=éxito, -1=error y -2=línea solicitada inexistente.
+ */
+/*
+ * Reescribe una línea mediante reemplazo (0), borrado (1), vaciado (2) o
+ * cambio de columna (3), con staging a archivo temporal.
+ * Entradas: ruta es el archivo; numeroLinea empieza en uno; operacion selecciona
+ * acción; contenido aporta reemplazo; columna (para acción 3) empieza en uno;
+ * error_o_datos_a_retornar es el puntero de diagnóstico reenviado y
+ * nivel_de_profundidad identifica el nivel de llamada; ambos se envían a E/S.
+ * Salida y efectos: modifica el archivo; devuelve 0, -1 por error o -2 si falta línea.
+ * Entrada de ejemplo: archivo "a\nb\n", línea=2, operación=0, contenido="B".
+ * Salida de ejemplo: archivo queda "a\nB\n" y devuelve 0 si E/S concluye.
  */
 static int aplicarOperacionLinea(
 	const char *ruta,
@@ -3454,6 +4109,15 @@ static int aplicarOperacionLinea(
  * Ejemplo: "Ana\nLuis\n" se presenta como "1: Ana" y "2: Luis".
  * Retorna un resultado estructurado; ruta no se modifica.
  */
+/*
+ * Imprime en consola las líneas de un archivo numeradas desde uno.
+ * Entradas: ruta identifica el archivo; error_o_datos_a_retornar es el puntero
+ * de diagnóstico reenviado y nivel_de_profundidad identifica el nivel de llamada.
+ * Salida y efectos: no modifica ruta; imprime el contenido y devuelve la
+ * serialización de crearResultado (separador de nivel más código).
+ * Entrada de ejemplo: leerArchivo("datos.txt",NULL,0), con archivo "Ana\n".
+ * Salida de ejemplo: imprime "1: Ana" y devuelve "°1" al usar nivel 0.
+ */
  char * leerArchivo(const char * ruta,
  	char *error_o_datos_a_retornar,int nivel_de_profundidad)
  {
@@ -3488,6 +4152,16 @@ static int aplicarOperacionLinea(
  * Agrega nuevaLinea al final del archivo y termina el registro con '\n'.
  * Ejemplo: escribirLinea("datos.txt","Ana,25,QA", error_o_datos_a_retornar) añade "Ana,25,QA\n".
  */
+/*
+ * Añade una línea al final de un archivo, incluyendo LF.
+ * Entradas: ruta es el archivo destino; nuevaLinea es el contenido; los
+ * error_o_datos_a_retornar es el puntero de diagnóstico reenviado y
+ * nivel_de_profundidad identifica el nivel de llamada; ambos se reenvían a E/S.
+ * Salida y efectos: modifica el archivo y devuelve la serialización de
+ * crearResultado (separador de nivel más código).
+ * Entrada de ejemplo: escribirLinea("datos.txt","Ana,25",NULL,0), archivo existente.
+ * Salida de ejemplo: archivo termina con "Ana,25\n" y devuelve "°1" al usar nivel 0.
+ */
  char * escribirLinea(const char * ruta,
  	const char * nuevaLinea,
  		char *error_o_datos_a_retornar,int nivel_de_profundidad)
@@ -3513,7 +4187,16 @@ static int aplicarOperacionLinea(
  	return crearResultado(1, "escritura_ok", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);
  }
 
- /* Reemplaza por completo la línea idLinea; el ID comienza en 1. */
+/*
+ * Reemplaza completamente la línea indicada, usando numeración desde uno.
+ * Entradas: ruta es el archivo; idLinea es el número de línea; nuevoTexto es
+ * el reemplazo; error_o_datos_a_retornar es el puntero de diagnóstico reenviado
+ * y nivel_de_profundidad identifica el nivel de llamada; ambos se reenvían a E/S.
+ * Salida y efectos: reescribe el archivo y devuelve la serialización de
+ * crearResultado (separador de nivel más código).
+ * Entrada de ejemplo: archivo "a\nb\n", editarLinea("datos.txt",2,"B",NULL,0).
+ * Salida de ejemplo: archivo queda "a\nB\n" y devuelve "°1" al usar nivel 0.
+ */
  char * editarLinea(const char * ruta,
  	int idLinea,
  	const char * nuevoTexto,
@@ -3536,9 +4219,15 @@ static int aplicarOperacionLinea(
  	return crearResultado(1, "edicion_ok", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);
  }
 
- /*
+/*
  * Cambia una columna de una línea delimitada por comas.
- * Ejemplo: línea 1, columna 2, "30" convierte "Ana,25,QA" en "Ana,30,QA".
+ * Entradas: ruta es el archivo; idLinea e idColumna empiezan en uno; nuevoValor
+ * reemplaza el campo; error_o_datos_a_retornar es el puntero de diagnóstico
+ * reenviado y nivel_de_profundidad identifica el nivel de llamada; ambos se reenvían a E/S.
+ * Salida y efectos: reescribe el archivo y devuelve la serialización de
+ * crearResultado (separador de nivel más código).
+ * Entrada de ejemplo: archivo "Ana,25,QA\n", editarColumna("datos.txt",1,2,"30",NULL,0).
+ * Salida de ejemplo: archivo queda "Ana,30,QA\n" y devuelve "°1" al usar nivel 0.
  */
  char * editarColumna(const char * ruta,
  	int idLinea,
@@ -3563,7 +4252,16 @@ static int aplicarOperacionLinea(
  	return crearResultado(1, "columna_editada_ok", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);
  }
 
- /* Elimina el registro idLinea; las líneas posteriores cambian de número. */
+/*
+ * Elimina físicamente la línea indicada; las siguientes pasan a ocupar índices previos.
+ * Entradas: ruta es el archivo; idLinea empieza en uno;
+ * error_o_datos_a_retornar es el puntero de diagnóstico reenviado y
+ * nivel_de_profundidad identifica el nivel de llamada.
+ * Salida y efectos: reescribe el archivo sin esa línea y devuelve la serialización
+ * de crearResultado (separador de nivel más código).
+ * Entrada de ejemplo: archivo "a\nb\n", eliminarLinea("datos.txt",1,NULL,0).
+ * Salida de ejemplo: archivo queda "b\n" y devuelve "°1" al usar nivel 0.
+ */
  char * eliminarLinea(const char * ruta,
  	int idLinea,
  	char *error_o_datos_a_retornar,int nivel_de_profundidad)
@@ -3585,7 +4283,16 @@ static int aplicarOperacionLinea(
  	return crearResultado(1, "eliminacion_ok", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);
  }
 
- /* Conserva la posición idLinea, pero escribe una línea vacía en su lugar. */
+/*
+ * Conserva el número de línea sustituyendo su contenido por una línea vacía.
+ * Entradas: ruta es el archivo; idLinea empieza en uno;
+ * error_o_datos_a_retornar es el puntero de diagnóstico reenviado y
+ * nivel_de_profundidad identifica el nivel de llamada.
+ * Salida y efectos: modifica el archivo y devuelve la serialización de
+ * crearResultado (separador de nivel más código).
+ * Entrada de ejemplo: archivo "a\nb\n", vaciarLinea("datos.txt",1,NULL,0).
+ * Salida de ejemplo: archivo queda "\nb\n" y devuelve "°1" al usar nivel 0.
+ */
  char * vaciarLinea(const char * ruta,
  	int idLinea,
  	char *error_o_datos_a_retornar,int nivel_de_profundidad)
@@ -3616,6 +4323,13 @@ static int aplicarOperacionLinea(
 
 #if defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
 
+/*
+ * Busca el último separador de directorio ('/' o '\\') dentro de la ruta.
+ * Entradas: ruta es una cadena terminada en NUL que no se modifica.
+ * Salida y efectos: puntero a la última barra o NULL si no existe.
+ * Entrada de ejemplo: ruta="a/b\\c.txt".
+ * Salida de ejemplo: devuelve un puntero a la barra invertida antes de "c.txt".
+ */
 static char *gg_buscar_ultimo_separador_ruta(char *ruta)
 {
 	char *barra = strrchr(ruta, '/');
@@ -3625,6 +4339,13 @@ static char *gg_buscar_ultimo_separador_ruta(char *ruta)
 	return barra > barra_inversa ? barra : barra_inversa;
 }
 
+/*
+ * Comprueba si una ruta existente designa un directorio en la plataforma activa.
+ * Entrada: ruta es el camino a consultar.
+ * Salida y efectos: 1 si es directorio, 0 si no existe/no es directorio; no modifica ruta.
+ * Entrada de ejemplo: ruta="carpeta_existente", que apunta a un directorio.
+ * Salida de ejemplo: devuelve 1.
+ */
 static int gg_es_directorio(const char *ruta)
 {
 #if defined(PLATAFORMA_WINDOWS)
@@ -3636,6 +4357,13 @@ static int gg_es_directorio(const char *ruta)
 #endif
 }
 
+/*
+ * Crea un único directorio, considerando éxito si ya existía como directorio.
+ * Entrada: ruta es el nombre/camino del directorio.
+ * Salida y efectos: crea el directorio si es posible; devuelve 0 en éxito o -1.
+ * Entrada de ejemplo: ruta="datos/nuevo", con "datos" existente y "nuevo" ausente.
+ * Salida de ejemplo: crea "datos/nuevo" y devuelve 0.
+ */
 static int gg_crear_directorio_uno(const char *ruta)
 {
 #if defined(PLATAFORMA_WINDOWS)
@@ -3646,6 +4374,13 @@ static int gg_crear_directorio_uno(const char *ruta)
 	return -1;
 }
 
+/*
+ * Crea recursivamente los componentes de una ruta de directorio.
+ * Entrada: ruta es el camino que se creará; se normalizan separadores por plataforma.
+ * Salida y efectos: crea directorios faltantes; devuelve 0 en éxito o -1 ante error.
+ * Entrada de ejemplo: crearDirectorio("datos/2026/ventas").
+ * Salida de ejemplo: crea esos componentes si faltan y devuelve 0.
+ */
 int crearDirectorio(const char *ruta)
 {
 	if(ruta == NULL || ruta[0] == '\0') return -1;
@@ -3678,6 +4413,13 @@ int crearDirectorio(const char *ruta)
 	return resultado;
 }
 
+/*
+ * Crea el directorio padre de la ruta de archivo proporcionada.
+ * Entrada: ruta es el camino del archivo cuya carpeta padre se requiere.
+ * Salida y efectos: crea el padre si hay separador; devuelve 0 en éxito o -1.
+ * Entrada de ejemplo: gg_crear_directorio_padre("datos/ventas.txt").
+ * Salida de ejemplo: crea "datos" si falta y devuelve 0.
+ */
 static int gg_crear_directorio_padre(const char *ruta)
 {
 	char *copia = variable_string("%s", ruta);
@@ -3708,6 +4450,14 @@ static int gg_crear_directorio_padre(const char *ruta)
 	return resultado;
 }
 
+/*
+ * Comprueba si puede abrirse y cerrarse una ruta como archivo.
+ * Entrada: ruta es el camino consultado.
+ * Salida y efectos: devuelve 1 si abre y cierra sin error, 0 en caso contrario;
+ * no modifica el contenido.
+ * Entrada de ejemplo: existe_archivo("datos.txt"), archivo legible existente.
+ * Salida de ejemplo: devuelve 1.
+ */
 int existe_archivo(const char *ruta)
 {
 	if(ruta == NULL) return 0;
@@ -3716,6 +4466,14 @@ int existe_archivo(const char *ruta)
 	return sistema_archivo_cerrar(archivo, NULL, 0) == 0;
 }
 
+/*
+ * Crea un archivo nuevo, creando primero sus directorios padre si hacen falta.
+ * Entradas: ruta es el destino; cabecera, si no es NULL, se escribe como primera
+ * línea; no reemplaza un archivo ya existente.
+ * Salida y efectos: crea archivo/cabecera; devuelve 0 creado, 1 ya existía, -1 error.
+ * Entrada de ejemplo: crearArchivo("datos/nuevo.txt","id,nombre"), destino ausente.
+ * Salida de ejemplo: crea el archivo con "id,nombre\n" y devuelve 0.
+ */
 int crearArchivo(const char *ruta, const char *cabecera)
 {
 	if(ruta == NULL || ruta[0] == '\0') return -1;
@@ -3728,6 +4486,13 @@ int crearArchivo(const char *ruta, const char *cabecera)
 	return error ? -1 : 0;
 }
 
+/*
+ * Libera las n_lineas cadenas y luego el vector retornado por leer_archivo.
+ * Entradas: lineas es el vector (puede ser NULL); n_lineas es la cantidad válida.
+ * Salida y efectos: no retorna valor; libera todo el almacenamiento recibido.
+ * Entrada de ejemplo: lineas={"a","b"}, n_lineas=2.
+ * Salida de ejemplo: los dos textos y el vector quedan liberados.
+ */
 void free_lineas(char **lineas, int n_lineas)
 {
 	if(lineas == NULL) return;
@@ -3736,6 +4501,14 @@ void free_lineas(char **lineas, int n_lineas)
 	sistema_memoria_liberar(lineas, NULL, 0);
 }
 
+/*
+ * Lee un archivo completo en un vector de cadenas, una por línea.
+ * Entradas: ruta es el archivo; n_lineas_out apunta al contador de salida.
+ * Salida y efectos: devuelve vector dinámico o NULL; inicializa el contador a
+ * cero y, en éxito, lo establece al número de líneas; el llamador usa free_lineas.
+ * Entrada de ejemplo: ruta="datos.txt" con "a\nb\n", *n_lineas_out inicialmente 99.
+ * Salida de ejemplo: devuelve {"a","b"} y *n_lineas_out pasa de 99 a 2.
+ */
 char **leer_archivo(const char *ruta, int *n_lineas_out)
 {
 	if(n_lineas_out == NULL) return NULL;
@@ -3793,6 +4566,14 @@ char **leer_archivo(const char *ruta, int *n_lineas_out)
 	return lineas;
 }
 
+/*
+ * Sobrescribe un archivo con las cadenas dadas, cada una como una línea.
+ * Entradas: ruta es destino; lineas contiene n_lineas textos; n_lineas debe ser
+ * no negativo; no se permite vector NULL si hay líneas.
+ * Salida y efectos: trunca/escribe el archivo; devuelve 0 en éxito o -1 en error.
+ * Entrada de ejemplo: gg_guardar_archivo("datos.txt",{"a","b"},2).
+ * Salida de ejemplo: archivo queda "a\nb\n" y devuelve 0 si E/S concluye.
+ */
 static int gg_guardar_archivo(const char *ruta, char **lineas, int n_lineas)
 {
 	if(ruta == NULL || n_lineas < 0 || (n_lineas > 0 && lineas == NULL)) return -1;
@@ -3812,11 +4593,26 @@ static int gg_guardar_archivo(const char *ruta, char **lineas, int n_lineas)
 	return error ? -1 : 0;
 }
 
+/*
+ * Interfaz void que guarda las líneas delegando en gg_guardar_archivo.
+ * Entradas: ruta es destino; lineas/n_lineas describen los textos a escribir.
+ * Salida y efectos: sobrescribe el archivo cuando la operación tiene éxito;
+ * descarta el código de error del auxiliar y no devuelve valor.
+ * Entrada de ejemplo: guardar_archivo("datos.txt",{"a","b"},2).
+ * Salida de ejemplo: datos.txt contiene "a\nb\n" si la E/S concluye.
+ */
 void guardar_archivo(const char *ruta, char **lineas, int n_lineas)
 {
 	(void)gg_guardar_archivo(ruta, lineas, n_lineas);
 }
 
+/*
+ * Añade una fila al final del archivo, seguida de LF.
+ * Entradas: ruta es el archivo; fila es el contenido que se agrega.
+ * Salida y efectos: modifica el archivo; devuelve 0 si escribe/cierra bien o -1.
+ * Entrada de ejemplo: archivo termina en "a\n", gg_agregar_fila("datos.txt","b").
+ * Salida de ejemplo: termina en "a\nb\n" y devuelve 0 si E/S concluye.
+ */
 static int gg_agregar_fila(const char *ruta, const char *fila)
 {
 	if(ruta == NULL || fila == NULL) return -1;
@@ -3828,11 +4624,324 @@ static int gg_agregar_fila(const char *ruta, const char *fila)
 	return error ? -1 : 0;
 }
 
+/*
+ * Añade una fila al archivo mediante el auxiliar y descarta su estado de retorno.
+ * Entradas: ruta es el archivo; fila es el texto a añadir.
+ * Salida y efectos: agrega fila más LF si se puede; no devuelve estado.
+ * Entrada de ejemplo: agregar_fila("datos.txt","b"), archivo termina en "a\n".
+ * Salida de ejemplo: archivo termina en "a\nb\n" si la operación tiene éxito.
+ */
 void agregar_fila(const char *ruta, const char *fila)
 {
 	(void)gg_agregar_fila(ruta, fila);
 }
 
+/*
+ * Concatena una base y una ruta relativa usando '/' salvo si base ya termina
+ * en separador.
+ * Entradas: base es el directorio; relativa es el componente a añadir.
+ * Salida y efectos: nueva cadena dinámica o NULL; no modifica entradas.
+ * Entrada de ejemplo: ("datos/espacio", "clientes.txt").
+ * Salida de ejemplo: cadena dinámica "datos/espacio/clientes.txt".
+ */
+static char *gg_unir_ruta_espacio(const char *base, const char *relativa)
+{
+	if(base == NULL || relativa == NULL) return NULL;
+	size_t longitud = strlen(base);
+	const char *separador = longitud > 0 &&
+		(base[longitud - 1] == '/' || base[longitud - 1] == '\\') ? "" : "/";
+	return variable_string("%s%s%s", base, separador, relativa);
+}
+
+/*
+ * Valida textos serializables como campos de espacio y, opcionalmente, nombres.
+ * Entradas: texto es el campo; validar_nombre!=0 exige nombre no vacío, distinto
+ * de "."/".." y sin separadores de ruta; todo texto rechaza '|', LF y CR.
+ * Salida y efectos: 1 válido, 0 inválido; no cambia texto.
+ * Entrada de ejemplo: gg_texto_campo_valido_espacio("ventas",1).
+ * Salida de ejemplo: devuelve 1.
+ */
+static int gg_texto_campo_valido_espacio(const char *texto, int validar_nombre)
+{
+	if(texto == NULL || (validar_nombre && texto[0] == '\0')) return 0;
+	if(validar_nombre && (strcmp(texto, ".") == 0 || strcmp(texto, "..") == 0)) return 0;
+	for(const char *cursor = texto; *cursor != '\0'; ++cursor)
+	{
+		if(*cursor == '|' || *cursor == '\n' || *cursor == '\r' ||
+			(validar_nombre && (*cursor == '/' || *cursor == '\\')))
+			return 0;
+	}
+	return 1;
+}
+
+/*
+ * Crea bajo el espacio el conjunto de archivos y encabezados de negocio configurados.
+ * Entrada: id_espacio es una ruta completa o un identificador relativo al catálogo.
+ * Salida y efectos: crea los archivos faltantes de GG_secciones_negocio; devuelve
+ * 0 si no hubo errores y -1 si alguno no pudo crearse.
+ * Entrada de ejemplo: crear_archivos_base_negocio("datos/ventas").
+ * Salida de ejemplo: crea allí las secciones configuradas y devuelve 0 si la E/S funciona.
+ */
+int crear_archivos_base_negocio(const char *id_espacio)
+{
+	if(id_espacio == NULL || id_espacio[0] == '\0') return -1;
+
+	char *base = NULL;
+	if(strchr(id_espacio, '/') != NULL || strchr(id_espacio, '\\') != NULL)
+	{
+		base = variable_string("%s", id_espacio);
+	}
+	else
+	{
+		char *directorio_espacios = variable_string("%s", GG_archivos[0].ruta);
+		if(directorio_espacios == NULL) return -1;
+		char *separador = gg_buscar_ultimo_separador_ruta(directorio_espacios);
+		if(separador == NULL)
+		{
+			sistema_memoria_liberar(directorio_espacios, NULL, 0);
+			return -1;
+		}
+		*separador = '\0';
+		base = gg_unir_ruta_espacio(directorio_espacios, id_espacio);
+		sistema_memoria_liberar(directorio_espacios, NULL, 0);
+	}
+	if(base == NULL) return -1;
+
+	int errores = 0;
+	for(size_t i = 0; GG_secciones_negocio[i].nombre != NULL; ++i)
+	{
+		char *ruta = gg_unir_ruta_espacio(base, GG_secciones_negocio[i].ruta);
+		if(ruta == NULL)
+		{
+			errores++;
+			break;
+		}
+		if(crearArchivo(ruta, GG_secciones_negocio[i].columnas) < 0)
+		{
+			imprimirMensaje_para_depurar(NULL, 0,
+				"[crear_archivos_base_negocio] no se pudo crear: %s\n", ruta);
+			errores++;
+		}
+		sistema_memoria_liberar(ruta, NULL, 0);
+	}
+	sistema_memoria_liberar(base, NULL, 0);
+	return errores == 0 ? 0 : -1;
+}
+
+/*
+ * Crea un espacio con su archivo maestro, directorio y archivos base de negocio.
+ * Entradas: nom_espacio es un nombre válido; usuario/contrasena son campos sin
+ * separadores de registro; retorno_nombre_completo_espacio es opcional y recibe
+ * el nombre creado (se inicializa a NULL).
+ * Salida y efectos: crea y registra archivos; devuelve 0 o -1. El folio usa la
+ * hora actual, por lo que el nombre exacto depende del momento de ejecución.
+ * Entrada de ejemplo: ("ventas","ana","clave",&nombre), nombre inicialmente NULL.
+ * Salida de ejemplo: en éxito devuelve 0 y *nombre pasa a "<folio_actual>_ventas".
+ */
+int crear_espacios(char *nom_espacio, char *usuario, char *contrasena,
+	char **retorno_nombre_completo_espacio)
+{
+	if(retorno_nombre_completo_espacio != NULL)
+		*retorno_nombre_completo_espacio = NULL;
+	if(!gg_texto_campo_valido_espacio(nom_espacio, 1) ||
+		!gg_texto_campo_valido_espacio(usuario, 0) ||
+		!gg_texto_campo_valido_espacio(contrasena, 0))
+		return -1;
+
+	char *folio = generar_folio("%Y%m%d%H%M%S");
+	if(folio == NULL) return -1;
+
+	char *nombre_retorno = NULL;
+	char *nombre = variable_string("%s_%s", folio, nom_espacio);
+	char *ruta_maestra = variable_string("%s", GG_archivos[0].ruta);
+	char *directorio_base = ruta_maestra != NULL
+		? variable_string("%s", ruta_maestra) : NULL;
+	if(nombre == NULL || ruta_maestra == NULL || directorio_base == NULL)
+		goto error_crear_espacio;
+
+	char *separador = gg_buscar_ultimo_separador_ruta(directorio_base);
+	if(separador == NULL) goto error_crear_espacio;
+	*separador = '\0';
+
+	char *directorio = gg_unir_ruta_espacio(directorio_base, nombre);
+	char *nombre_archivo = variable_string("%s.txt", nombre);
+	if(directorio == NULL || nombre_archivo == NULL)
+	{
+		sistema_memoria_liberar(directorio, NULL, 0);
+		sistema_memoria_liberar(nombre_archivo, NULL, 0);
+		goto error_crear_espacio;
+	}
+	char *ruta_espacio = gg_unir_ruta_espacio(directorio, nombre_archivo);
+	sistema_memoria_liberar(nombre_archivo, NULL, 0);
+	if(ruta_espacio == NULL)
+	{
+		sistema_memoria_liberar(directorio, NULL, 0);
+		goto error_crear_espacio;
+	}
+	if(existe_archivo(ruta_espacio) || gg_es_directorio(directorio) ||
+		crearDirectorio(directorio) != 0)
+	{
+		sistema_memoria_liberar(ruta_espacio, NULL, 0);
+		sistema_memoria_liberar(directorio, NULL, 0);
+		goto error_crear_espacio;
+	}
+
+	char *contenido = variable_string("%s\n%s|%s|%s||1",
+		GG_archivos[0].columnas, nombre, usuario, contrasena);
+	if(contenido == NULL || crearArchivo(ruta_espacio, contenido) < 0)
+	{
+		sistema_memoria_liberar(contenido, NULL, 0);
+		sistema_memoria_liberar(ruta_espacio, NULL, 0);
+		sistema_memoria_liberar(directorio, NULL, 0);
+		goto error_crear_espacio;
+	}
+	sistema_memoria_liberar(contenido, NULL, 0);
+
+	if(retorno_nombre_completo_espacio != NULL)
+	{
+		nombre_retorno = variable_string("%s", nombre);
+		if(nombre_retorno == NULL)
+		{
+			sistema_memoria_liberar(ruta_espacio, NULL, 0);
+			sistema_memoria_liberar(directorio, NULL, 0);
+			goto error_crear_espacio;
+		}
+	}
+
+	if(crear_archivos_base_negocio(directorio) != 0)
+	{
+		imprimirMensaje_para_depurar(NULL, 0,
+			"[crear_espacios] error al crear los archivos base del espacio: %s\n", nombre);
+		sistema_memoria_liberar(ruta_espacio, NULL, 0);
+		sistema_memoria_liberar(directorio, NULL, 0);
+		goto error_crear_espacio;
+	}
+
+	int estado_maestro = crearArchivo(ruta_maestra, GG_archivos[0].columnas);
+	if(estado_maestro < 0)
+	{
+		sistema_memoria_liberar(ruta_espacio, NULL, 0);
+		sistema_memoria_liberar(directorio, NULL, 0);
+		goto error_crear_espacio;
+	}
+	char *linea_maestra = variable_string("%s|%s|%s|%s|2",
+		nombre, usuario, contrasena, ruta_espacio);
+	if(linea_maestra == NULL || gg_agregar_fila(ruta_maestra, linea_maestra) != 0)
+	{
+		imprimirMensaje_para_depurar(NULL, 0,
+			"[crear_espacios] no se pudo registrar el espacio en: %s\n", ruta_maestra);
+		sistema_memoria_liberar(linea_maestra, NULL, 0);
+		sistema_memoria_liberar(ruta_espacio, NULL, 0);
+		sistema_memoria_liberar(directorio, NULL, 0);
+		goto error_crear_espacio;
+	}
+	sistema_memoria_liberar(linea_maestra, NULL, 0);
+
+	if(retorno_nombre_completo_espacio != NULL)
+	{
+		*retorno_nombre_completo_espacio = nombre_retorno;
+		nombre_retorno = NULL;
+	}
+
+	imprimirMensaje_para_depurar(NULL, 0,
+		"[crear_espacios] espacio creado: %s\n", directorio);
+	sistema_memoria_liberar(ruta_espacio, NULL, 0);
+	sistema_memoria_liberar(directorio, NULL, 0);
+	sistema_memoria_liberar(folio, NULL, 0);
+	sistema_memoria_liberar(nombre, NULL, 0);
+	sistema_memoria_liberar(ruta_maestra, NULL, 0);
+	sistema_memoria_liberar(directorio_base, NULL, 0);
+	return 0;
+
+error_crear_espacio:
+	sistema_memoria_liberar(nombre_retorno, NULL, 0);
+	sistema_memoria_liberar(folio, NULL, 0);
+	sistema_memoria_liberar(nombre, NULL, 0);
+	sistema_memoria_liberar(ruta_maestra, NULL, 0);
+	sistema_memoria_liberar(directorio_base, NULL, 0);
+	return -1;
+}
+
+/**
+ * Deriva y crea el archivo base de inventario asociado a la dirección del espacio.
+ * Entradas: nombre_de_structura sirve para el mensaje de diagnóstico;
+ * direccion_del_espacio determina la ruta y el nombre del archivo base.
+ * Salida y efectos: crea <nombre_del_archivo_espacio>_inventario.txt con columnas
+ * configuradas; devuelve 0 en éxito o -1 ante entrada, conversión o E/S inválida.
+ * Entrada de ejemplo: ("inventario","datos/ventas.txt").
+ * Salida de ejemplo: intenta crear "datos/ventas_inventario.txt" y devuelve 0 si se crea.
+ */
+int creacion_de_estructura_base(char *nombre_de_structura, char *direccion_del_espacio)
+{
+	if(nombre_de_structura == NULL || nombre_de_structura[0] == '\0' ||
+		direccion_del_espacio == NULL || direccion_del_espacio[0] == '\0')
+		return -1;
+
+	char *directorios = NULL;
+	char *nombre_archivo_espacio = NULL;
+	char *extension = NULL;
+	char *nombre_archivo_base = NULL;
+	char *columnas = NULL;
+	char *ruta_archivo_base = NULL;
+	int resultado = -1;
+
+	if(desfragmentar_direccion(direccion_del_espacio, &directorios,
+		&nombre_archivo_espacio, &extension) != 0 ||
+		nombre_archivo_espacio == NULL || nombre_archivo_espacio[0] == '\0')
+		goto terminar_creacion_estructura;
+
+	nombre_archivo_base = variable_string("%s_inventario.txt", nombre_archivo_espacio);
+	columnas = gg_reemplazar_texto(GG_secciones_negocio[1].columnas,
+		GG_caracter_separacion[1], GG_caracter_separacion[0]);
+	if(nombre_archivo_base == NULL || columnas == NULL)
+		goto terminar_creacion_estructura;
+
+	if(directorios != NULL && directorios[0] != '\0')
+	{
+		ruta_archivo_base = gg_unir_ruta_espacio(directorios, nombre_archivo_base);
+	}
+	else if(direccion_del_espacio[0] == '/' || direccion_del_espacio[0] == '\\')
+	{
+		ruta_archivo_base = variable_string("%c%s",
+			direccion_del_espacio[0], nombre_archivo_base);
+	}
+	else
+	{
+		ruta_archivo_base = variable_string("%s", nombre_archivo_base);
+	}
+	if(ruta_archivo_base == NULL) goto terminar_creacion_estructura;
+
+	if(crearArchivo(ruta_archivo_base, columnas) < 0)
+	{
+		imprimirMensaje_para_depurar(NULL, 0,
+			"[creacion_de_estructura_base] no se pudo crear: %s\n", ruta_archivo_base);
+		goto terminar_creacion_estructura;
+	}
+
+	imprimirMensaje_para_depurar(NULL, 0,
+		"Creacion de estructura base: %s (%s)\n",
+		nombre_de_structura, ruta_archivo_base);
+	resultado = 0;
+
+terminar_creacion_estructura:
+	sistema_memoria_liberar(directorios, NULL, 0);
+	sistema_memoria_liberar(nombre_archivo_espacio, NULL, 0);
+	sistema_memoria_liberar(extension, NULL, 0);
+	sistema_memoria_liberar(nombre_archivo_base, NULL, 0);
+	sistema_memoria_liberar(columnas, NULL, 0);
+	sistema_memoria_liberar(ruta_archivo_base, NULL, 0);
+	return resultado;
+}
+
+/**
+ * Construye la ruta de un archivo de datos según ID y cantidad por archivo.
+ * Entradas: ruta es carpeta base opcional; id y cant_por_arch determinan
+ * subcarpetas y ceros; salida apunta al buffer; tam_salida es su capacidad.
+ * Salida y efectos: escribe ruta terminada en NUL si cabe; la vacía al iniciar
+ * y la deja vacía con argumentos/tamaño/valores inválidos; no devuelve estado.
+ * Entrada de ejemplo: ruta="data", id=12, cant_por_arch=10, salida inicialmente "?", capacidad=128.
+ * Salida de ejemplo: en Windows escribe "data\\10\\10.txt"; en Linux "data/10/10.txt".
+ */
 void generar_ruta_archivo(const char *ruta, long id, long cant_por_arch, char *salida, size_t tam_salida)
 {
 	if(salida == NULL || tam_salida == 0) return;
@@ -3899,6 +5008,13 @@ terminar_ruta_archivo:
 	sistema_memoria_liberar(cantidad_texto, NULL, 0);
 }
 
+/**
+ * Deriva el nombre de carpeta de datos quitando extensión del archivo metadata.
+ * Entrada: ruta_metadata es la ruta de metadata.
+ * Salida y efectos: cadena dinámica con sufijo "_DAT" o NULL; no modifica entrada.
+ * Entrada de ejemplo: gg_carpeta_data("datos/info.txt").
+ * Salida de ejemplo: cadena dinámica "datos/info_DAT".
+ */
 static char *gg_carpeta_data(const char *ruta_metadata)
 {
 	char *copia = variable_string("%s", ruta_metadata);
@@ -3911,6 +5027,14 @@ static char *gg_carpeta_data(const char *ruta_metadata)
 	return resultado;
 }
 
+/**
+ * Convierte una cadena decimal completa a long.
+ * Entradas: texto contiene el número; valor apunta al destino.
+ * Salida y efectos: devuelve 1 y escribe valor si toda la cadena es decimal
+ * dentro de rango; devuelve 0 en caso contrario.
+ * Entrada de ejemplo: texto="123", *valor inicialmente 0.
+ * Salida de ejemplo: devuelve 1 y *valor pasa de 0 a 123.
+ */
 static int gg_parse_long_info(const char *texto, long *valor)
 {
 	if(texto == NULL || valor == NULL || texto[0] == '\0') return 0;
@@ -3921,6 +5045,15 @@ static int gg_parse_long_info(const char *texto, long *valor)
 	return 1;
 }
 
+/**
+ * Lee de metadata el ID total y la capacidad por archivo, con valores por defecto.
+ * Entradas: ruta es el archivo; id_total y cantidad_por_archivo son salidas
+ * opcionales para ID_TOT y CANT_POR_ARCH, respectivamente.
+ * Salida y efectos: devuelve 0 al leer; escribe los punteros no NULL (defaults
+ * 0 y 100 si no hay entradas válidas), o -1 si no puede abrir/leer.
+ * Entrada de ejemplo: archivo con "ID_TOT|12\nCANT_POR_ARCH|50\n", salidas 0 y 0.
+ * Salida de ejemplo: devuelve 0; *id_total pasa a 12 y *cantidad_por_archivo a 50.
+ */
 static int gg_leer_config_metadata(const char *ruta, long *id_total, long *cantidad_por_archivo)
 {
 	int cantidad = 0;
@@ -3953,6 +5086,14 @@ static int gg_leer_config_metadata(const char *ruta, long *id_total, long *canti
 	return 0;
 }
 
+/**
+ * Busca la entrada COLUMNAS en metadata y devuelve una copia dinámica de su valor.
+ * Entradas: ruta es el archivo metadata; columnas_out apunta al puntero de salida.
+ * Salida y efectos: inicializa *columnas_out a NULL; devuelve 0 con cadena
+ * asignada si encuentra COLUMNAS, o -1 ante error/ausencia.
+ * Entrada de ejemplo: archivo incluye "COLUMNAS|id,nombre", *columnas_out inicialmente "x".
+ * Salida de ejemplo: devuelve 0 y *columnas_out pasa de "x" a una copia de "id,nombre".
+ */
 static int gg_leer_columnas_metadata(const char *ruta, char **columnas_out)
 {
 	if(columnas_out == NULL) return -1;
@@ -3977,6 +5118,14 @@ static int gg_leer_columnas_metadata(const char *ruta, char **columnas_out)
 	return -1;
 }
 
+/**
+ * Sustituye el valor de ID_TOT en metadata y guarda nuevamente el archivo.
+ * Entradas: ruta es metadata; nuevo_id es el valor decimal que se persistirá.
+ * Salida y efectos: reescribe metadata si encuentra ID_TOT; devuelve 0 en éxito
+ * o -1 si falla lectura, falta la clave, o no se puede guardar.
+ * Entrada de ejemplo: metadata contiene "ID_TOT|4", nuevo_id=5.
+ * Salida de ejemplo: la línea queda "ID_TOT|5" y devuelve 0 si E/S concluye.
+ */
 static int gg_guardar_metadata_id(const char *ruta, long nuevo_id)
 {
 	int cantidad = 0;
@@ -4015,6 +5164,15 @@ static int gg_guardar_metadata_id(const char *ruta, long nuevo_id)
 	return resultado;
 }
 
+/**
+ * Calcula una ruta de archivo de datos derivada de metadata y un ID.
+ * Entradas: ruta_metadata define la carpeta base; id y cantidad_por_archivo
+ * determinan el particionado numérico.
+ * Salida y efectos: devuelve una ruta dinámica o NULL si no se puede construir;
+ * no modifica metadata.
+ * Entrada de ejemplo: ("datos/info.txt",12,10).
+ * Salida de ejemplo: Windows "datos/info_DAT\\10\\10.txt"; Linux "datos/info_DAT/10/10.txt".
+ */
 static char *gg_ruta_data_por_id(const char *ruta_metadata, long id, long cantidad_por_archivo)
 {
 	char *carpeta = gg_carpeta_data(ruta_metadata);
@@ -4034,6 +5192,14 @@ static char *gg_ruta_data_por_id(const char *ruta_metadata, long id, long cantid
 	return ruta;
 }
 
+/**
+ * Serializa celdas usando el separador de campo configurado para información.
+ * Entradas: celdas es el vector de valores; cantidad es su longitud; NULL se
+ * representa como campo vacío.
+ * Salida y efectos: cadena dinámica o NULL ante error; no modifica celdas.
+ * Entrada de ejemplo: gg_reconstruir_fila_info({"1","Ana"},2).
+ * Salida de ejemplo: cadena dinámica "1|Ana" con el separador predeterminado.
+ */
 static char *gg_reconstruir_fila_info(char **celdas, int cantidad)
 {
 	char *resultado = NULL;
@@ -4052,16 +5218,39 @@ static char *gg_reconstruir_fila_info(char **celdas, int cantidad)
 	return resultado != NULL ? resultado : variable_string("");
 }
 
+/**
+ * Serializa un código y un mensaje con el marcador de confirmación/error.
+ * Entradas: codigo es el estado; mensaje es el texto del estado.
+ * Salida y efectos: devuelve cadena dinámica "código╣mensaje" con el marcador
+ * configurado, o NULL ante fallo de reserva; no cambia argumentos.
+ * Entrada de ejemplo: gg_info_respuesta(0,"no_encontrado").
+ * Salida de ejemplo: cadena dinámica "0╣no_encontrado".
+ */
 static char *gg_info_respuesta(int codigo, const char *mensaje)
 {
 	return variable_string("%d%s%s", codigo, GG_caracter_para_confirmacion_o_error[0], mensaje);
 }
 
+/**
+ * Serializa código y fila usando el marcador de confirmación/error.
+ * Entradas: codigo es el estado; fila es el texto (NULL equivale a vacío).
+ * Salida y efectos: cadena dinámica con formato "código╣fila" o NULL si falla.
+ * Entrada de ejemplo: gg_info_respuesta_fila(1,"1|Ana").
+ * Salida de ejemplo: cadena dinámica "1╣1|Ana".
+ */
 static char *gg_info_respuesta_fila(int codigo, const char *fila)
 {
 	return variable_string("%d%s%s", codigo, GG_caracter_para_confirmacion_o_error[0], fila != NULL ? fila : "");
 }
 
+/**
+ * Crea un archivo metadata inicial con contador 0, columnas y capacidad 100.
+ * Entradas: ruta es destino; columnas es el encabezado (NULL equivale a vacío).
+ * Salida y efectos: crea el archivo si no existe; devuelve 0 creado, 1 existente
+ * según crearArchivo, o -1 ante error.
+ * Entrada de ejemplo: gg_crear_metadata_info("datos/info.txt","id|nombre"), ruta ausente.
+ * Salida de ejemplo: crea metadata con ID_TOT=0 y CANT_POR_ARCH=100; devuelve 0.
+ */
 static int gg_crear_metadata_info(const char *ruta, const char *columnas)
 {
 	if(ruta == NULL || ruta[0] == '\0') return -1;
@@ -4076,6 +5265,14 @@ static int gg_crear_metadata_info(const char *ruta, const char *columnas)
 	return resultado;
 }
 
+/**
+ * Lee un archivo completo y une sus líneas con LF en una cadena.
+ * Entrada: ruta identifica el archivo.
+ * Salida y efectos: devuelve texto dinámico o NULL ante error; libera internamente
+ * el vector de líneas y no modifica el archivo.
+ * Entrada de ejemplo: leer_info_dividida("datos.txt"), contenido "a\nb\n".
+ * Salida de ejemplo: cadena dinámica "a\nb".
+ */
 char *leer_info_dividida(const char *ruta)
 {
 	if(ruta == NULL) return NULL;
@@ -4103,6 +5300,15 @@ error_leer_info:
 	return NULL;
 }
 
+/**
+ * Agrega un registro a la información particionada y aumenta ID_TOT en metadata.
+ * Entradas: direccion es la ruta de metadata; agregando es el contenido de fila
+ * (NULL equivale a vacío); nom_columnas es encabezado opcional para crear metadata.
+ * Salida y efectos: crea/actualiza metadata y archivo de datos; devuelve respuesta
+ * dinámica con código y fila agregada, o código/mensaje de error.
+ * Entrada de ejemplo: metadata vacía/ausente, agregar_info_dividida("datos/info.txt","Ana","id|nombre").
+ * Salida de ejemplo: crea el registro "1|Ana" y devuelve "1╣1|Ana" si E/S concluye.
+ */
 char *agregar_info_dividida(const char *direccion, const char *agregando, const char *nom_columnas)
 {
 	if(direccion == NULL || direccion[0] == '\0') return gg_info_respuesta(0, "parametros_invalidos");
@@ -4165,6 +5371,15 @@ char *agregar_info_dividida(const char *direccion, const char *agregando, const 
 	return respuesta;
 }
 
+/**
+ * Lee los registros de todos los archivos de datos particionados por metadata.
+ * Entrada: ruta identifica metadata, cuyo contador y tamaño de partición guían
+ * la lectura; omite la primera línea de encabezado de cada archivo de datos.
+ * Salida y efectos: devuelve filas unidas por el separador específico configurado,
+ * "" si no hay registros, o NULL ante error; no modifica los archivos.
+ * Entrada de ejemplo: metadata ID_TOT=1 y archivo de datos con encabezado y "1|Ana".
+ * Salida de ejemplo: cadena dinámica "1|Ana".
+ */
 char *leer_todo_info_dividida(const char *ruta)
 {
 	long id_total = 0;
@@ -4222,6 +5437,29 @@ error_leer_todo:
 	return NULL;
 }
 
+/**
+ * Busca una fila por su ID en el archivo de datos indicado por la metadata.
+ * Entradas: ruta_metadata es la ruta de metadata; id es el ID textual; ruta_data_out,
+ * indice_out y fila_out son salidas opcionales para ruta del bloque, índice de línea
+ * y copia de la fila. Devuelve 0 al hallar la fila y -1 ante error o ausencia.
+ * Las salidas solicitadas se inicializan como NULL, -1 y NULL; el llamador libera
+ * las cadenas recibidas.
+ * Entrada de ejemplo: ruta_metadata="productos", id="7",
+ * ruta_data_out=NULL, indice_out=-1, fila_out=NULL, con fila almacenada "7|Manzana|3".
+ * Salida de ejemplo: retorna 0; ruta_data_out pasa de NULL a la ruta del bloque
+ * asignada, indice_out de -1 al índice de la línea y fila_out de NULL a
+ * "7|Manzana|3" (si se pidieron las tres salidas).
+ */
+/**
+ * Localiza en el archivo de partición la fila cuyo primer campo coincide con ID.
+ * Entradas: ruta_metadata e id identifican registro; ruta_data_out, indice_out
+ * y fila_out son salidas opcionales para ruta, índice de línea desde cero y copia.
+ * Salida y efectos: inicializa salidas a NULL/-1; devuelve 0 y rellena las
+ * solicitadas al encontrarla, o -1 si id/datos/fila no existen.
+ * Entrada de ejemplo: ID "1" ocupa la línea 1; salidas (NULL,-1,NULL) inicialmente.
+ * Salida de ejemplo: devuelve 0; índice=1 si antes hay encabezado y fila_out="1|Ana";
+ * la ruta de datos queda asignada (su formato depende de plataforma).
+ */
 static int gg_buscar_fila_por_id(const char *ruta_metadata, const char *id, char **ruta_data_out, int *indice_out, char **fila_out)
 {
 	if(ruta_data_out != NULL) *ruta_data_out = NULL;
@@ -4266,6 +5504,23 @@ static int gg_buscar_fila_por_id(const char *ruta_metadata, const char *id, char
 	return 0;
 }
 
+/**
+ * Devuelve una respuesta de protocolo con la fila cuyo ID coincide.
+ * Entradas: direccion es la ruta de metadata y id es el ID textual.
+ * Salida: cadena nueva con estado 1 y fila, o estado 0 si no se encuentra;
+ * no modifica los archivos.
+ * Entrada de ejemplo: seleccionar_id_info_dividida("productos", "7"),
+ * cuando la fila es "7|Manzana|3".
+ * Salida de ejemplo: "1╣7|Manzana|3" (╣ es el separador de confirmación configurado).
+ */
+/**
+ * Busca un ID y devuelve su fila serializada en una respuesta de confirmación.
+ * Entradas: direccion es metadata; id es el identificador de registro.
+ * Salida y efectos: cadena dinámica "1╣fila" si existe o "0╣no_se_encontro_informacion";
+ * no modifica los archivos.
+ * Entrada de ejemplo: direccion con fila "1|Ana", id="1".
+ * Salida de ejemplo: cadena dinámica "1╣1|Ana".
+ */
 char *seleccionar_id_info_dividida(const char *direccion, const char *id)
 {
 	char *fila = NULL;
@@ -4276,6 +5531,24 @@ char *seleccionar_id_info_dividida(const char *direccion, const char *id)
 	return respuesta;
 }
 
+/**
+ * Recupera una fila junto con la ruta del bloque y el índice donde reside.
+ * Entradas: direccion es la metadata e id identifica la fila.
+ * Salida: cadena asignada con estado, fila, ruta e índice separados por ╣;
+ * en ausencia de la fila devuelve respuesta de estado 0.
+ * Entrada de ejemplo: seleccionar_id_info_dividida_extrae("productos", "7"),
+ * si existe "7|Manzana|3" en el índice 2.
+ * Salida de ejemplo: "1╣7|Manzana|3╣<ruta-del-bloque>╣2"; la ruta concreta
+ * depende de la configuración de bloques del archivo.
+ */
+/**
+ * Busca un ID y devuelve fila, ruta de partición e índice de línea en la respuesta.
+ * Entradas: direccion es metadata; id es el identificador.
+ * Salida y efectos: respuesta dinámica "1╣fila╣ruta╣índice" si existe, o código
+ * 0 y mensaje de ausencia; solo consulta archivos.
+ * Entrada de ejemplo: fila "1|Ana" en primera línea de datos tras el encabezado, id="1".
+ * Salida de ejemplo: "1╣1|Ana╣<ruta_de_datos>╣1"; la ruta depende de plataforma.
+ */
 char *seleccionar_id_info_dividida_extrae(const char *direccion, const char *id)
 {
 	char *fila = NULL;
@@ -4292,6 +5565,26 @@ char *seleccionar_id_info_dividida_extrae(const char *direccion, const char *id)
 	return respuesta;
 }
 
+/**
+ * Sustituye varias celdas de una fila y persiste el archivo de datos.
+ * Entradas: ruta_data identifica el archivo, indice_fila la línea, indices
+ * contiene índices de columna textuales, valores sus reemplazos y cantidad
+ * el número de pares. Devuelve 0 si guarda la fila o -1 si falla; los pares
+ * con índice inválido se omiten.
+ * Entrada de ejemplo: fila "7|Manzana|3", índice 0, indices={"2"},
+ * valores={"4"}, cantidad=1.
+ * Salida de ejemplo: retorna 0 y la fila persistida queda "7|Manzana|4".
+ */
+/**
+ * Actualiza en disco celdas concretas de una fila del archivo de datos.
+ * Entradas: ruta_data identifica archivo; indice_fila es índice de línea desde
+ * cero; indices son índices de columna en texto; valores son sus reemplazos;
+ * cantidad indica pares a procesar.
+ * Salida y efectos: reescribe el archivo si la fila puede reconstruirse; devuelve
+ * 0 en éxito o -1 ante error/índice de fila inválido.
+ * Entrada de ejemplo: fila "1|Ana|25", índice_fila=0, indices={"2"}, valores={"30"}.
+ * Salida de ejemplo: fila queda "1|Ana|30" y devuelve 0 si E/S concluye.
+ */
 static int gg_editar_campos_en_archivo(const char *ruta_data, int indice_fila, char **indices, char **valores, int cantidad)
 {
 	int n_lineas = 0;
@@ -4337,6 +5630,26 @@ static int gg_editar_campos_en_archivo(const char *ruta_data, int indice_fila, c
 	return resultado;
 }
 
+/**
+ * Edita varias celdas de la fila identificada y devuelve el estado de la operación.
+ * Entradas: direccion es metadata, id la fila, cols_str y vals_str listas paralelas
+ * de columnas y valores, separadas por el delimitador específico configurado.
+ * Salida: respuesta de protocolo 1 si se guardó o 0 si no se pudo editar.
+ * Entrada de ejemplo: editar_celda_id_info_dividida(NULL,"7","2","4").
+ * Salida de ejemplo: "0╣no_se_encontro_informacion"; no modifica archivos.
+ * Para una dirección existente no puede precisarse el resultado: el cuerpo usa
+ * GG_caracter_separacion_funciones_espesificas[4], fuera del arreglo de 4 elementos.
+ */
+/**
+ * Edita uno o varios campos de la fila identificada por ID.
+ * Entradas: direccion e id localizan el registro; cols_str enumera columnas;
+ * vals_str enumera reemplazos en el delimitador específico de la API.
+ * Salida y efectos: modifica el archivo de datos y devuelve respuesta dinámica
+ * de éxito/ausencia/error; la interpretación exacta de las listas depende del
+ * separador configurado para esta API.
+ * Entrada de ejemplo: metadata válida sin fila con ID "99"; cols_str="1", vals_str="Ana".
+ * Salida de ejemplo: devuelve "0╣no_se_encontro_informacion" y no edita datos.
+ */
 char *editar_celda_id_info_dividida(const char *direccion, const char *id, const char *cols_str, const char *vals_str)
 {
 	char *ruta_data = NULL;
@@ -4357,6 +5670,25 @@ char *editar_celda_id_info_dividida(const char *direccion, const char *id, const
 		resultado == 0 ? "informacion_editada" : "no_se_encontro_informacion");
 }
 
+/**
+ * Edita una columna por ID, opcionalmente exigiendo que otra columna coincida.
+ * Entradas: direccion e id localizan la fila; info_a_comparar y col_comparar
+ * son la condición opcional; nuevos_datos es el valor y col_editar su columna.
+ * Salida: respuesta 1 si la escritura tuvo éxito, o 0 si no coincidió o falló.
+ * Entrada de ejemplo: editar_id_info_dividida("productos","7","Manzana","1","Pera",1),
+ * con la fila "7|Manzana|3".
+ * Salida de ejemplo: "1╣informacion_editada"; la fila pasa a "7|Pera|3".
+ */
+/**
+ * Edita una columna de la fila identificada, opcionalmente condicionada por otra.
+ * Entradas: direccion/id localizan fila; info_a_comparar y col_comparar, si ambos
+ * no vacíos, exigen valor esperado en la columna indicada desde cero; nuevos_datos
+ * es el reemplazo (NULL equivale a vacío); col_editar es la columna desde cero.
+ * Salida y efectos: persiste el cambio si hay coincidencia; devuelve respuesta
+ * dinámica con código 1/0 y estado.
+ * Entrada de ejemplo: fila "1|Ana|25", id="1", comparar="25", col="2", nuevo="30", editar=2.
+ * Salida de ejemplo: fila queda "1|Ana|30" y respuesta "1╣informacion_editada".
+ */
 char *editar_id_info_dividida(const char *direccion, const char *id, const char *info_a_comparar, const char *col_comparar, const char *nuevos_datos, int col_editar)
 {
 	char *ruta_data = NULL;
@@ -4396,6 +5728,30 @@ char *editar_id_info_dividida(const char *direccion, const char *id, const char 
 		resultado == 0 ? "informacion_editada" : "no_se_encontro_informacion");
 }
 
+/**
+ * Suma cantidades a varias columnas numéricas y persiste la fila resultante.
+ * Entradas: direccion e id localizan la fila; indices_texto y cantidades_texto
+ * son listas paralelas; copia_si_vacio activa el modo de copia/deficit;
+ * fuentes_texto da las columnas fuente opcionales; fila_resultado recibe una
+ * copia de la fila escrita. Devuelve -1 ante fallo; en modo copia también
+ * puede devolver 1 + bultos cuando hubo déficit.
+ * Entrada de ejemplo: direccion=NULL, id="7", indices="2", cantidades="2",
+ * copia_si_vacio=0, fuentes_texto=NULL y fila_resultado apuntando a NULL.
+ * Salida de ejemplo: retorna -1 y fila_resultado permanece NULL.
+ * Para una dirección existente no puede precisarse el resultado: el cuerpo usa
+ * GG_caracter_separacion_funciones_espesificas[4], fuera del arreglo de 4 elementos.
+ */
+/**
+ * Suma cantidades a campos numéricos de una fila y guarda la fila actualizada.
+ * Entradas: direccion/id localizan registro; indices_texto y cantidades_texto
+ * son listas paralelas de columnas y sumandos; copia_si_vacio activa copia desde
+ * fuentes_texto (lista de columnas fuente) cuando hay déficit; fila_resultado
+ * es una salida opcional con copia de la fila final.
+ * Salida y efectos: inicializa *fila_resultado a NULL; modifica el archivo y
+ * devuelve 1 al sumar sin déficit, bultos+2 con déficit o -1 ante error.
+ * Entrada de ejemplo: metadata válida sin fila con ID "99"; salida de fila NULL.
+ * Salida de ejemplo: devuelve -1 y *fila_resultado permanece NULL.
+ */
 static int gg_incrementar_campos(const char *direccion, const char *id, const char *indices_texto, const char *cantidades_texto, int copia_si_vacio, const char *fuentes_texto, char **fila_resultado)
 {
 	if(fila_resultado != NULL) *fila_resultado = NULL;
@@ -4478,6 +5834,16 @@ static int gg_incrementar_campos(const char *direccion, const char *id, const ch
 	return hubo_deficit ? bultos + 2 : 1;
 }
 
+/**
+ * Incrementa las columnas indicadas de la fila identificada, sin modo de copia.
+ * Entradas: direccion e id localizan la fila; cols_str y cants_str contienen
+ * índices y cantidades paralelos. Salida: respuesta de protocolo con fila nueva
+ * en éxito o estado 0 si no se encontró/pudo actualizar.
+ * Entrada de ejemplo: incrementa_celda_id_info_dividida(NULL,"7","2","2").
+ * Salida de ejemplo: "0╣no_se_encontro_informacion".
+ * Para actualizar una fila no se puede predecir el resultado: la rutina auxiliar usa
+ * GG_caracter_separacion_funciones_espesificas[4], fuera del arreglo de 4 elementos.
+ */
 char *incrementa_celda_id_info_dividida(const char *direccion, const char *id, const char *cols_str, const char *cants_str)
 {
 	char *fila = NULL;
@@ -4488,6 +5854,17 @@ char *incrementa_celda_id_info_dividida(const char *direccion, const char *id, c
 	return respuesta;
 }
 
+/**
+ * Incrementa columnas permitiendo copiar una columna fuente ante valor vacío o déficit.
+ * Entradas: direccion e id localizan la fila; cols_str/cants_str son columnas y
+ * cantidades; cols_fuente_str indica fuentes de copia paralelas. Devuelve una
+ * respuesta con fila actualizada; si hay déficit, el estado 2 incluye el número
+ * de bultos requeridos como tercer campo.
+ * Entrada de ejemplo: incrementa_celda_id_info_dividida_copia_si_cero(NULL,"7","1","2","2").
+ * Salida de ejemplo: "0╣no_se_encontro_informacion".
+ * Para una fila existente no se puede predecir la respuesta: la rutina auxiliar usa
+ * GG_caracter_separacion_funciones_espesificas[4], fuera del arreglo de 4 elementos.
+ */
 char *incrementa_celda_id_info_dividida_copia_si_cero(const char *direccion, const char *id, const char *cols_str, const char *cants_str, const char *cols_fuente_str)
 {
 	char *fila = NULL;
@@ -4501,6 +5878,17 @@ char *incrementa_celda_id_info_dividida_copia_si_cero(const char *direccion, con
 	return respuesta;
 }
 
+/**
+ * Agrega una fila solo cuando no existe otra con el mismo valor en una columna.
+ * Entradas: direccion es la metadata; col_comp es el índice de comparación;
+ * comparar es el valor buscado; texto_agr es la fila por agregar y nom_cols
+ * los encabezados iniciales opcionales. Salida: respuesta de duplicado o la
+ * respuesta de agregar_info_dividida; puede crear metadata y modificar datos.
+ * Entrada de ejemplo: columna 1, comparar="Manzana", fila nueva="Pera|4",
+ * con "Manzana" ya presente en la columna 1.
+ * Salida de ejemplo: respuesta con código 0, "ya_existe" y la fila encontrada;
+ * no se agrega la fila duplicada.
+ */
 char *agregar_sino_existe_info_dividida(const char *direccion, long col_comp, const char *comparar, const char *texto_agr, const char *nom_cols)
 {
 	if(direccion == NULL || comparar == NULL || col_comp < 0)
@@ -4535,6 +5923,15 @@ char *agregar_sino_existe_info_dividida(const char *direccion, long col_comp, co
 	return agregar_info_dividida(direccion, texto_agr, nom_cols);
 }
 
+/**
+ * Busca el primer valor exacto en una columna, probando antes un ID sugerido.
+ * Entradas: direccion es metadata, dato_buscar el valor, col_buscar su columna
+ * e id_hint un ID opcional para acelerar la búsqueda (1..total).
+ * Salida: respuesta con fila e ID en éxito o código 0 si no hay coincidencia.
+ * Entrada de ejemplo: buscar_info_dividida("productos","Manzana",1,7),
+ * con ID 7 y fila "7|Manzana|3".
+ * Salida de ejemplo: "1╣7|Manzana|3╣7".
+ */
 char *buscar_info_dividida(const char *direccion, const char *dato_buscar, int col_buscar, int id_hint)
 {
 	if(direccion == NULL || dato_buscar == NULL || col_buscar < 0)
@@ -4593,6 +5990,17 @@ char *buscar_info_dividida(const char *direccion, const char *dato_buscar, int c
 	return gg_info_respuesta(0, "no_encontro_el_producto");
 }
 
+/**
+ * Busca un valor y, si existe, incrementa sus columnas; si no, agrega fallback.
+ * Entradas: direccion es metadata; dato_a_buscar y col_buscar definen la búsqueda;
+ * cols_inc_str/cants_inc_str son columnas y cantidades; agregar_fallback es la
+ * fila opcional que se agrega al no hallar coincidencia. Devuelve la respuesta
+ * de la actualización, del agregado o de ausencia.
+ * Entrada de ejemplo: incrementa_celda_busqueda_info_dividida(NULL,"Manzana",1,"2","2",NULL).
+ * Salida de ejemplo: "0╣no_se_encontro_informacion".
+ * Si encuentra fila, el resultado del incremento no se puede precisar porque la rutina
+ * auxiliar usa GG_caracter_separacion_funciones_espesificas[4], fuera del arreglo.
+ */
 char *incrementa_celda_busqueda_info_dividida(const char *direccion, const char *dato_a_buscar, int col_buscar, const char *cols_inc_str, const char *cants_inc_str, const char *agregar_fallback)
 {
 	char *busqueda = buscar_info_dividida(direccion, dato_a_buscar, col_buscar, -1);
@@ -4616,28 +6024,368 @@ char *incrementa_celda_busqueda_info_dividida(const char *direccion, const char 
 	return gg_info_respuesta(0, "no_se_encontro_informacion");
 }
 
+/**
+ * Valida credenciales contra el archivo de espacios y obtiene el nivel autorizado.
+ * Entradas: nivel_minimo es el umbral requerido; ruta_archivo identifica el registro;
+ * id_de_espacio, usuario y contrasena identifican la credencial. Las salidas
+ * opcionales reciben la dirección del negocio y el nivel almacenado. Devuelve 0
+ * cuando nivel_usuario <= nivel_minimo, 1 si existe pero no alcanza el umbral,
+ * y -1 ante datos/archivo inválidos o error. Inicializa las salidas a NULL y -1.
+ * Entrada de ejemplo: una fila de archivo "esp1|ana|clave|/negocio|2" y una llamada
+ * con nivel_minimo=2, ruta_archivo="usuarios", id_de_espacio="esp1",
+ * usuario="ana", contrasena="clave", dirección=NULL y nivel=-1.
+ * Salida de ejemplo: retorna 0; la dirección pasa de NULL a "/negocio" y el nivel
+ * de -1 a 2.
+ */
+static int gg_checar_permiso_archivo(
+	int nivel_minimo,
+	const char *ruta_archivo,
+	const char *id_de_espacio,
+	const char *usuario,
+	const char *contrasena,
+	char **retorna_direccion_espacio_negocio,
+	int *retornar_nivel)
+{
+	if(retorna_direccion_espacio_negocio != NULL)
+		*retorna_direccion_espacio_negocio = NULL;
+	if(retornar_nivel != NULL)
+		*retornar_nivel = -1;
+
+	if(ruta_archivo == NULL || id_de_espacio == NULL ||
+		usuario == NULL || contrasena == NULL)
+		return -1;
+
+	imprimirMensaje_para_depurar(NULL, 0,
+		"[checar_permiso] ruta='%s', id='%s', usuario='%s', nivel_minimo=%d\n",
+		ruta_archivo, id_de_espacio, usuario, nivel_minimo);
+
+	if(!existe_archivo(ruta_archivo))
+		return -1;
+
+	int n_lineas = 0;
+	char **lineas = leer_archivo(ruta_archivo, &n_lineas);
+	if(lineas == NULL)
+		return -1;
+
+	int resultado = 1;
+	const char *separador = GG_caracter_separacion[0];
+	if(separador == NULL || separador[0] == '\0')
+	{
+		free_lineas(lineas, n_lineas);
+		return -1;
+	}
+
+	for(int i = 1; i < n_lineas; ++i)
+	{
+		if(lineas[i] == NULL)
+			continue;
+
+		char **columnas = NULL;
+		int n_columnas = split_con_numero_de_celdas(
+			lineas[i], separador, &columnas);
+		if(n_columnas < 0)
+		{
+			free_lineas(lineas, n_lineas);
+			return -1;
+		}
+		if(n_columnas < 5 || columnas == NULL)
+		{
+			free_split_con_numero_de_celdas(columnas);
+			continue;
+		}
+
+		if(strcmp(columnas[0], id_de_espacio) == 0 &&
+			strcmp(columnas[1], usuario) == 0 &&
+			strcmp(columnas[2], contrasena) == 0)
+		{
+			int nivel_usuario = 0;
+			if(texto_a_int_seguro(columnas[4], &nivel_usuario) != 0)
+			{
+				free_split_con_numero_de_celdas(columnas);
+				free_lineas(lineas, n_lineas);
+				return -1;
+			}
+
+			char *direccion = NULL;
+			if(retorna_direccion_espacio_negocio != NULL)
+			{
+				direccion = variable_string("%s", columnas[3]);
+				if(direccion == NULL)
+				{
+					free_split_con_numero_de_celdas(columnas);
+					free_lineas(lineas, n_lineas);
+					return -1;
+				}
+			}
+
+			if(retorna_direccion_espacio_negocio != NULL)
+				*retorna_direccion_espacio_negocio = direccion;
+			if(retornar_nivel != NULL)
+				*retornar_nivel = nivel_usuario;
+			resultado = nivel_usuario <= nivel_minimo ? 0 : 1;
+			free_split_con_numero_de_celdas(columnas);
+			break;
+		}
+
+		free_split_con_numero_de_celdas(columnas);
+	}
+
+	free_lineas(lineas, n_lineas);
+	return resultado;
+}
+
+/**
+ * Interfaz pública para comprobar credenciales y recuperar la dirección del negocio.
+ * Entradas: nivel_minimo es el umbral; ruta_archivo, id_de_espacio, usuario y
+ * contrasena seleccionan la cuenta; los dos últimos argumentos son salidas opcionales
+ * para dirección y nivel. Devuelve el estado 0/1/-1 de gg_checar_permiso_archivo.
+ * Entrada de ejemplo: nivel_minimo=2, fila almacenada "esp1|ana|clave|/negocio|2",
+ * salidas inicialmente direccion=NULL y nivel=-1.
+ * Salida de ejemplo: retorna 0; direccion pasa a "/negocio" y nivel a 2.
+ */
+int checar_permiso(
+	int nivel_minimo,
+	const char *ruta_archivo,
+	const char *id_de_espacio,
+	const char *usuario,
+	const char *contrasena,
+	char **retorna_direccion_espacio_negocio,
+	int *retornar_nivel)
+{
+	return gg_checar_permiso_archivo(
+		nivel_minimo,
+		ruta_archivo,
+		id_de_espacio,
+		usuario,
+		contrasena,
+		retorna_direccion_espacio_negocio,
+		retornar_nivel);
+}
+
+/**
+ * Comprueba permisos de negocio sin solicitar la dirección asociada.
+ * Entradas: nivel_minimo es el umbral; ruta_archivo, id_de_espacio, usuario y
+ * contrasena identifican la cuenta; retornar_nivel recibe el nivel encontrado.
+ * Devuelve 0 si cumple, 1 si el nivel es insuficiente o -1 ante error.
+ * Entrada de ejemplo: archivo con "esp1|ana|clave|/negocio|2", umbral 2,
+ * retornar_nivel inicialmente -1.
+ * Salida de ejemplo: retorna 0 y retornar_nivel cambia de -1 a 2.
+ */
+int checar_permiso_negocios(
+	int nivel_minimo,
+	const char *ruta_archivo,
+	const char *id_de_espacio,
+	const char *usuario,
+	const char *contrasena,
+	int *retornar_nivel)
+{
+	return gg_checar_permiso_archivo(
+		nivel_minimo,
+		ruta_archivo,
+		id_de_espacio,
+		usuario,
+		contrasena,
+		NULL,
+		retornar_nivel);
+}
+
 #else
 
+/**
+ * Stub no implementado para crear un directorio en la plataforma sin backend.
+ * Entrada: ruta es el nombre solicitado. Salida: siempre -1, sin cambios de sistema.
+ * Entrada de ejemplo: crearDirectorio("datos").
+ * Salida de ejemplo: -1.
+ */
 int crearDirectorio(const char *ruta) { (void)ruta; return -1; }
+/**
+ * Stub de creación de archivo: recibe ruta y cabecera, pero no escribe en disco.
+ * Entrada de ejemplo: crearArchivo("datos.csv", "id|nombre").
+ * Salida de ejemplo: -1.
+ */
 int crearArchivo(const char *ruta, const char *cabecera) { (void)ruta; (void)cabecera; return -1; }
+/**
+ * Stub de lectura; ruta indica el archivo y n_lineas_out es salida opcional.
+ * Inicializa el contador a cero y no devuelve un arreglo.
+ * Entrada de ejemplo: n_lineas_out=5; leer_archivo("datos.csv", &n_lineas_out).
+ * Salida de ejemplo: NULL y n_lineas_out cambia de 5 a 0.
+ */
 char **leer_archivo(const char *ruta, int *n_lineas_out) { (void)ruta; if(n_lineas_out != NULL) *n_lineas_out = 0; return NULL; }
+/**
+ * Stub de persistencia: acepta ruta, arreglo y cantidad, sin escribirlos.
+ * Entrada de ejemplo: guardar_archivo("datos.csv", {"1|Ana"}, 1).
+ * Salida de ejemplo: no retorna valor y no produce efectos.
+ */
 void guardar_archivo(const char *ruta, char **lineas, int n_lineas) { (void)ruta; (void)lineas; (void)n_lineas; }
+/**
+ * Stub de liberación de un arreglo de líneas. Entrada: lineas y cantidad.
+ * Salida: ninguna; no libera memoria en esta plataforma.
+ * Entrada de ejemplo: free_lineas(NULL, 0). Salida de ejemplo: retorna void.
+ */
 void free_lineas(char **lineas, int n_lineas) { (void)lineas; (void)n_lineas; }
+/**
+ * Stub de agregado de fila. Entradas: ruta destino y texto de fila.
+ * Salida: ninguna y ningún cambio persistente.
+ * Entrada de ejemplo: agregar_fila("datos.csv", "1|Ana"). Salida de ejemplo: void.
+ */
 void agregar_fila(const char *ruta, const char *fila) { (void)ruta; (void)fila; }
+/**
+ * Stub de existencia de archivo; recibe la ruta y reporta que no existe.
+ * Entrada de ejemplo: existe_archivo("datos.csv"). Salida de ejemplo: 0.
+ */
 int existe_archivo(const char *ruta) { (void)ruta; return 0; }
+/**
+ * Stub de construcción de ruta; ruta, id y cantidad se ignoran, salida se vacía
+ * cuando es válida y capacidad es mayor que cero.
+ * Entrada de ejemplo: salida="x", capacidad=8; generar_ruta_archivo("datos",2,4,salida,8).
+ * Salida de ejemplo: salida pasa de "x" a "".
+ */
 void generar_ruta_archivo(const char *ruta, long id, long cantidad, char *salida, size_t capacidad) { (void)ruta; (void)id; (void)cantidad; if(salida != NULL && capacidad > 0) salida[0] = '\0'; }
+/**
+ * Stub de alta de espacio; acepta nombre, usuario, contraseña y salida opcional.
+ * Inicializa retorno a NULL y devuelve -1 sin crear registros.
+ * Entrada de ejemplo: retorno apunta a "x"; crear_espacios("Tienda","ana","clave",&retorno).
+ * Salida de ejemplo: -1 y retorno cambia de "x" a NULL.
+ */
+int crear_espacios(char *nombre, char *usuario, char *contrasena, char **retorno) { (void)nombre; (void)usuario; (void)contrasena; if(retorno != NULL) *retorno = NULL; return -1; }
+/**
+ * Stub de creación de archivos base; id_espacio identifica el negocio.
+ * Entrada de ejemplo: crear_archivos_base_negocio("esp1"). Salida de ejemplo: -1.
+ */
+int crear_archivos_base_negocio(const char *id_espacio) { (void)id_espacio; return -1; }
+/**
+ * Stub de creación de estructura; nombre y direccion se ignoran.
+ * Entrada de ejemplo: creacion_de_estructura_base("Tienda","/tienda").
+ * Salida de ejemplo: -1.
+ */
+int creacion_de_estructura_base(char *nombre, char *direccion) { (void)nombre; (void)direccion; return -1; }
+/**
+ * Stub de lectura de información dividida. Entrada: ruta de metadata.
+ * Salida: siempre NULL, sin acceso a almacenamiento.
+ * Entrada de ejemplo: leer_info_dividida("productos"). Salida de ejemplo: NULL.
+ */
 char *leer_info_dividida(const char *ruta) { (void)ruta; return NULL; }
+/**
+ * Stub de agregado a metadata dividida. Entradas: dirección, fila y columnas.
+ * Salida: siempre NULL; no crea metadata ni escribe la fila.
+ * Entrada de ejemplo: agregar_info_dividida("productos","Manzana|3","nombre|stock").
+ * Salida de ejemplo: NULL.
+ */
 char *agregar_info_dividida(const char *direccion, const char *agregando, const char *nom_columnas) { (void)direccion; (void)agregando; (void)nom_columnas; return NULL; }
+/**
+ * Stub que debería concatenar todos los bloques de una ruta.
+ * Entrada de ejemplo: leer_todo_info_dividida("productos"). Salida de ejemplo: NULL.
+ */
 char *leer_todo_info_dividida(const char *ruta) { (void)ruta; return NULL; }
+/**
+ * Stub de agregado condicional; recibe metadata, columna/valor de comparación,
+ * fila nueva y encabezados. Salida: NULL, sin examinar ni escribir datos.
+ * Entrada de ejemplo: agregar_sino_existe_info_dividida("productos",1,"A","B|2","nombre|stock").
+ * Salida de ejemplo: NULL.
+ */
 char *agregar_sino_existe_info_dividida(const char *direccion, long col, const char *comparar, const char *fila, const char *columnas) { (void)direccion; (void)col; (void)comparar; (void)fila; (void)columnas; return NULL; }
+/**
+ * Stub de selección por ID. Entradas: metadata e ID textual.
+ * Salida: NULL porque este backend aún no implementa lectura.
+ * Entrada de ejemplo: seleccionar_id_info_dividida("productos","7").
+ * Salida de ejemplo: NULL.
+ */
 char *seleccionar_id_info_dividida(const char *direccion, const char *id) { (void)direccion; (void)id; return NULL; }
+/**
+ * Stub de selección con datos de ubicación. Entradas: metadata e ID textual.
+ * Salida: NULL, sin modificar almacenamiento.
+ * Entrada de ejemplo: seleccionar_id_info_dividida_extrae("productos","7").
+ * Salida de ejemplo: NULL.
+ */
 char *seleccionar_id_info_dividida_extrae(const char *direccion, const char *id) { (void)direccion; (void)id; return NULL; }
+/**
+ * Stub de edición condicional por ID; recibe ruta, ID, condición, columna, valor y
+ * columna a editar. Salida: NULL, sin leer ni modificar archivos.
+ * Entrada de ejemplo: editar_id_info_dividida("productos","7","A","1","B",1).
+ * Salida de ejemplo: NULL.
+ */
 char *editar_id_info_dividida(const char *direccion, const char *id, const char *comparar, const char *columna, const char *nuevo, int editar) { (void)direccion; (void)id; (void)comparar; (void)columna; (void)nuevo; (void)editar; return NULL; }
+/**
+ * Stub de edición de celdas; cols y vals describen los reemplazos.
+ * Entrada de ejemplo: editar_celda_id_info_dividida("productos","7","2","4").
+ * Salida de ejemplo: NULL, sin cambios en datos.
+ */
 char *editar_celda_id_info_dividida(const char *direccion, const char *id, const char *cols, const char *vals) { (void)direccion; (void)id; (void)cols; (void)vals; return NULL; }
+/**
+ * Stub de incremento por ID; cols y cants son listas de columnas y cantidades.
+ * Entrada de ejemplo: incrementa_celda_id_info_dividida("productos","7","2","1").
+ * Salida de ejemplo: NULL.
+ */
 char *incrementa_celda_id_info_dividida(const char *direccion, const char *id, const char *cols, const char *cants) { (void)direccion; (void)id; (void)cols; (void)cants; return NULL; }
+/**
+ * Stub de incremento con fuentes para copia; acepta metadata, ID, columnas,
+ * cantidades y fuentes. Salida: NULL, sin persistir valores.
+ * Entrada de ejemplo: incrementa_celda_id_info_dividida_copia_si_cero("productos","7","1","2","2").
+ * Salida de ejemplo: NULL.
+ */
 char *incrementa_celda_id_info_dividida_copia_si_cero(const char *direccion, const char *id, const char *cols, const char *cants, const char *fuentes) { (void)direccion; (void)id; (void)cols; (void)cants; (void)fuentes; return NULL; }
+/**
+ * Stub de búsqueda seguida de incremento o agregado fallback.
+ * Entrada: metadata, valor y columna de búsqueda, columnas/cantidades, fallback.
+ * Entrada de ejemplo: incrementa_celda_busqueda_info_dividida("productos","A",1,"2","1","A|1").
+ * Salida de ejemplo: NULL; no se consulta ni modifica almacenamiento.
+ */
 char *incrementa_celda_busqueda_info_dividida(const char *direccion, const char *dato, int col, const char *cols, const char *cants, const char *fallback) { (void)direccion; (void)dato; (void)col; (void)cols; (void)cants; (void)fallback; return NULL; }
+/**
+ * Stub de búsqueda por valor; recibe metadata, valor, columna e ID sugerido.
+ * Entrada de ejemplo: buscar_info_dividida("productos","A",1,7).
+ * Salida de ejemplo: NULL.
+ */
 char *buscar_info_dividida(const char *direccion, const char *dato, int col, int hint) { (void)direccion; (void)dato; (void)col; (void)hint; return NULL; }
+/**
+ * Stub de comprobación de permisos; entradas identifican umbral, archivo, espacio
+ * y credenciales; las salidas opcionales de dirección/nivel se limpian.
+ * Entrada de ejemplo: dirección="x", nivel=3; llamada con credenciales no nulas.
+ * Salida de ejemplo: retorna -1; dirección pasa de "x" a NULL y nivel de 3 a -1.
+ */
+int checar_permiso(
+	int nivel_minimo,
+	const char *ruta_archivo,
+	const char *id_de_espacio,
+	const char *usuario,
+	const char *contrasena,
+	char **retorna_direccion_espacio_negocio,
+	int *retornar_nivel)
+{
+	(void)nivel_minimo;
+	(void)ruta_archivo;
+	(void)id_de_espacio;
+	(void)usuario;
+	(void)contrasena;
+	if(retorna_direccion_espacio_negocio != NULL)
+		*retorna_direccion_espacio_negocio = NULL;
+	if(retornar_nivel != NULL)
+		*retornar_nivel = -1;
+	return -1;
+}
+/**
+ * Stub de comprobación de permisos de negocio; recibe umbral, archivo, espacio,
+ * usuario, contraseña y salida opcional de nivel.
+ * Entrada de ejemplo: retornar_nivel=3; llamada con argumentos de texto válidos.
+ * Salida de ejemplo: retorna -1 y retornar_nivel pasa de 3 a -1.
+ */
+int checar_permiso_negocios(
+	int nivel_minimo,
+	const char *ruta_archivo,
+	const char *id_de_espacio,
+	const char *usuario,
+	const char *contrasena,
+	int *retornar_nivel)
+{
+	(void)nivel_minimo;
+	(void)ruta_archivo;
+	(void)id_de_espacio;
+	(void)usuario;
+	(void)contrasena;
+	if(retornar_nivel != NULL)
+		*retornar_nivel = -1;
+	return -1;
+}
 
 #endif
 
@@ -4649,10 +6397,560 @@ char *buscar_info_dividida(const char *direccion, const char *dato, int col, int
 
  #pragma region FUNCIONES_OPERACIONES_DE_MENSAJERIA
 
+#if defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
+
+/**
+ * Copia en memoria la ruta configurada para un archivo de intercambio.
+ * Entradas: indice_archivo selecciona una entrada de GG_archivos; ruta_out debe
+ * apuntar a un char* de salida. Inicializa *ruta_out a NULL; devuelve 0 si asigna
+ * la ruta, -3 para índice/salida inválidos y -1 ante fallo de memoria.
+ * Entrada de ejemplo: indice_archivo=1, ruta_out inicialmente NULL.
+ * Salida de ejemplo: retorna 0 y ruta_out pasa de NULL a una copia de
+ * GG_archivos[1].ruta, que el llamador debe liberar.
+ */
+static int construir_ruta_transferencia(int indice_archivo, char **ruta_out)
+{
+	if(ruta_out == NULL) return -3;
+	*ruta_out = NULL;
+	size_t cantidad_archivos = sizeof(GG_archivos) / sizeof(GG_archivos[0]) - 1;
+	if(indice_archivo < 0 || (size_t)indice_archivo >= cantidad_archivos ||
+		GG_archivos[indice_archivo].ruta == NULL)
+		return -3;
+	*ruta_out = variable_string("%s", GG_archivos[indice_archivo].ruta);
+	return *ruta_out != NULL ? 0 : -1;
+}
+
+/**
+ * Valida que una línea de intercambio esté dirigida a este programa y extrae su comando.
+ * Entradas: linea_transferencia contiene destino/origen y campos separados por los
+ * marcadores configurados; comando_out es salida obligatoria. Se inicializa a NULL.
+ * Devuelve 0 si extrae, -2 si la línea está vacía/mal formada o va a otro destino,
+ * -3 si falta el puntero de salida y -1 si falla la memoria.
+ * Entrada de ejemplo: "QU1R30N_SISTEMA_DEFINITIVO■otro┴listar┴info", con
+ * comando_out inicialmente NULL.
+ * Salida de ejemplo: retorna 0 y comando_out pasa de NULL a "listar".
+ */
+static int extraer_comando_de_linea_transferencia(
+	const char *linea_transferencia, char **comando_out)
+{
+	if(comando_out == NULL) return -3;
+	*comando_out = NULL;
+	if(linea_transferencia == NULL || linea_transferencia[0] == '\0') return -2;
+
+	char **partes = NULL;
+	int cantidad = split_con_numero_de_celdas(
+		linea_transferencia, GG_caracter_para_transferencia_entre_archivos[0], &partes);
+	if(cantidad < 3 || partes == NULL)
+	{
+		free_split_con_numero_de_celdas(partes);
+		return -2;
+	}
+
+	char **destino_origen = NULL;
+	int cantidad_destino_origen = split_con_numero_de_celdas(
+		partes[0], GG_caracter_para_transferencia_entre_archivos[1], &destino_origen);
+	int es_para_este_programa = cantidad_destino_origen >= 1 &&
+		destino_origen != NULL && destino_origen[0] != NULL &&
+		strcmp(destino_origen[0], GG_id_programa) == 0;
+	free_split_con_numero_de_celdas(destino_origen);
+	if(!es_para_este_programa || partes[1] == NULL || partes[1][0] == '\0')
+	{
+		free_split_con_numero_de_celdas(partes);
+		return -2;
+	}
+
+	*comando_out = variable_string("%s", partes[1]);
+	free_split_con_numero_de_celdas(partes);
+	return *comando_out != NULL ? 0 : -1;
+}
+
+/**
+ * Elimina la primera línea exactamente igual a la indicada y vuelve a guardar el archivo.
+ * Entradas: ruta identifica el archivo y linea_a_quitar el texto completo a retirar.
+ * Devuelve el estado de guardado, -2 si no se pudo leer o no había coincidencia,
+ * -3 por argumentos nulos y -1 por fallo de memoria.
+ * Entrada de ejemplo: archivo "entrada" con líneas "A" y "B"; quitar "A".
+ * Salida de ejemplo: retorna 0 y el archivo queda con la línea "B".
+ */
+static int quitar_linea_exacta_del_archivo(const char *ruta, const char *linea_a_quitar)
+{
+	if(ruta == NULL || linea_a_quitar == NULL) return -3;
+	int cantidad = 0;
+	char **lineas = leer_archivo(ruta, &cantidad);
+	if(lineas == NULL) return -2;
+
+	size_t elementos = cantidad > 0 ? (size_t)cantidad : 1;
+	if(elementos > (size_t)-1 / sizeof(char *))
+	{
+		free_lineas(lineas, cantidad);
+		return -1;
+	}
+	char **resultado = sistema_memoria_reservar(elementos * sizeof(*resultado), NULL, 0);
+	if(resultado == NULL)
+	{
+		free_lineas(lineas, cantidad);
+		return -1;
+	}
+
+	int conservadas = 0;
+	int eliminado = 0;
+	for(int i = 0; i < cantidad; ++i)
+	{
+		if(!eliminado && lineas[i] != NULL && strcmp(lineas[i], linea_a_quitar) == 0)
+		{
+			eliminado = 1;
+			continue;
+		}
+		resultado[conservadas] = variable_string("%s", lineas[i] ? lineas[i] : "");
+		if(resultado[conservadas] == NULL)
+		{
+			free_lineas(resultado, conservadas);
+			free_lineas(lineas, cantidad);
+			return -1;
+		}
+		++conservadas;
+	}
+
+	int estado = eliminado ? gg_guardar_archivo(ruta, resultado, conservadas) : -2;
+	free_lineas(resultado, conservadas);
+	free_lineas(lineas, cantidad);
+	return estado;
+}
+
+/**
+ * Escribe una respuesta en el archivo de salida de intercambio.
+ * Entradas: info es el contenido principal; programa_enviar es el destinatario
+ * (si es NULL/vacío usa "NEXOPORTALARCANO"); info_espejo agrega el campo espejo.
+ * Efectos: agrega una fila con destinatario, ID local, info y espejo; no retorna
+ * estado y omite la escritura si ambos textos están vacíos.
+ * Entrada de ejemplo: respuesta("ok","PANEL","eco").
+ * Salida de ejemplo: el archivo de salida recibe la fila
+ * "PANEL■QU1R30N_SISTEMA_DEFINITIVO┴ok┴eco" (si creación/escritura tiene éxito).
+ */
+void respuesta(const char *info, const char *programa_enviar, const char *info_espejo)
+{
+	const char *programa = programa_enviar != NULL && programa_enviar[0] != '\0'
+		? programa_enviar : "NEXOPORTALARCANO";
+	const char *texto_info = info != NULL ? info : "";
+	const char *texto_espejo = info_espejo != NULL ? info_espejo : "";
+	if(texto_info[0] == '\0' && texto_espejo[0] == '\0') return;
+
+	char *ruta = NULL;
+	if(construir_ruta_transferencia(2, &ruta) != 0)
+	{
+		imprimirMensaje_para_depurar(NULL, 0,
+			"[respuesta] no se pudo construir la ruta del archivo de salida\n");
+		return;
+	}
+	if(crearArchivo(ruta, GG_archivos[2].columnas) < 0)
+	{
+		imprimirMensaje_para_depurar(NULL, 0,
+			"[respuesta] no se pudo crear el archivo: %s\n", ruta);
+		sistema_memoria_liberar(ruta, NULL, 0);
+		return;
+	}
+
+	char *linea = variable_string("%s%s%s%s%s%s%s",
+		programa,
+		GG_caracter_para_transferencia_entre_archivos[1],
+		GG_id_programa,
+		GG_caracter_para_transferencia_entre_archivos[0],
+		texto_info,
+		GG_caracter_para_transferencia_entre_archivos[0],
+		texto_espejo);
+	if(linea == NULL || gg_agregar_fila(ruta, linea) != 0)
+		imprimirMensaje_para_depurar(NULL, 0,
+			"[respuesta] no se pudo escribir en el archivo: %s\n", ruta);
+	sistema_memoria_liberar(linea, NULL, 0);
+	sistema_memoria_liberar(ruta, NULL, 0);
+}
+
+/**
+ * Lee el archivo de entrada y reúne las líneas de intercambio dirigidas al programa.
+ * Entradas: retorno_comando y retorno_numero_lineas son salidas obligatorias; se
+ * inicializan a NULL y 0. Devuelve 1 con al menos una línea válida, 0 si no hay
+ * comandos válidos y -1 ante error. El llamador libera el arreglo y sus cadenas.
+ * Entrada de ejemplo: puntero de arreglo NULL y contador 0; el archivo contiene
+ * una línea válida "QU1R30N_SISTEMA_DEFINITIVO■otro┴listar┴info".
+ * Salida de ejemplo: retorna 1; arreglo pasa de NULL a un arreglo cuyo elemento
+ * 0 es esa línea original, y contador de 0 a 1.
+ */
+int monitoreo_archivo_entrada(char ***retorno_comando, int *retorno_numero_lineas)
+{
+	if(retorno_comando == NULL || retorno_numero_lineas == NULL) return -1;
+	*retorno_comando = NULL;
+	*retorno_numero_lineas = 0;
+	char *ruta = NULL;
+	if(construir_ruta_transferencia(1, &ruta) != 0) return -1;
+	int cantidad_lineas = 0;
+	char **lineas = leer_archivo(ruta, &cantidad_lineas);
+	sistema_memoria_liberar(ruta, NULL, 0);
+	if(lineas == NULL) return -1;
+
+	char **comandos = NULL;
+	int cantidad_comandos = 0;
+	for(int i = GG_indice_donde_comensar; i < cantidad_lineas; ++i)
+	{
+		if(lineas[i] == NULL || lineas[i][0] == '\0') continue;
+		char *comando = NULL;
+		int estado = extraer_comando_de_linea_transferencia(lineas[i], &comando);
+		if(estado == -2) continue;
+		if(estado != 0)
+		{
+			free_lineas(comandos, cantidad_comandos);
+			free_lineas(lineas, cantidad_lineas);
+			return -1;
+		}
+		sistema_memoria_liberar(comando, NULL, 0);
+
+		if(cantidad_comandos == INT_MAX ||
+			(size_t)(cantidad_comandos + 1) > (size_t)-1 / sizeof(*comandos))
+		{
+			free_lineas(comandos, cantidad_comandos);
+			free_lineas(lineas, cantidad_lineas);
+			return -1;
+		}
+		char **temporal = sistema_memoria_redimensionar(
+			comandos, (size_t)(cantidad_comandos + 1) * sizeof(*comandos), NULL, 0);
+		if(temporal == NULL)
+		{
+			free_lineas(comandos, cantidad_comandos);
+			free_lineas(lineas, cantidad_lineas);
+			return -1;
+		}
+		comandos = temporal;
+		comandos[cantidad_comandos] = variable_string("%s", lineas[i]);
+		if(comandos[cantidad_comandos] == NULL)
+		{
+			free_lineas(comandos, cantidad_comandos);
+			free_lineas(lineas, cantidad_lineas);
+			return -1;
+		}
+		++cantidad_comandos;
+	}
+	free_lineas(lineas, cantidad_lineas);
+	if(cantidad_comandos == 0)
+	{
+		sistema_memoria_liberar(comandos, NULL, 0);
+		return 0;
+	}
+	*retorno_comando = comandos;
+	*retorno_numero_lineas = cantidad_comandos;
+	return 1;
+}
+
+/**
+ * Inicializa las salidas y delega la lectura de comandos al monitor de entrada.
+ * Entradas: retorno_comando y retorno_numero_lineas son salidas obligatorias.
+ * Devuelve exactamente el estado del monitor: 1 con datos, 0 sin datos o -1 en error.
+ * Entrada de ejemplo: arreglo=NULL, contador=0 y una línea válida en el archivo.
+ * Salida de ejemplo: retorna 1; arreglo pasa de NULL al arreglo de líneas y contador
+ * de 0 a la cantidad encontrada (por ejemplo, 1).
+ */
+int datos_recibidos_a_procesar_y_borrar(
+	char ***retorno_comando, int *retorno_numero_lineas)
+{
+	if(retorno_comando == NULL || retorno_numero_lineas == NULL) return -1;
+	*retorno_comando = NULL;
+	*retorno_numero_lineas = 0;
+	return monitoreo_archivo_entrada(retorno_comando, retorno_numero_lineas);
+}
+
+/**
+ * Quita del archivo de entrada un comando procesado y archiva los fallidos.
+ * Entradas: linea_original es la línea exacta recibida; estado_ejecucion negativo
+ * significa fallo y provoca además agregarla al archivo de errores.
+ * Devuelve el resultado de quitar la línea, -3 por línea nula/vacía o -1 ante error.
+ * Entrada de ejemplo: línea="destino┴listar┴x", estado_ejecucion=0, y línea presente.
+ * Salida de ejemplo: retorna 0 y la línea deja de estar en el archivo de entrada;
+ * el archivo de errores no se modifica.
+ */
+int finalizar_comando_procesado(const char *linea_original, int estado_ejecucion)
+{
+	if(linea_original == NULL || linea_original[0] == '\0') return -3;
+	char *ruta_entrada = NULL;
+	if(construir_ruta_transferencia(1, &ruta_entrada) != 0) return -1;
+
+	if(estado_ejecucion < 0)
+	{
+		char *ruta_errores = NULL;
+		if(construir_ruta_transferencia(3, &ruta_errores) != 0)
+		{
+			sistema_memoria_liberar(ruta_entrada, NULL, 0);
+			return -1;
+		}
+		int creado = crearArchivo(ruta_errores, GG_archivos[3].columnas);
+		int guardado = creado < 0 ? -1 : gg_agregar_fila(ruta_errores, linea_original);
+		sistema_memoria_liberar(ruta_errores, NULL, 0);
+		if(guardado != 0)
+		{
+			sistema_memoria_liberar(ruta_entrada, NULL, 0);
+			return -1;
+		}
+	}
+
+	int resultado = quitar_linea_exacta_del_archivo(ruta_entrada, linea_original);
+	sistema_memoria_liberar(ruta_entrada, NULL, 0);
+	return resultado;
+}
+
+/**
+ * Reemplaza el ID local en la fila de control por el siguiente usuario disponible.
+ * Entradas: usuarios es el arreglo con IDs/destinos y total_usuarios su tamaño.
+ * Devuelve 1 si actualiza el archivo, 0 si no aplica/no hay destino, o el error
+ * de guardado (incluido -1 al fallar operaciones previas).
+ * Entrada de ejemplo: usuarios[0]=GG_id_programa, usuarios[1]="PANEL",
+ * total_usuarios=2, y archivo de entrada con fila de control iniciada en "0".
+ * Salida de ejemplo: retorna 1 y el primer campo de la fila de control pasa a "PANEL".
+ */
+int cambiar_id_programa_al_siguiente(char **usuarios, int total_usuarios)
+{
+	if(usuarios == NULL || total_usuarios <= GG_indice_donde_comensar) return 0;
+	if(usuarios[0] == NULL || strcmp(usuarios[0], GG_id_programa) != 0) return 0;
+
+	int indice_nuevo = GG_indice_donde_comensar;
+	for(int i = GG_indice_donde_comensar; i < total_usuarios; ++i)
+	{
+		if(usuarios[i] != NULL && strcmp(usuarios[i], GG_id_programa) == 0)
+		{
+			indice_nuevo = i >= total_usuarios - 1
+				? GG_indice_donde_comensar : i + 1;
+			break;
+		}
+	}
+	if(usuarios[indice_nuevo] == NULL || usuarios[indice_nuevo][0] == '\0') return 0;
+
+	char *ruta = NULL;
+	if(construir_ruta_transferencia(1, &ruta) != 0) return -1;
+	int cantidad = 0;
+	char **lineas = leer_archivo(ruta, &cantidad);
+	if(lineas == NULL)
+	{
+		sistema_memoria_liberar(ruta, NULL, 0);
+		return -1;
+	}
+	int encontrado = 0;
+	for(int i = 0; i < cantidad && !encontrado; ++i)
+	{
+		char **campos = NULL;
+		int total_campos = split_con_numero_de_celdas(
+			lineas[i], GG_caracter_separacion[0], &campos);
+		if(total_campos > 0 && campos != NULL && strcmp(campos[0], "0") == 0)
+		{
+			char *nuevo = variable_string("%s", usuarios[indice_nuevo]);
+			if(nuevo == NULL)
+			{
+				free_split_con_numero_de_celdas(campos);
+				free_lineas(lineas, cantidad);
+				sistema_memoria_liberar(ruta, NULL, 0);
+				return -1;
+			}
+			sistema_memoria_liberar(campos[0], NULL, 0);
+			campos[0] = nuevo;
+			char *actualizada = gg_reconstruir_fila_info(campos, total_campos);
+			free_split_con_numero_de_celdas(campos);
+			if(actualizada == NULL)
+			{
+				free_lineas(lineas, cantidad);
+				sistema_memoria_liberar(ruta, NULL, 0);
+				return -1;
+			}
+			sistema_memoria_liberar(lineas[i], NULL, 0);
+			lineas[i] = actualizada;
+			encontrado = 1;
+		}
+		else
+		{
+			free_split_con_numero_de_celdas(campos);
+		}
+	}
+	int guardado = encontrado ? gg_guardar_archivo(ruta, lineas, cantidad) : 0;
+	free_lineas(lineas, cantidad);
+	sistema_memoria_liberar(ruta, NULL, 0);
+	return guardado == 0 && encontrado ? 1 : guardado;
+}
+
+/**
+ * Elimina del archivo de entrada la línea que contiene el ID local del programa.
+ * Entradas: ninguna; busca el ID configurado en los campos de cada línea.
+ * Devuelve el estado de borrar la línea, o -1 por fallo y -2 si no aparece.
+ * Entrada de ejemplo: archivo con una línea que contiene GG_id_programa.
+ * Salida de ejemplo: retorna el resultado de aplicarOperacionLinea; ante éxito es 0.
+ */
+int quitar_id_prog_del_archivo(void)
+{
+	char *ruta = NULL;
+	if(construir_ruta_transferencia(1, &ruta) != 0) return -1;
+	int cantidad = 0;
+	char **lineas = leer_archivo(ruta, &cantidad);
+	if(lineas == NULL)
+	{
+		sistema_memoria_liberar(ruta, NULL, 0);
+		return -1;
+	}
+	const char *separadores[] = {
+		GG_caracter_separacion[0],
+		GG_caracter_para_transferencia_entre_archivos[0],
+		GG_caracter_para_transferencia_entre_archivos[1]
+	};
+	int resultado = 0;
+	int encontrado = 0;
+	for(int i = 0; i < cantidad && !encontrado; ++i)
+	{
+		for(size_t s = 0; s < sizeof(separadores) / sizeof(separadores[0]); ++s)
+		{
+			char **campos = NULL;
+			int n = split_con_numero_de_celdas(lineas[i], separadores[s], &campos);
+			for(int j = 0; j < n && campos != NULL; ++j)
+			{
+				if(campos[j] != NULL && strcmp(campos[j], GG_id_programa) == 0)
+				{
+					resultado = aplicarOperacionLinea(ruta, i + 1, 1, NULL, 0, NULL, 0);
+					encontrado = 1;
+					break;
+				}
+			}
+			free_split_con_numero_de_celdas(campos);
+			if(encontrado) break;
+		}
+	}
+	free_lineas(lineas, cantidad);
+	sistema_memoria_liberar(ruta, NULL, 0);
+	return encontrado ? resultado : -2;
+}
+
+/**
+ * Calcula tres índices de archivo: anterior, actual y siguiente con vuelta de ciclo.
+ * Entradas: posicion_bandera determina el índice inicial al dar la vuelta;
+ * numero_actual_posicion es el índice actual; arr_devolver es salida de 3 enteros.
+ * Devuelve 0 y escribe el arreglo, o -1 si la salida es NULL o hay desbordamiento.
+ * Entrada de ejemplo: bandera=0, actual=1, arr_devolver={-1,-1,-1}.
+ * Salida de ejemplo: retorna 0 y el arreglo pasa a { 2, 1, 0 } según las fórmulas
+ * actuales (atras=1-3, adelante se reemplaza por bandera).
+ */
+int checar_numero_de_direccion_de_archivo_atras_actual_adelante(
+	int posicion_bandera, int numero_actual_posicion, int arr_devolver[3])
+{
+	if(arr_devolver == NULL) return -1;
+	long adelante = (long)numero_actual_posicion + 3;
+	long atras = (long)numero_actual_posicion - 3;
+	if(adelante >= 3) adelante = posicion_bandera;
+	if(atras < 0) atras = 2L + posicion_bandera;
+	if(adelante < INT_MIN || adelante > INT_MAX ||
+		atras < INT_MIN || atras > INT_MAX) return -1;
+	arr_devolver[0] = (int)atras;
+	arr_devolver[1] = numero_actual_posicion;
+	arr_devolver[2] = (int)adelante;
+	return 0;
+}
+
+#else
+
+/**
+ * Stub no operativo del monitor de entrada en la plataforma sin sistema de archivos.
+ * Entradas: punteros opcionales de arreglo y cantidad; si no son NULL se limpian.
+ * Devuelve siempre 0 y no lee dispositivos.
+ * Entrada de ejemplo: arreglo apuntando a un valor previo y contador=4.
+ * Salida de ejemplo: retorna 0, arreglo pasa a NULL y contador a 0.
+ */
+int monitoreo_archivo_entrada(char ***retorno_comando, int *retorno_numero_lineas)
+{
+	if(retorno_comando != NULL) *retorno_comando = NULL;
+	if(retorno_numero_lineas != NULL) *retorno_numero_lineas = 0;
+	return 0;
+}
+
+/**
+ * Stub de salida de mensajes para una plataforma sin backend de intercambio.
+ * Entradas: info, programa_enviar e info_espejo se aceptan pero se ignoran.
+ * Efectos/salida: no escribe nada y retorna void.
+ * Entrada de ejemplo: respuesta("ok","PANEL","eco"). Salida de ejemplo: void;
+ * ningún archivo ni salida se modifica.
+ */
+void respuesta(const char *info, const char *programa_enviar, const char *info_espejo)
+{
+	(void)info;
+	(void)programa_enviar;
+	(void)info_espejo;
+}
+
+/**
+ * Stub que informa que no hay comandos entrantes en esta plataforma.
+ * Entradas: salidas opcionales retorno_comando y retorno_numero_lineas se limpian.
+ * Entrada de ejemplo: arreglo no NULL y contador=3.
+ * Salida de ejemplo: retorna 0; arreglo pasa a NULL y contador a 0.
+ */
+int datos_recibidos_a_procesar_y_borrar(char ***retorno_comando, int *retorno_numero_lineas)
+{
+	if(retorno_comando != NULL) *retorno_comando = NULL;
+	if(retorno_numero_lineas != NULL) *retorno_numero_lineas = 0;
+	return 0;
+}
+
+/**
+ * Stub de finalización: línea y estado se ignoran porque no hay almacenamiento.
+ * Entrada de ejemplo: finalizar_comando_procesado("comando", -1).
+ * Salida de ejemplo: 0, sin archivar ni borrar nada.
+ */
+int finalizar_comando_procesado(const char *linea_original, int estado_ejecucion)
+{
+	(void)linea_original;
+	(void)estado_ejecucion;
+	return 0;
+}
+
+/**
+ * Stub de rotación del ID de programa; ignora la lista y su cantidad.
+ * Entrada de ejemplo: cambiar_id_programa_al_siguiente(NULL, 0).
+ * Salida de ejemplo: 0, sin modificar archivos.
+ */
+int cambiar_id_programa_al_siguiente(char **usuarios, int total_usuarios)
+{
+	(void)usuarios;
+	(void)total_usuarios;
+	return 0;
+}
+
+/**
+ * Stub de eliminación del ID local; no consulta archivos ni cambia estado.
+ * Entrada de ejemplo: quitar_id_prog_del_archivo(). Salida de ejemplo: 0.
+ */
+int quitar_id_prog_del_archivo(void) { return 0; }
+
+/**
+ * Stub de cálculo de índices de archivos; conserva el índice actual y pone
+ * los extremos a cero. Entrada: posición bandera (ignorada), posición actual y
+ * arreglo de tres enteros de salida. Devuelve -1 si el arreglo es NULL; si no,
+ * devuelve 0.
+ * Entrada de ejemplo: bandera=2, actual=1, arreglo={-1,-1,-1}.
+ * Salida de ejemplo: retorna 0 y el arreglo pasa a {0,1,0}.
+ */
+int checar_numero_de_direccion_de_archivo_atras_actual_adelante(
+	int posicion_bandera, int numero_actual_posicion, int arr_devolver[3])
+{
+	(void)posicion_bandera;
+	if(arr_devolver == NULL) return -1;
+	arr_devolver[0] = 0;
+	arr_devolver[1] = numero_actual_posicion;
+	arr_devolver[2] = 0;
+	return 0;
+}
+
+#endif
+
  /*
  * Comprueba si alguno de los tres archivos de mensajes contiene al menos un byte.
  * Devuelve código 1 si encuentra contenido, 0 si todos están vacíos/no existen,
  * o -1 si un archivo abierto da error de lectura o cierre.
+ */
+/**
+ * Comprueba si hay al menos un byte en alguno de los tres archivos de mensajes.
+ * Entradas: error_o_datos_a_retornar acumula detalles de error y nivel_de_profundidad
+ * determina la profundidad de la respuesta. Devuelve una cadena de resultado nueva:
+ * código 1 si encuentra contenido, 0 si no hay mensajes o -1 ante error de lectura/
+ * cierre; los archivos se abren y cierran, pero no se modifican.
+ * Entrada de ejemplo: error=NULL, nivel=0 y los tres archivos vacíos o inexistentes.
+ * Salida de ejemplo: devuelve "°0" (el nivel se incrementa antes de crear el resultado).
  */
  char * checar_si_hay_mensajes_no_leido(char *error_o_datos_a_retornar,int nivel_de_profundidad)
  {
@@ -4688,6 +6986,16 @@ char *buscar_info_dividida(const char *direccion, const char *dato, int col, int
  * Ejecuta una secuencia CRUD sobre un archivo temporal y lo elimina al final.
  * Ejemplo: crea dos filas, cambia la edad de Luis, elimina la fila de Marta,
  * muestra el archivo restante y limpia el archivo de prueba.
+ */
+/**
+ * Ejecuta una demostración CRUD en el archivo temporal de pruebas y lo limpia al final.
+ * Entradas: error_o_datos_a_retornar recibe errores; nivel_de_profundidad indica
+ * profundidad de resultado. Efectos: crea/edita/borra datos temporales e imprime
+ * el contenido de prueba; devuelve una cadena de resultado con éxito o error.
+ * Entrada de ejemplo: error=NULL, nivel=0, ruta temporal inexistente y operaciones
+ * de archivo disponibles.
+ * Salida de ejemplo: devuelve "°1" cuando todas las operaciones y la limpieza tienen
+ * éxito; el archivo temporal se elimina antes de retornar.
  */
  char * ejecutarEjemplosPrueba(char *error_o_datos_a_retornar,int nivel_de_profundidad)
  {
@@ -4770,6 +7078,15 @@ char *buscar_info_dividida(const char *direccion, const char *dato, int col, int
  * Agrega una línea al archivo de mensajes para todos.
  * Ejemplo: "Reunión a las 10" se guarda seguido de un salto de línea.
  */
+/**
+ * Agrega un mensaje no vacío al archivo común de mensajes.
+ * Entradas: mensaje es el texto; error_o_datos_a_retornar acumula fallos y
+ * nivel_de_profundidad fija la profundidad de la respuesta. Efectos: agrega una
+ * línea y cierra el archivo; devuelve una cadena de estado asignada.
+ * Entrada de ejemplo: mandar_mensje_a_todos("Reunión a las 10",NULL,0),
+ * con archivo de mensajes disponible.
+ * Salida de ejemplo: devuelve "°1" y agrega "Reunión a las 10\n" al archivo.
+ */
  char * mandar_mensje_a_todos(const char * mensaje,
  	char *error_o_datos_a_retornar,int nivel_de_profundidad)
  {
@@ -4792,6 +7109,15 @@ char *buscar_info_dividida(const char *direccion, const char *dato, int col, int
  * Guarda un mensaje junto con su ID opcional y la lista de contactos.
  * Ejemplo: id=7, contactos="Ana,Luis", mensaje="Hola" produce
  * "[7] Ana,Luis -> Hola".
+ */
+/**
+ * Agrega un mensaje dirigido a una lista de contactos con un ID asociado.
+ * Entradas: mensaje y contactos deben ser no vacíos; id_opcional se escribe entre
+ * corchetes; error_o_datos_a_retornar y nivel registran contexto. Efectos: anexa
+ * una línea al archivo de contactos y devuelve una cadena de estado.
+ * Entrada de ejemplo: mensaje="Hola", contactos="Ana,Luis", id_opcional=7,
+ * error=NULL, nivel=0, con escritura correcta.
+ * Salida de ejemplo: devuelve "°1" y anexa "[7] Ana,Luis -> Hola\n".
  */
  char * mandar_mensje_a_contacto(const char * mensaje,
  	const char * contactos,
@@ -4828,6 +7154,15 @@ char *buscar_info_dividida(const char *direccion, const char *dato, int col, int
  * Registra pregunta, aviso de aceptación y respuesta final en una sola línea.
  * Ejemplo: "¿Quién?", "Yo voy", "Gracias" ->
  * "¿Quién? | Yo voy | Gracias".
+ */
+/**
+ * Registra una pregunta de respuesta prioritaria, el aviso de aceptación y la respuesta final.
+ * Entradas: mensaje_pregunta, mensaje_de_que_ya_alguien_lo_acepto y
+ * menaje_respuesta_al_quien_lo_logro deben ser no vacíos; error/nivel son contexto.
+ * Efectos: añade una línea al archivo correspondiente; devuelve una cadena de estado.
+ * Entrada de ejemplo: "¿Quién?", "Yo voy", "Gracias", error=NULL, nivel=0,
+ * con el archivo disponible para escritura.
+ * Salida de ejemplo: devuelve "°1" y anexa "¿Quién? | Yo voy | Gracias\n".
  */
  char * mandar_mensje_al_primero_que_responda(const char * mensaje_pregunta,
  	const char * mensaje_de_que_ya_alguien_lo_acepto,
@@ -4878,18 +7213,43 @@ char *buscar_info_dividida(const char *direccion, const char *dato, int col, int
  * terminar en sistema_memoria_liberar() o redimensionarse con la misma capa.
  */
 /* Solicita cantidad bytes; NULL indica que no se pudo reservar. */
+/**
+ * Reserva un bloque dinámico con malloc en Windows/Linux.
+ * Entradas: cantidad es el tamaño en bytes; error_o_datos_a_retornar y
+ * nivel_de_profundidad forman parte de la interfaz común (el nivel se ignora).
+ * Salida: dirección del bloque o NULL; el llamador debe liberarlo.
+ * Entrada de ejemplo: sistema_memoria_reservar(16,NULL,0).
+ * Salida de ejemplo: puntero a un bloque de 16 bytes, o NULL si malloc no puede reservarlo.
+ */
  static void * sistema_memoria_reservar(size_t cantidad, char *error_o_datos_a_retornar,int nivel_de_profundidad)
  {
 	(void)nivel_de_profundidad;
  	return malloc(cantidad);
  }
 /* Cambia el tamaño de un bloque existente; conserva su contenido si tiene éxito. */
+/**
+ * Redimensiona un bloque mediante realloc en Windows/Linux.
+ * Entradas: memoria es el bloque original (o NULL), cantidad el nuevo tamaño;
+ * los otros argumentos son contexto común y el nivel se ignora. Salida: nuevo
+ * puntero o NULL; si tiene éxito conserva el contenido previo hasta el menor tamaño.
+ * Entrada de ejemplo: memoria apunta a 8 bytes con "abc"; sistema_memoria_redimensionar(memoria,16,NULL,0).
+ * Salida de ejemplo: devuelve un puntero al bloque de 16 bytes, cuyo contenido empieza por "abc";
+ * el puntero puede diferir del original.
+ */
  static void * sistema_memoria_redimensionar(void * memoria, size_t cantidad, char *error_o_datos_a_retornar,int nivel_de_profundidad)
  {
 	(void)nivel_de_profundidad;
  	return realloc(memoria, cantidad);
  }
 /* Libera un bloque obtenido con reservar/redimensionar; NULL es seguro en free(). */
+/**
+ * Libera un bloque obtenido por la capa de memoria usando free.
+ * Entradas: memoria es el bloque o NULL; los argumentos de error/profundidad son
+ * compatibles con la interfaz y la profundidad se ignora. Efecto: el bloque deja
+ * de estar reservado; no retorna valor.
+ * Entrada de ejemplo: sistema_memoria_liberar(p,NULL,0), con p reservado.
+ * Salida de ejemplo: void; p queda liberado y no debe reutilizarse.
+ */
  static void sistema_memoria_liberar(void * memoria, /* #sym:sistema_memoria_liberar */ char *error_o_datos_a_retornar,int nivel_de_profundidad)
  {
 	(void)nivel_de_profundidad;
@@ -4903,6 +7263,12 @@ char *buscar_info_dividida(const char *direccion, const char *dato, int col, int
  * Hasta entonces, las reservas fallan explícitamente en esta plataforma.
  */
 /* Stub deliberadamente fallido: aún no existe un pool físico configurado. */
+/**
+ * Stub de reserva para el backend embebido aún sin pool de memoria.
+ * Entradas: cantidad es el tamaño solicitado; error y profundidad son contexto
+ * (la profundidad se ignora). Salida: siempre NULL, sin efecto.
+ * Entrada de ejemplo: sistema_memoria_reservar(16,NULL,0). Salida de ejemplo: NULL.
+ */
 static void * sistema_memoria_reservar(size_t cantidad, char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	(void)cantidad;
@@ -4911,6 +7277,11 @@ static void * sistema_memoria_reservar(size_t cantidad, char *error_o_datos_a_re
 }
 
 /* Stub de redimensionamiento; devuelve NULL hasta integrar el allocator embebido. */
+/**
+ * Stub de redimensionamiento embebido; memoria y cantidad se ignoran.
+ * Entrada de ejemplo: sistema_memoria_redimensionar(p,32,NULL,0).
+ * Salida de ejemplo: NULL, sin modificar ni mover el bloque señalado por p.
+ */
 static void * sistema_memoria_redimensionar(void *memoria, size_t cantidad, char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	(void)memoria;
@@ -4920,6 +7291,10 @@ static void * sistema_memoria_redimensionar(void *memoria, size_t cantidad, char
 }
 
 /* Stub de liberación: no hay bloque asignado mientras reservar() falle. */
+/**
+ * Stub de liberación embebida; acepta un bloque y contexto, pero no libera memoria.
+ * Entrada de ejemplo: sistema_memoria_liberar(NULL,NULL,0). Salida de ejemplo: void.
+ */
 static void sistema_memoria_liberar(void *memoria, /* #sym:sistema_memoria_liberar */ char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	(void)memoria;
@@ -4953,6 +7328,14 @@ static void sistema_memoria_liberar(void *memoria, /* #sym:sistema_memoria_liber
  * Devuelve un manejador opaco o NULL; si falla la reserva del manejador,
  * cierra el FILE* para no dejar recursos abiertos.
  */
+/**
+ * Abre un archivo local con el modo estándar solicitado y crea un manejador opaco.
+ * Entradas: ruta y modo ("r", "a", "w", etc.); error y profundidad se pasan a la
+ * capa de memoria (el nivel no altera fopen). Salida: manejador o NULL; ante fallo
+ * de reserva cierra el flujo ya abierto.
+ * Entrada de ejemplo: sistema_archivo_abrir("datos.txt","r",NULL,0), con archivo existente.
+ * Salida de ejemplo: devuelve un manejador no NULL listo para leer; el llamador lo cierra.
+ */
  static SistemaArchivo *sistema_archivo_abrir(const char *ruta, const char *modo, char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
  	if(ruta == NULL || modo == NULL) return NULL;
@@ -4972,6 +7355,13 @@ static void sistema_memoria_liberar(void *memoria, /* #sym:sistema_memoria_liber
  }
 
 /* Cierra el flujo y libera el objeto; devuelve 0 si fclose tuvo éxito. */
+/**
+ * Cierra el flujo local y libera su manejador.
+ * Entradas: archivo es el manejador abierto; error/profundidad son contexto de memoria.
+ * Devuelve el resultado de fclose o -1 si archivo es NULL; siempre libera un manejador válido.
+ * Entrada de ejemplo: archivo abierto correctamente en lectura.
+ * Salida de ejemplo: retorna 0 si fclose tiene éxito y el manejador queda liberado.
+ */
 static int sistema_archivo_cerrar(SistemaArchivo *archivo, char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	if(archivo == NULL) return -1;
@@ -4982,6 +7372,13 @@ static int sistema_archivo_cerrar(SistemaArchivo *archivo, char *error_o_datos_a
 }
 
 /* Elimina una ruta; por ejemplo, borra el temporal luego de una edición. */
+/**
+ * Elimina el archivo indicado en el backend de escritorio.
+ * Entradas: ruta identifica el archivo; error y profundidad son contexto común.
+ * Salida: 0 si remove lo elimina, -1 por ruta NULL o error del sistema.
+ * Entrada de ejemplo: sistema_archivo_eliminar("temporal.txt",NULL,0), con archivo existente.
+ * Salida de ejemplo: 0 y el archivo deja de existir.
+ */
 static int sistema_archivo_eliminar(const char *ruta, char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	(void)nivel_de_profundidad;
@@ -4989,6 +7386,13 @@ static int sistema_archivo_eliminar(const char *ruta, char *error_o_datos_a_reto
 }
 
 /* Cambia el nombre de origen a destino; 0 significa que el backend lo logró. */
+/**
+ * Renombra un archivo local.
+ * Entradas: origen es la ruta actual, destino la nueva; error y profundidad se ignoran.
+ * Salida: resultado de rename (0 cuando se completa, -1 ante argumentos inválidos/error).
+ * Entrada de ejemplo: origen="a.txt" existente y destino="b.txt".
+ * Salida de ejemplo: retorna 0 y el archivo queda con nombre "b.txt".
+ */
 static int sistema_archivo_renombrar(const char *origen, const char *destino, char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	(void)nivel_de_profundidad;
@@ -4998,6 +7402,13 @@ static int sistema_archivo_renombrar(const char *origen, const char *destino, ch
 /*
  * Lee un byte como int o devuelve SISTEMA_ARCHIVO_FIN_LECTURA al alcanzar EOF.
  * Esta conversión evita exponer el valor EOF al código común.
+ */
+/**
+ * Lee un carácter del flujo, normalizando CR/CRLF a '\n'.
+ * Entradas: archivo es el manejador; error/profundidad forman parte de la interfaz.
+ * Salida: byte como int o SISTEMA_ARCHIVO_FIN_LECTURA si no hay flujo/alcanzó EOF.
+ * Entrada de ejemplo: flujo con "A" al inicio y llamada con ese manejador.
+ * Salida de ejemplo: retorna 'A'; al leer después del final retorna el sentinela EOF propio.
  */
 static int sistema_archivo_leer_caracter(SistemaArchivo *archivo, char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
@@ -5030,6 +7441,13 @@ static int sistema_archivo_leer_caracter(SistemaArchivo *archivo, char *error_o_
 }
 
 /* Escribe un byte; 0=éxito, -1=flujo inválido o fallo de escritura. */
+/**
+ * Escribe un byte en un flujo local abierto.
+ * Entradas: archivo es el manejador y caracter el valor a escribir; error/profundidad
+ * son contexto común. Devuelve 0 si fputc tiene éxito y -1 ante flujo inválido/fallo.
+ * Entrada de ejemplo: archivo abierto en modo "w", caracter='X'.
+ * Salida de ejemplo: retorna 0 y se escribe el byte X.
+ */
 static int sistema_archivo_escribir_caracter(SistemaArchivo *archivo, int caracter, char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	(void)nivel_de_profundidad;
@@ -5038,6 +7456,13 @@ static int sistema_archivo_escribir_caracter(SistemaArchivo *archivo, int caract
 }
 
 /* Consulta el indicador de error del flujo; 0=sin error, distinto de 0=error. */
+/**
+ * Consulta el indicador de error del flujo.
+ * Entrada: archivo es el manejador; error/profundidad son contexto común.
+ * Devuelve 0 sin error, distinto de 0 si el flujo es inválido o ferror está activo.
+ * Entrada de ejemplo: manejador recién abierto, sin operaciones fallidas.
+ * Salida de ejemplo: 0.
+ */
 static int sistema_archivo_hay_error(SistemaArchivo *archivo, char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	(void)nivel_de_profundidad;
@@ -5045,6 +7470,13 @@ static int sistema_archivo_hay_error(SistemaArchivo *archivo, char *error_o_dato
 }
 
 /* Escribe todos los bytes de una cadena (sin su '\0'); 0=éxito, -1=fallo. */
+/**
+ * Escribe todos los bytes de una cadena en el flujo.
+ * Entradas: archivo es el manejador y texto la cadena; error/profundidad son contexto.
+ * Devuelve 0 si se escribió toda la cadena o -1 por argumento/flujo inválido o fallo.
+ * Entrada de ejemplo: flujo abierto en escritura y texto="Hola".
+ * Salida de ejemplo: retorna 0 y el flujo recibe los cuatro bytes "Hola".
+ */
 static int sistema_archivo_escribir_texto(SistemaArchivo *archivo, const char *texto, char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	(void)nivel_de_profundidad;
@@ -5061,6 +7493,12 @@ static int sistema_archivo_escribir_texto(SistemaArchivo *archivo, const char *t
  * (Flash, EEPROM, SD u otro). Los errores son explícitos, nunca éxito simulado.
  */
 /* Todavía no puede asociar una ruta lógica con un dispositivo físico. */
+/**
+ * Stub embebido de apertura: no existe aún correspondencia entre ruta y dispositivo.
+ * Entradas: ruta, modo y contexto común; se ignoran.
+ * Entrada de ejemplo: sistema_archivo_abrir("datos.txt","r",NULL,0).
+ * Salida de ejemplo: NULL y ningún recurso abierto.
+ */
 static SistemaArchivo *sistema_archivo_abrir(const char *ruta, const char *modo, char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	(void)ruta;
@@ -5070,6 +7508,10 @@ static SistemaArchivo *sistema_archivo_abrir(const char *ruta, const char *modo,
 }
 
 /* No hay manejador real que cerrar en el stub actual. */
+/**
+ * Stub embebido de cierre; archivo y contexto se ignoran porque no hay manejador real.
+ * Entrada de ejemplo: sistema_archivo_cerrar(NULL,NULL,0). Salida de ejemplo: -1.
+ */
 static int sistema_archivo_cerrar(SistemaArchivo *archivo, char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	(void)archivo;
@@ -5078,6 +7520,11 @@ static int sistema_archivo_cerrar(SistemaArchivo *archivo, char *error_o_datos_a
 }
 
 /* El borrado requiere la política y soporte del medio que se seleccione. */
+/**
+ * Stub embebido de eliminación; ruta y contexto se ignoran.
+ * Entrada de ejemplo: sistema_archivo_eliminar("datos.txt",NULL,0).
+ * Salida de ejemplo: -1; no se elimina ningún archivo.
+ */
 static int sistema_archivo_eliminar(const char *ruta, char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	(void)ruta;
@@ -5086,6 +7533,11 @@ static int sistema_archivo_eliminar(const char *ruta, char *error_o_datos_a_reto
 }
 
 /* El renombrado debe implementarse según lo que permita el almacenamiento. */
+/**
+ * Stub embebido de renombrado; origen, destino y contexto se ignoran.
+ * Entrada de ejemplo: sistema_archivo_renombrar("a","b",NULL,0).
+ * Salida de ejemplo: -1; no se renombra nada.
+ */
 static int sistema_archivo_renombrar(const char *origen, const char *destino, char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	(void)origen;
@@ -5095,6 +7547,12 @@ static int sistema_archivo_renombrar(const char *origen, const char *destino, ch
 }
 
 /* Indica fin de entrada porque el stub no está conectado a un lector físico. */
+/**
+ * Stub embebido de lectura de carácter: no hay periférico de entrada conectado.
+ * Entrada: manejador y contexto se ignoran.
+ * Entrada de ejemplo: sistema_archivo_leer_caracter(NULL,NULL,0).
+ * Salida de ejemplo: SISTEMA_ARCHIVO_FIN_LECTURA.
+ */
 static int sistema_archivo_leer_caracter(SistemaArchivo *archivo, char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	(void)archivo;
@@ -5103,6 +7561,11 @@ static int sistema_archivo_leer_caracter(SistemaArchivo *archivo, char *error_o_
 }
 
 /* El stub no acepta escrituras hasta contar con backend real. */
+/**
+ * Stub embebido de escritura de carácter; manejador, byte y contexto se ignoran.
+ * Entrada de ejemplo: sistema_archivo_escribir_caracter(NULL,'X',NULL,0).
+ * Salida de ejemplo: -1, sin escribir.
+ */
 static int sistema_archivo_escribir_caracter(SistemaArchivo *archivo, int caracter, char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	(void)archivo;
@@ -5112,6 +7575,11 @@ static int sistema_archivo_escribir_caracter(SistemaArchivo *archivo, int caract
 }
 
 /* El stub no persiste texto hasta contar con backend real. */
+/**
+ * Stub embebido de escritura de texto; manejador, cadena y contexto se ignoran.
+ * Entrada de ejemplo: sistema_archivo_escribir_texto(NULL,"Hola",NULL,0).
+ * Salida de ejemplo: -1; no se escribe texto.
+ */
 static int sistema_archivo_escribir_texto(SistemaArchivo *archivo, const char *texto, char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	(void)archivo;
@@ -5121,6 +7589,11 @@ static int sistema_archivo_escribir_texto(SistemaArchivo *archivo, const char *t
 }
 
 /* Mientras el backend no exista, toda consulta de error debe ser conservadora. */
+/**
+ * Reporta error mientras el backend embebido siga sin implementación.
+ * Entrada: manejador y contexto se ignoran.
+ * Entrada de ejemplo: sistema_archivo_hay_error(NULL,NULL,0). Salida de ejemplo: 1.
+ */
 static int sistema_archivo_hay_error(SistemaArchivo *archivo, char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	(void)archivo;
@@ -5131,6 +7604,12 @@ static int sistema_archivo_hay_error(SistemaArchivo *archivo, char *error_o_dato
 
 #if defined(PLATAFORMA_WINDOWS) || defined(PLATAFORMA_LINUX)
 /* Backends de consola de escritorio; aquí, y solo aquí, se usa stdio. */
+/**
+ * Lee un carácter de la consola en Windows/Linux y normaliza CR/CRLF a '\n'.
+ * Entradas: error_o_datos_a_retornar y nivel_de_profundidad son contexto común
+ * (el nivel se ignora). Devuelve el byte leído o SISTEMA_ARCHIVO_FIN_LECTURA al EOF.
+ * Entrada de ejemplo: stdin entrega 'A'. Salida de ejemplo: devuelve 'A' (65).
+ */
 static int sistema_consola_leer_caracter(char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	(void)nivel_de_profundidad;
@@ -5163,6 +7642,13 @@ static int sistema_consola_leer_caracter(char *error_o_datos_a_retornar,int nive
 }
 
 /* Escribe un carácter a salida estándar; 0=éxito y -1=fallo. */
+/**
+ * Escribe un carácter en stdout.
+ * Entradas: caracter es el byte; error/profundidad son contexto común y se ignoran.
+ * Devuelve 0 si fputc tiene éxito o -1 si falla.
+ * Entrada de ejemplo: sistema_consola_escribir_caracter('X',NULL,0).
+ * Salida de ejemplo: devuelve 0 y stdout recibe "X" (sin salto de línea).
+ */
 static int sistema_consola_escribir_caracter(int caracter, char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	(void)nivel_de_profundidad;
@@ -5170,6 +7656,13 @@ static int sistema_consola_escribir_caracter(int caracter, char *error_o_datos_a
 }
 
 /* Escribe una cadena completa y vacía la salida para que los prompts aparezcan. */
+/**
+ * Escribe una cadena completa en stdout y fuerza el vaciado del búfer.
+ * Entradas: texto es la cadena; error/profundidad son contexto común.
+ * Devuelve 0 si escritura y fflush tienen éxito; -1 si texto es NULL o hay error.
+ * Entrada de ejemplo: sistema_consola_escribir_texto("Hola",NULL,0).
+ * Salida de ejemplo: devuelve 0 y stdout recibe "Hola".
+ */
 static int sistema_consola_escribir_texto(const char *texto, char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	(void)nivel_de_profundidad;
@@ -5178,6 +7671,11 @@ static int sistema_consola_escribir_texto(const char *texto, char *error_o_datos
 }
 #elif defined(PLATAFORMA_SEMICONDUCTOR)
 /* Reemplazar con lectura del periférico elegido, por ejemplo UART. */
+/**
+ * Stub embebido de lectura de consola; error/profundidad se ignoran.
+ * Entrada de ejemplo: sistema_consola_leer_caracter(NULL,0).
+ * Salida de ejemplo: SISTEMA_ARCHIVO_FIN_LECTURA, al no existir periférico conectado.
+ */
 static int sistema_consola_leer_caracter(char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	(void)nivel_de_profundidad;
@@ -5185,6 +7683,11 @@ static int sistema_consola_leer_caracter(char *error_o_datos_a_retornar,int nive
 }
 
 /* Stub de salida de byte: no reporta éxito sin un periférico real. */
+/**
+ * Stub embebido de salida de carácter; caracter y nivel se ignoran.
+ * Entrada de ejemplo: sistema_consola_escribir_caracter('X',NULL,0).
+ * Salida de ejemplo: -1, sin enviar el byte a un periférico.
+ */
 static int sistema_consola_escribir_caracter(int caracter, char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	(void)caracter;
@@ -5193,6 +7696,11 @@ static int sistema_consola_escribir_caracter(int caracter, char *error_o_datos_a
 }
 
 /* Stub de salida de texto; lo implementará el backend de consola PIC16F. */
+/**
+ * Stub embebido de salida de texto; texto y nivel se ignoran.
+ * Entrada de ejemplo: sistema_consola_escribir_texto("Hola",NULL,0).
+ * Salida de ejemplo: -1, no se escribe porque aún no hay backend.
+ */
 static int sistema_consola_escribir_texto(const char *texto, char *error_o_datos_a_retornar,int nivel_de_profundidad)
 {
 	(void)texto;
@@ -5223,6 +7731,17 @@ static int sistema_consola_escribir_texto(const char *texto, char *error_o_datos
  *
  * Devuelve una cadena nueva que pertenece al llamador.
  * Devuelve NULL si falla una conversión, el tamaño o la reserva.
+ */
+/**
+ * Construye y registra una traza anteponiendo el separador de nivel y el código.
+ * Entradas: codigo es el estado; informacion y funcion_llamante se conservan por
+ * compatibilidad pero no se incorporan; resultado_anterior es la traza a anexar
+ * (NULL equivale a vacío); error_o_datos_a_retornar se pasa al allocator; nivel
+ * selecciona el separador. Salida: cadena nueva o NULL si nivel, conversión,
+ * reserva o registro del último retorno fallan. El llamador libera la cadena.
+ * Entrada de ejemplo: codigo=0, informacion="ok", resultado_anterior="",
+ * funcion_llamante="demo", nivel_de_profundidad=0.
+ * Salida de ejemplo: devuelve "|0" y actualiza el último retorno a "|0".
  */
 char *crearResultado(
     int codigo,
@@ -5353,6 +7872,14 @@ char *crearResultado(
  * Imprime un mensaje de depuración con formato printf.
  * En PIC16F, el mensaje se limita al tamaño del buffer.
  */
+/**
+ * Emite en consola un mensaje con formato printf; PIC limita el texto al buffer.
+ * Entradas: error_o_datos_a_retornar y nivel son contexto; format y los argumentos
+ * variables definen el texto. Efecto: imprime, sin valor de retorno; format NULL
+ * no produce salida.
+ * Entrada de ejemplo: imprimirMensaje_para_depurar(NULL,0,"ID=%d\n",7).
+ * Salida de ejemplo: stdout recibe "ID=7\n" en Windows/Linux.
+ */
 void imprimirMensaje_para_depurar(char *error_o_datos_a_retornar,int nivel_de_profundidad, const char *format, ...)
 {
 	(void)nivel_de_profundidad;
@@ -5387,6 +7914,14 @@ void imprimirMensaje_para_depurar(char *error_o_datos_a_retornar,int nivel_de_pr
 /*
  * Imprime un arreglo de cadenas. Si total <= 0, contenido debe terminar
  * en NULL; de lo contrario se imprimen exactamente total elementos.
+ */
+/**
+ * Imprime elementos de un arreglo de cadenas, con prefijo e índices.
+ * Entradas: error y nivel son contexto; contenido es el arreglo; texto es prefijo
+ * opcional (por defecto "celda"); total>0 fija el número de elementos; con total<=0
+ * se requiere terminador NULL. Efecto: imprime y no modifica el arreglo.
+ * Entrada de ejemplo: contenido={"uno","dos",NULL}, texto="parte", total=2.
+ * Salida de ejemplo: stdout muestra "\nparte[0]: uno\nparte[1]: dos".
  */
 void imprimirMensaje_para_depurar_arreglo(
 	char *error_o_datos_a_retornar,int nivel_de_profundidad,
@@ -5496,6 +8031,12 @@ void imprimirMensaje_para_depurar_arreglo(
 /*
  * Pausa la ejecución usando el mecanismo disponible en la plataforma.
  */
+/**
+ * Suspende la ejecución el intervalo indicado usando el mecanismo de la plataforma.
+ * Entrada: ms es la duración en milisegundos. Efecto: pausa el proceso; no retorna dato.
+ * Entrada de ejemplo: delay_ms(1). Salida de ejemplo: void; en Windows/Linux/PIC
+ * espera aproximadamente 1 ms (la precisión depende del sistema operativo/reloj).
+ */
 void delay_ms(unsigned int ms)
 {
 #if defined(_WIN32) || defined(_WIN64)
@@ -5521,6 +8062,15 @@ void delay_ms(unsigned int ms)
 /*
  * Escribe la fecha en un buffer de al menos 20 bytes.
  * El formato se usa en escritorio; el backend embebido usa una fecha simulada.
+ */
+/**
+ * Escribe la fecha/hora actual formateada en buffer; PIC usa una fecha fija simulada.
+ * Entradas: buffer debe tener al menos 20 bytes; formato es el patrón strftime en
+ * escritorio (en PIC se ignora). Efecto: escribe la fecha terminada en NUL; si
+ * buffer es NULL no hace nada y ante formato inválido/escritura fallida lo vacía.
+ * Entrada de ejemplo: en PIC, buffer con capacidad >=20 y formato="%Y".
+ * Salida de ejemplo: buffer recibe exactamente "01/01/2000 00:00"; en escritorio,
+ * una máscara "%Y-%m-%d" produce la fecha local del día de ejecución.
  */
 void fechaActual(char *buffer, const char *formato)
 {
@@ -5555,6 +8105,17 @@ void fechaActual(char *buffer, const char *formato)
 /*
  * Menú de pruebas manuales para primitivas y funciones auxiliares.
  * Las pruebas de archivos se limitan a nombres temporales de esta prueba.
+ */
+/**
+ * Ejecuta el menú interactivo de pruebas auxiliares según la opción seleccionada.
+ * Entradas: error_o_datos_a_retornar acumula errores de consola; nivel es la
+ * profundidad de traza; opcion_seleccionada elige la acción inicial (0 muestra menú).
+ * Efectos: puede leer consola, imprimir resultados y crear/eliminar archivos de prueba;
+ * devuelve -1 ante fallo de entrada o de una prueba seleccionada, y el estado de
+ * la acción/menú en los demás casos.
+ * Entrada de ejemplo: opcion_seleccionada=0, el usuario escribe "7" en el menú.
+ * Salida de ejemplo: retorna 0 y vuelve al menú superior; imprime el menú y la
+ * solicitud de opción antes de leer el "7".
  */
 static int submenu_pruebas_auxiliares(char *error_o_datos_a_retornar,int nivel_de_profundidad,int opcion_seleccionada)
 {
@@ -5949,6 +8510,14 @@ static int submenu_pruebas_auxiliares(char *error_o_datos_a_retornar,int nivel_d
  * Extrae el código inicial de una traza, con o sin separador inicial.
  * Ejemplos: "°-2¬1" y "-2|error" guardan -2 y devuelven 1.
  */
+  /**
+   * Extrae el código entero inicial de una traza y admite un separador opcional.
+   * Entradas: error_o_datos_a_retornar y nivel son contexto (el nivel se ignora);
+   * texto es la traza; codigo apunta a la salida. Devuelve 1 al analizar y 0 si
+   * los argumentos o el formato no son válidos.
+   * Entrada de ejemplo: texto="°-2¬1" y *codigo=0.
+   * Salida de ejemplo: devuelve 1 y *codigo pasa de 0 a -2.
+   */
   static int leerCodigoResultado(char *error_o_datos_a_retornar,int nivel_de_profundidad, const char *texto, int *codigo)
  {
 	const char *inicio;
@@ -6000,13 +8569,26 @@ static int submenu_pruebas_auxiliares(char *error_o_datos_a_retornar,int nivel_d
 	return textoAEnteroN(inicio, (size_t)(fin - inicio), codigo);
  }
 
-/* Interpreta como error un código negativo o una cadena de resultado inválida. */
+/**
+ * Indica si una cadena de resultado es inválida o contiene un código negativo.
+ * Entradas: error_o_datos_a_retornar y nivel son contexto; texto es la traza.
+ * Devuelve 1 para error/forma inválida y 0 para código válido no negativo.
+ * Entrada de ejemplo: resultadoTieneError(NULL,0,"°-2").
+ * Salida de ejemplo: 1; con "°0" la salida sería 0.
+ */
  static int resultadoTieneError(char *error_o_datos_a_retornar,int nivel_de_profundidad, const char *texto)
  {
  	int codigo;
  	return !leerCodigoResultado(error_o_datos_a_retornar, nivel_de_profundidad, texto, &codigo) || codigo < 0;
  }
 
+/**
+ * Guarda una copia independiente del texto como último retorno estándar global.
+ * Entrada: texto es la cadena a copiar. Devuelve 1 si la copia se registra o 0
+ * si texto es NULL/no se puede reservar; sustituye y libera el valor anterior.
+ * Entrada de ejemplo: actualizar_ultimo_retorno("°1"), con memoria disponible.
+ * Salida de ejemplo: devuelve 1 y GG_ultimo_retorno_estandar pasa a contener "°1".
+ */
  static int actualizar_ultimo_retorno(const char *texto)
  {
  	if(texto == NULL) return 0;
@@ -6022,6 +8604,14 @@ static int submenu_pruebas_auxiliares(char *error_o_datos_a_retornar,int nivel_d
  	return 1;
  }
 
+ /**
+  * Añade un texto no vacío al acumulador global de retornos de proceso.
+  * Entrada: texto es el segmento a anexar. Devuelve 1 si lo agrega, 0 si es NULL/
+  * vacío y -1 ante desbordamiento o fallo de redimensionamiento. Entre segmentos
+  * usa el marcador de transferencia configurado.
+  * Entrada de ejemplo: acumulador="primero", acumular_retorno_proceso("segundo").
+  * Salida de ejemplo: devuelve 1 y el acumulador queda "primero■segundo".
+  */
  int acumular_retorno_proceso(const char *texto)
  {
  	if(texto == NULL || texto[0] == '\0') return 0;
@@ -6058,12 +8648,25 @@ static int submenu_pruebas_auxiliares(char *error_o_datos_a_retornar,int nivel_d
  	return 1;
  }
 
+ /**
+  * Libera y reinicia el acumulador global de retornos de proceso.
+  * Entrada: ninguna. Efecto: libera el bloque y deja el puntero global en NULL.
+  * Entrada de ejemplo: GG_acumulador_retorno_procesos="uno■dos".
+  * Salida de ejemplo: void; GG_acumulador_retorno_procesos pasa a NULL.
+  */
  void limpiar_retorno_procesos(void)
  {
  	sistema_memoria_liberar(GG_acumulador_retorno_procesos, NULL, 0);
  	GG_acumulador_retorno_procesos = NULL;
  }
 
+ /**
+  * Obtiene el puntero global al último resultado estándar formateado.
+  * Entrada: ninguna. Salida: puntero de solo lectura gestionado por el módulo;
+  * puede ser NULL antes de que se registre un resultado.
+  * Entrada de ejemplo: tras crearResultado(1,...,nivel=0).
+  * Salida de ejemplo: devuelve un puntero a "|1" (no liberar desde el llamador).
+  */
  const char *obtener_ultimo_retorno_formateado(void)
  {
  	return GG_ultimo_retorno_estandar;
