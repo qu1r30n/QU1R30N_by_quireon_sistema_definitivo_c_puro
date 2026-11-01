@@ -55,6 +55,8 @@
 
  #include <string.h>     /* strlen, memcpy, strcmp y otras operaciones portables de texto. */
 
+ #include <errno.h>      /* errno para validar conversiones numericas del modulo de afiliados. */
+
  #include <stddef.h>     /* size_t y NULL. */
 
  #include <limits.h>     /* INT_MIN, INT_MAX y CHAR_BIT para conversiones con límites seguros. */
@@ -288,8 +290,13 @@ static const GG_SeccionNegocio GG_secciones_negocio[] = {
 	{"Productos no inventariados", "CONFIG/INF/INVENTARIO/COSAS_NO_ESTABAN.TXT", "_00_ID°_01_COD_BAR°_02_NOMBRE"},
 	{"Proveedores", "CONFIG/INF/DAT/PROVEDORES.TXT",
 		"_00_ID_EMPRESA°_01_NOMBRE_EMPRESA°_02_NOMBRE_ENCARGADO°_03_DIRECCIÓN_EMPRESA°_04_CIUDAD_EMPRESA°_05_ESTADO_EMPRESA°_06_CÓDIGO_POSTAL°_07_PAÍS°_08_CORREO_ELECTRÓNICO°_09_TELÉFONO_ENCARGADO°_10_TELEFONO_EMPRESA°_11_TIPO_DE_PROVEEDOR°_12_PRODUCTOS_SERVICIOS_SUMINISTRADOS°_13_CUENTA_BANCO°_14_UBICACIÓN_(GPS)°_15_NOTAS°_16_RECORDATORIO°_17_ACTIVO_O_NO_ACTIVO°_18_CALIFICACIÓN°_19_COMENTARIOS°_20_SUCURSALES_QUE_LE_COMPRAN°_21_DINERO_A_COMPRARLE°_22_DIAS_DE_PREVENTA°_23_DIAS_DE_ENTREGA"},
+	/*
+	 * RELACION_PROYECTO_TABLA_ID_TIPO usa:
+	 * TIPO_RELACION¬PROYECTO/TABLA¬ID, con TIPO_RELACION igual a
+	 * PATROCINADOR o ENCARGADO. Cada registro guarda una sola relacion.
+	 */
 	{"Afiliados", "CONFIG/AFILIADOS/AFILIADOS_UNIFICADO.TXT",
-		"_00_ID°_01_NOMBRE°_02_APELLIDO_PATERNO°_03_APELLIDO_MATERNO°_04_FECHA_DE_NACIMIENTO°_05_GÉNERO°_06_DIRECCIÓN°_07_CIUDAD°_08_ESTADO_PROVINCIA°_09_CÓDIGO_POSTAL°_10_PAÍS°_11_CORREO_ELECTRÓNICO°_12_TELÉFONO°_13_FECHA_DE_INGRESO°_14_SUELDO°_15_CARGO°_16_ESTADO_DE_CURS_APRENDIS_E°_17_SUPERVISOR°_18_NOTAS°_19_IDS_DE_AFILIADOS°_20_FECHA_DE_TERMINACIÓN°_21_MOTIVO_DE_TERMINACIÓN°_22_HORAS_TRABAJADAS°_23_EVALUACIONES_DE_DESEMPEÑO°_24_HABILIDADES_Y_CERTIFICACIONES°_25_IDIOMAS°_26_FECHA_DE_ÚLTIMA_PROMOCIÓN°_27_ID_DEPARTAMENTO°_28_HISTORIAL_DE_CAPACITACIÓN°_29_ÚLTIMO_AUMENTO_DE_SALARIO°_30_TIPO_EMPLEADO°_31_RANGO_CALIF°_32_ID_PATROCINADOR°_33_ID_ENCARGADO°_34_PUNTOS_A_P°_35_REG_PUNTOS_DIA°_36_REG_PUNTOS_MES°_37_REG_PUNTOS_AÑO°_38_REG_PUNTOS_TOTAL°_39_NIVEL°_40_FECHA_ASIGNACION°_40_ESTADO_DEL_USUARIO"},
+		"_00_ID°_01_NOMBRE°_02_APELLIDO_PATERNO°_03_APELLIDO_MATERNO°_04_FECHA_DE_NACIMIENTO°_05_GÉNERO°_06_DIRECCIÓN°_07_CIUDAD°_08_ESTADO_PROVINCIA°_09_CÓDIGO_POSTAL°_10_PAÍS°_11_CORREO_ELECTRÓNICO°_12_TELÉFONO°_13_FECHA_DE_INGRESO°_14_SUELDO°_15_CARGO°_16_ESTADO_DE_CURS_APRENDIS_E°_17_SUPERVISOR°_18_NOTAS°_19_IDS_DE_AFILIADOS°_20_FECHA_DE_TERMINACIÓN°_21_MOTIVO_DE_TERMINACIÓN°_22_HORAS_TRABAJADAS°_23_EVALUACIONES_DE_DESEMPEÑO°_24_HABILIDADES_Y_CERTIFICACIONES°_25_IDIOMAS°_26_FECHA_DE_ÚLTIMA_PROMOCIÓN°_27_ID_DEPARTAMENTO°_28_HISTORIAL_DE_CAPACITACIÓN°_29_ÚLTIMO_AUMENTO_DE_SALARIO°_30_TIPO_EMPLEADO°_31_RANGO_CALIF°_32_RELACION_PROYECTO_TABLA_ID_TIPO°_33_PUNTOS_RECIBIDOS_TOTALES°_34_REG_PUNTOS_DIA°_35_REG_PUNTOS_MES°_36_REG_PUNTOS_AÑO°_37_REG_PUNTOS_TOTAL°_38_NIVEL°_39_FECHA_ASIGNACION°_40_ESTADO_DEL_USUARIO°_41_PUNTOS_DE_PROYECTO_A_RECIBIR°_42_ID_HORIZONTAL°_43_TIPO_AFILIADO"},
 	{"Sucursales", "CONFIG/INF/DAT/SUCUR.TXT",
 		"_00_ID°_01_NOM_ID_SUCUR°_02_NOMBRE_SUCUR°_03_NOMBRE_ENCARGADO°_04_DIRECCIÓN_SUCUR°_05_CIUDAD_SUCUR°_06_ESTADO_SUCUR°_07_CÓDIGO_POSTAL°_08_PAÍS°_09_CORREO_ELECTRÓNICO°_10_TELÉFONO_ENCARGADO°_11_TELEFONO_SUCUR°_12_TIPO_DE_SUCUR°_13_PRODUCTOS_SERVICIOS°_14_CUENTA_BANCO°_15_UBICACIÓN_(GPS)°_16_NOTAS°_17_RECORDATORIO°_18_ACTIVO_O_NO_ACTIVO°_19_HORA_ABRIR_CERRAR"},
 	{"Registros diarios", "CONFIG/INF/REGISTROS/FECHAS/AAAA/AAAAMM/AAAAMMDD_REGISTRO.TXT",
@@ -487,6 +494,7 @@ const char *obtener_ultimo_retorno_formateado(void);
  void fechaActual(char *buffer, const char *formato);
  static int submenu_pruebas_auxiliares(char *error_o_datos_a_retornar,int nivel_de_profundidad,int opcion_seleccionada);
  static int probar_almacenamiento_dividido(char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ static int submenu_pruebas_proceso_mul(char *error_o_datos_a_retornar,int nivel_de_profundidad);
  static int leerCodigoResultado(char *error_o_datos_a_retornar,int nivel_de_profundidad, const char *texto, int *codigo);
  static int resultadoTieneError(char *error_o_datos_a_retornar,int nivel_de_profundidad, const char *texto);
 
@@ -515,7 +523,7 @@ const char *obtener_ultimo_retorno_formateado(void);
 * Propósito: mostrar el menú de pruebas y codificar la acción elegida.
 * Entrada: nivel_de_profundidad indica la profundidad para registrar el resultado.
 * Salida y efectos: devuelve una cadena asignada con el protocolo de transferencia o un resultado de error; escribe el menú en consola.
-* Entrada de ejemplo: prueba(0), con entrada de consola "7".
+* Entrada de ejemplo: prueba(0), con entrada de consola "8".
 * Salida de ejemplo: "QU1R30N_SISTEMA_DEFINITIVO┴prueba■salir■0■INFORMACION_ESPEJO_NO_SE_MODIFICA".
 */
 char* prueba(int nivel_de_profundidad)
@@ -542,7 +550,8 @@ char* prueba(int nivel_de_profundidad)
 	 * 5 = catálogo; ejemplo: "5", luego "1" imprime las rutas de inventario.
 	 * 6 = espacios/permisos; muestra otro menú y puede crear archivos reales
 	 *     solo después de confirmar "SI".
-	 * 7 = volver; genera el comando "salir" para que main retorne al menú previo.
+	 * 7 = pruebas provisionales del proceso de afiliados y comisiones.
+	 * 8 = volver; genera el comando "salir" para que main retorne al menú previo.
 	 * La entrada recibida aquí siempre es el número del menú principal.
 	 */
 	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "\n=== MENÚ DE PRUEBAS ===\n");
@@ -552,7 +561,8 @@ char* prueba(int nivel_de_profundidad)
 	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "4. Probar funciones auxiliares e infraestructura\n");
 	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "5. Navegar el catálogo del negocio\n");
 	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "6. Probar espacios, permisos y estructuras\n");
-	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "7. Volver al menú principal\n");
+	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "7. Probar proceso de afiliados y comisiones (provisional)\n");
+	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "8. Volver al menú principal\n");
 	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "Seleccione una opción: ");
 
 	char *entrada = leerLineaConsola(error_o_datos_a_retornar,nivel_de_profundidad);
@@ -865,7 +875,7 @@ char* prueba(int nivel_de_profundidad)
 			 * -> intenta crear el espacio y muestra el nombre con folio.
 			 */
 			comando = "pruebas_auxiliares";
-			opcionSubmenu = 7;
+			opcionSubmenu = 9;
 			if(submenu_pruebas_espacios(
 				error_o_datos_a_retornar, nivel_de_profundidad) != 0)
 			{
@@ -877,8 +887,20 @@ char* prueba(int nivel_de_profundidad)
 			break;
 		}
 		case 7:
+			comando = "pruebas_auxiliares";
+			opcionSubmenu = 9;
+			if(submenu_pruebas_proceso_mul(
+				error_o_datos_a_retornar, nivel_de_profundidad) != 0)
 			{
-				/* Entrada 7 del menú principal: se recibe la orden de salir y main vuelve al menú anterior. */
+				sistema_consola_escribir_formato(
+					error_o_datos_a_retornar, 0,
+					"La prueba provisional de afiliados terminó con error.\n");
+			}
+			accionSubmenu = concatenar("%s", "volver");
+			break;
+		case 8:
+			{
+				/* Entrada 8 del menú principal: se recibe la orden de salir y main vuelve al menú anterior. */
 				char *salida = concatenar(
 					"%s%s%s%s%s%s%d%s%s",
 					GG_id_programa,
@@ -9287,3 +9309,804 @@ limpiar:
 
 
  #pragma endregion FUNCIONES_DE_DEPURACION
+
+/*
+ * MODULO PROVISIONAL proceso_mul
+ * Estas funciones se dejaron al final para que sus contratos y reglas de
+ * negocio puedan revisarse antes de considerarlos definitivos.
+ */
+typedef struct proceso_mul
+{
+	const char *separador_columnas;
+	const char *separador_relacion;
+	const char *columnas_afiliados;
+} proceso_mul;
+
+static char *pm_copiar_texto(const char *texto)
+{
+	if(texto == NULL) texto = "";
+	size_t longitud = strlen(texto) + 1;
+	char *copia = sistema_memoria_reservar(longitud, NULL, 0);
+	if(copia != NULL) memcpy(copia, texto, longitud);
+	return copia;
+}
+
+static int pm_convertir_double(const char *texto, double *salida)
+{
+	if(texto == NULL || texto[0] == '\0' || salida == NULL) return 0;
+	char *fin = NULL;
+	errno = 0;
+	double valor = strtod(texto, &fin);
+	if(errno != 0 || fin == texto || *fin != '\0') return 0;
+	*salida = valor;
+	return 1;
+}
+
+static char *pm_formatear_double(double valor)
+{
+	return variable_string("%.15g", valor);
+}
+
+static int pm_texto_sin_separadores(const char *texto, const char *separador)
+{
+	if(texto == NULL || separador == NULL || separador[0] == '\0') return 0;
+	return strstr(texto, separador) == NULL &&
+		strchr(texto, '\n') == NULL && strchr(texto, '\r') == NULL;
+}
+
+static void pm_reemplazar_campo(char **campos, int indice, const char *valor)
+{
+	if(campos == NULL || indice < 0 || indice >= 44) return;
+	sistema_memoria_liberar(campos[indice], NULL, 0);
+	campos[indice] = pm_copiar_texto(valor);
+}
+
+void proceso_mul_inicializar(proceso_mul *p)
+{
+	if(p == NULL) return;
+	p->separador_columnas = GG_caracter_separacion[1];
+	p->separador_relacion = GG_caracter_separacion[2];
+	p->columnas_afiliados = GG_secciones_negocio[4].columnas;
+}
+
+static int pm_obtener_fila_afiliado(
+	const proceso_mul *p,
+	const char *ruta,
+	const char *id_afiliado,
+	const char *relacion,
+	char **fila_salida,
+	int *numero_linea_salida,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	if(fila_salida != NULL) *fila_salida = NULL;
+	if(numero_linea_salida != NULL) *numero_linea_salida = 0;
+	if(p == NULL || ruta == NULL || id_afiliado == NULL ||
+		fila_salida == NULL || numero_linea_salida == NULL) return -1;
+
+	SistemaArchivo *archivo = sistema_archivo_abrir(
+		ruta, "r", error_o_datos_a_retornar, nivel_de_profundidad);
+	if(archivo == NULL) return -1;
+
+	char *fila_base = NULL;
+	int linea_base = 0;
+	int linea_actual = 0;
+	int estado = 0;
+	char *linea = NULL;
+	while((linea = leerLineaDinamica(
+		archivo, error_o_datos_a_retornar, nivel_de_profundidad)) != NULL)
+	{
+		linea_actual++;
+		if(linea_actual == 1)
+		{
+			if(strcmp(linea, p->columnas_afiliados) != 0) estado = -2;
+			sistema_memoria_liberar(linea, error_o_datos_a_retornar, 0);
+			if(estado == -2) break;
+			continue;
+		}
+
+		int cantidad = 0;
+		char **campos = split(
+			linea, p->separador_columnas, &cantidad,
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		if(campos == NULL)
+		{
+			sistema_memoria_liberar(linea, error_o_datos_a_retornar, 0);
+			estado = -1;
+			break;
+		}
+		if(cantidad == 44 && strcmp(campos[0], id_afiliado) == 0)
+		{
+			int coincidencia_relacion = relacion != NULL &&
+				strcmp(campos[32], relacion) == 0;
+			if(coincidencia_relacion)
+			{
+				*fila_salida = pm_copiar_texto(linea);
+				*numero_linea_salida = linea_actual;
+				estado = *fila_salida != NULL ? 1 : -1;
+				liberarSplit(campos, cantidad, error_o_datos_a_retornar, 0);
+				sistema_memoria_liberar(linea, error_o_datos_a_retornar, 0);
+				break;
+			}
+			if(fila_base == NULL)
+			{
+				fila_base = pm_copiar_texto(linea);
+				linea_base = linea_actual;
+				if(fila_base == NULL) estado = -1;
+			}
+		}
+		else if(strcmp(campos[0], id_afiliado) == 0 && cantidad != 44)
+		{
+			estado = -2;
+			liberarSplit(campos, cantidad, error_o_datos_a_retornar, 0);
+			sistema_memoria_liberar(linea, error_o_datos_a_retornar, 0);
+			break;
+		}
+		liberarSplit(campos, cantidad, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(linea, error_o_datos_a_retornar, 0);
+		if(estado == -1) break;
+	}
+
+	if(estado == 0 && linea_actual == 0) estado = -2;
+	if(sistema_archivo_hay_error(archivo, error_o_datos_a_retornar,
+		nivel_de_profundidad) != 0) estado = -1;
+	if(sistema_archivo_cerrar(archivo, error_o_datos_a_retornar,
+		nivel_de_profundidad) != 0) estado = -1;
+
+	if(estado < 0)
+	{
+		sistema_memoria_liberar(*fila_salida, error_o_datos_a_retornar, 0);
+		*fila_salida = NULL;
+		sistema_memoria_liberar(fila_base, error_o_datos_a_retornar, 0);
+		return estado;
+	}
+
+	if(estado == 0 && fila_base != NULL)
+	{
+		*fila_salida = fila_base;
+		*numero_linea_salida = linea_base;
+		fila_base = NULL;
+		estado = 2;
+	}
+	sistema_memoria_liberar(fila_base, error_o_datos_a_retornar, 0);
+	return estado;
+}
+
+/*
+ * Guarda una relacion por fila, copiando los campos personales existentes del
+ * afiliado. La fila debe usar el esquema actual de 44 columnas.
+ */
+char *registro_unificado_cod3_r(
+	proceso_mul *p,
+	const char *ruta_afiliados,
+	const char *id_afiliado,
+	const char *tipo_relacion,
+	const char *proyecto_tabla,
+	const char *id_relacionado,
+	const char *puntos_por_recibir,
+	const char *puntos_recibidos_totales,
+	const char *nivel,
+	const char *id_horizontal,
+	const char *tipo_afiliado,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	if(p == NULL || ruta_afiliados == NULL || id_afiliado == NULL ||
+		tipo_relacion == NULL || proyecto_tabla == NULL ||
+		id_relacionado == NULL || puntos_por_recibir == NULL ||
+		puntos_recibidos_totales == NULL || nivel == NULL ||
+		id_horizontal == NULL || tipo_afiliado == NULL)
+		return crearResultado(-1, "parametros_invalidos", "", __func__,
+			error_o_datos_a_retornar, nivel_de_profundidad);
+
+	const char *campos_validar[] = {
+		id_afiliado, tipo_relacion, proyecto_tabla, id_relacionado,
+		puntos_por_recibir, puntos_recibidos_totales, nivel,
+		id_horizontal, tipo_afiliado
+	};
+	for(size_t i = 0; i < sizeof(campos_validar) / sizeof(campos_validar[0]); ++i)
+	{
+		if(!pm_texto_sin_separadores(campos_validar[i], p->separador_columnas))
+			return crearResultado(-1, "campo_contiene_separador_de_columnas",
+				"", __func__, error_o_datos_a_retornar, nivel_de_profundidad);
+	}
+	if(!pm_texto_sin_separadores(tipo_relacion, p->separador_relacion) ||
+		!pm_texto_sin_separadores(proyecto_tabla, p->separador_relacion) ||
+		!pm_texto_sin_separadores(id_relacionado, p->separador_relacion))
+		return crearResultado(-1, "relacion_contiene_separador_reservado", "",
+			__func__, error_o_datos_a_retornar, nivel_de_profundidad);
+	if(strcmp(tipo_relacion, "PATROCINADOR") != 0 &&
+		strcmp(tipo_relacion, "ENCARGADO") != 0)
+		return crearResultado(-1, "tipo_relacion_no_valido",
+			"Use PATROCINADOR o ENCARGADO.", __func__,
+			error_o_datos_a_retornar, nivel_de_profundidad);
+
+	if(!existe_archivo(ruta_afiliados))
+		return crearResultado(-1, "archivo_afiliados_no_existe",
+			"Primero crea la tabla y el registro personal del afiliado.",
+			__func__, error_o_datos_a_retornar, nivel_de_profundidad);
+
+	char *relacion = variable_string(
+		"%s%s%s%s%s",
+		tipo_relacion, p->separador_relacion,
+		proyecto_tabla, p->separador_relacion, id_relacionado);
+	if(relacion == NULL)
+		return crearResultado(-1, "sin_memoria_para_relacion", "", __func__,
+			error_o_datos_a_retornar, nivel_de_profundidad);
+
+	char *fila_existente = NULL;
+	int numero_linea = 0;
+	int estado = pm_obtener_fila_afiliado(
+		p, ruta_afiliados, id_afiliado, relacion,
+		&fila_existente, &numero_linea,
+		error_o_datos_a_retornar, nivel_de_profundidad);
+	if(estado < 0)
+	{
+		sistema_memoria_liberar(relacion, error_o_datos_a_retornar, 0);
+		return crearResultado(-1,
+			estado == -2 ? "esquema_afiliados_incompatible_o_id_inexistente"
+				: "error_al_leer_afiliados",
+			"", __func__, error_o_datos_a_retornar, nivel_de_profundidad);
+	}
+	if(estado == 0)
+	{
+		sistema_memoria_liberar(relacion, error_o_datos_a_retornar, 0);
+		return crearResultado(-1, "id_afiliado_no_encontrado",
+			"Debe existir primero el registro personal del afiliado.",
+			__func__, error_o_datos_a_retornar, nivel_de_profundidad);
+	}
+
+	int cantidad = 0;
+	char **campos = split(
+		fila_existente, p->separador_columnas, &cantidad,
+		error_o_datos_a_retornar, nivel_de_profundidad);
+	if(campos == NULL || cantidad != 44)
+	{
+		liberarSplit(campos, cantidad, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(fila_existente, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(relacion, error_o_datos_a_retornar, 0);
+		return crearResultado(-1, "fila_afiliado_no_tiene_44_columnas", "",
+			__func__, error_o_datos_a_retornar, nivel_de_profundidad);
+	}
+
+	pm_reemplazar_campo(campos, 32, relacion);
+	pm_reemplazar_campo(campos, 33, puntos_recibidos_totales);
+	pm_reemplazar_campo(campos, 38, nivel);
+	pm_reemplazar_campo(campos, 41, puntos_por_recibir);
+	pm_reemplazar_campo(campos, 42, id_horizontal);
+	pm_reemplazar_campo(campos, 43, tipo_afiliado);
+	char *fila_nueva = join(
+		campos, cantidad, p->separador_columnas,
+		error_o_datos_a_retornar, nivel_de_profundidad);
+	liberarSplit(campos, cantidad, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(fila_existente, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(relacion, error_o_datos_a_retornar, 0);
+	if(fila_nueva == NULL)
+		return crearResultado(-1, "no_se_pudo_formar_fila_afiliado", "",
+			__func__, error_o_datos_a_retornar, nivel_de_profundidad);
+
+	char *resultado_operacion = estado == 1
+		? editarLinea(ruta_afiliados, numero_linea, fila_nueva,
+			error_o_datos_a_retornar, nivel_de_profundidad)
+		: escribirLinea(ruta_afiliados, fila_nueva,
+			error_o_datos_a_retornar, nivel_de_profundidad);
+	int error = resultadoTieneError(
+		error_o_datos_a_retornar, nivel_de_profundidad, resultado_operacion);
+	char *resultado = crearResultado(
+		error ? -1 : 1,
+		error ? "no_se_pudo_guardar_relacion" :
+			(estado == 1 ? "relacion_actualizada" : "relacion_agregada"),
+		"", __func__, error_o_datos_a_retornar, nivel_de_profundidad);
+	sistema_memoria_liberar(resultado_operacion, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(fila_nueva, error_o_datos_a_retornar, 0);
+	return resultado;
+}
+
+char *dinero_de_venta(
+	const char *cantidad,
+	const char *comision,
+	const char *tipo)
+{
+	double venta = 0.0, valor_comision = 0.0;
+	if(!pm_convertir_double(cantidad, &venta) ||
+		!pm_convertir_double(comision, &valor_comision))
+		return NULL;
+	double pago = tipo != NULL && strcmp(tipo, "DINERO") == 0
+		? valor_comision : venta * valor_comision / 100.0;
+	return pm_formatear_double(pago);
+}
+
+char *entrada_dinero_simple(
+	const char *cantidad,
+	const char *comisiones,
+	const char *tipo,
+	const char *separador)
+{
+	if(separador == NULL || separador[0] == '\0') return NULL;
+	int cantidad_comisiones = 0;
+	char **porcentajes = split(comisiones, separador, &cantidad_comisiones, NULL, 0);
+	if(porcentajes == NULL) return NULL;
+	char **pagos = sistema_memoria_reservar(
+		((size_t)cantidad_comisiones + 1) * sizeof(*pagos), NULL, 0);
+	if(pagos == NULL)
+	{
+		liberarSplit(porcentajes, cantidad_comisiones, NULL, 0);
+		return NULL;
+	}
+	memset(pagos, 0, ((size_t)cantidad_comisiones + 1) * sizeof(*pagos));
+	int correcto = 1;
+	for(int i = 0; i < cantidad_comisiones; ++i)
+	{
+		pagos[i] = dinero_de_venta(cantidad, porcentajes[i], tipo);
+		if(pagos[i] == NULL) { correcto = 0; break; }
+	}
+	char *resultado = correcto
+		? join(pagos, cantidad_comisiones, separador, NULL, 0)
+		: NULL;
+	liberarSplit(pagos, cantidad_comisiones, NULL, 0);
+	liberarSplit(porcentajes, cantidad_comisiones, NULL, 0);
+	return resultado;
+}
+
+static char *pm_buscar_patrocinador(
+	const char *ruta,
+	const char *id_usuario,
+	const char *proyecto,
+	const char *separador_columnas,
+	const char *separador_relacion,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	SistemaArchivo *archivo = sistema_archivo_abrir(
+		ruta, "r", error_o_datos_a_retornar, nivel_de_profundidad);
+	if(archivo == NULL) return NULL;
+	char *patrocinador = NULL;
+	char *linea = NULL;
+	int numero_linea = 0;
+	while((linea = leerLineaDinamica(
+		archivo, error_o_datos_a_retornar, nivel_de_profundidad)) != NULL)
+	{
+		if(numero_linea++ == 0)
+		{
+			sistema_memoria_liberar(linea, error_o_datos_a_retornar, 0);
+			continue;
+		}
+		int cantidad = 0;
+		char **campos = split(linea, separador_columnas, &cantidad,
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		sistema_memoria_liberar(linea, error_o_datos_a_retornar, 0);
+		if(campos == NULL) break;
+		if(cantidad == 44 && strcmp(campos[0], id_usuario) == 0)
+		{
+			int partes_relacion = 0;
+			char **partes = split(campos[32], separador_relacion,
+				&partes_relacion, error_o_datos_a_retornar, nivel_de_profundidad);
+			if(partes != NULL && partes_relacion == 3 &&
+				strcmp(partes[0], "PATROCINADOR") == 0 &&
+				strcmp(partes[1], proyecto) == 0)
+			{
+				patrocinador = pm_copiar_texto(partes[2]);
+				liberarSplit(partes, partes_relacion, error_o_datos_a_retornar, 0);
+				liberarSplit(campos, cantidad, error_o_datos_a_retornar, 0);
+				break;
+			}
+			liberarSplit(partes, partes_relacion, error_o_datos_a_retornar, 0);
+		}
+		liberarSplit(campos, cantidad, error_o_datos_a_retornar, 0);
+	}
+	if(sistema_archivo_hay_error(archivo, error_o_datos_a_retornar,
+		nivel_de_profundidad) != 0) patrocinador = NULL;
+	if(sistema_archivo_cerrar(archivo, error_o_datos_a_retornar,
+		nivel_de_profundidad) != 0)
+	{
+		sistema_memoria_liberar(patrocinador, error_o_datos_a_retornar, 0);
+		patrocinador = NULL;
+	}
+	return patrocinador;
+}
+
+static char *pm_extraer_cadena_patrocinadores(
+	const char *ruta,
+	const char *id_usuario,
+	const char *proyecto,
+	int profundidad,
+	const char *separador_retorno,
+	const proceso_mul *p,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	if(profundidad <= 0) return pm_copiar_texto("");
+	char *patrocinador = pm_buscar_patrocinador(
+		ruta, id_usuario, proyecto, p->separador_columnas,
+		p->separador_relacion, error_o_datos_a_retornar, nivel_de_profundidad);
+	if(patrocinador == NULL || patrocinador[0] == '\0') return patrocinador;
+	char *siguiente = pm_extraer_cadena_patrocinadores(
+		ruta, patrocinador, proyecto, profundidad - 1, separador_retorno,
+		p, error_o_datos_a_retornar, nivel_de_profundidad);
+	char *resultado = siguiente != NULL && siguiente[0] != '\0'
+		? variable_string("%s%s%s", patrocinador, separador_retorno, siguiente)
+		: pm_copiar_texto(patrocinador);
+	sistema_memoria_liberar(patrocinador, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(siguiente, error_o_datos_a_retornar, 0);
+	return resultado;
+}
+
+char *extraer_patrosinadores_funcion_recursiva(
+	const char *ruta,
+	const char *id_usuario,
+	const char *proyecto,
+	int cantidad,
+	const char *separador_retorno,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	if(ruta == NULL || id_usuario == NULL || proyecto == NULL ||
+		cantidad < 0 || cantidad > 100)
+		return NULL;
+	proceso_mul p;
+	proceso_mul_inicializar(&p);
+	if(separador_retorno == NULL || separador_retorno[0] == '\0')
+		separador_retorno = GG_caracter_separacion[0];
+	return pm_extraer_cadena_patrocinadores(
+		ruta, id_usuario, proyecto, cantidad, separador_retorno, &p,
+		error_o_datos_a_retornar, nivel_de_profundidad);
+}
+
+char *calc_din_por_enc_y_total(
+	const char *dinero,
+	const char *porcentajes_simples,
+	const char *porcentajes_complejos,
+	const char *comision_venta_compleja,
+	const char *separador_porcentajes)
+{
+	double importe = 0.0, comision_compleja = 0.0, total = 0.0;
+	if(!pm_convertir_double(dinero, &importe) ||
+		!pm_convertir_double(comision_venta_compleja, &comision_compleja) ||
+		separador_porcentajes == NULL || separador_porcentajes[0] == '\0')
+		return NULL;
+
+	const char *listas[2] = { porcentajes_simples, porcentajes_complejos };
+	char *pagos[2] = { NULL, NULL };
+	for(int grupo = 0; grupo < 2; ++grupo)
+	{
+		int cantidad = 0;
+		char **porcentajes = split(listas[grupo], separador_porcentajes,
+			&cantidad, NULL, 0);
+		if(porcentajes == NULL) goto fallo_calc_din;
+		char **montos = sistema_memoria_reservar(
+			((size_t)cantidad + 1) * sizeof(*montos), NULL, 0);
+		if(montos == NULL)
+		{
+			liberarSplit(porcentajes, cantidad, NULL, 0);
+			goto fallo_calc_din;
+		}
+		memset(montos, 0, ((size_t)cantidad + 1) * sizeof(*montos));
+		int correcto = 1;
+		for(int i = 0; i < cantidad; ++i)
+		{
+			double porcentaje = 0.0;
+			if(!pm_convertir_double(porcentajes[i], &porcentaje))
+			{
+				correcto = 0;
+				break;
+			}
+			double pago = grupo == 0
+				? importe * porcentaje / 100.0
+				: importe * comision_compleja / 100.0 * porcentaje / 100.0;
+			total += pago;
+			montos[i] = pm_formatear_double(pago);
+			if(montos[i] == NULL) { correcto = 0; break; }
+		}
+		if(correcto) pagos[grupo] = join(montos, cantidad,
+			separador_porcentajes, NULL, 0);
+		liberarSplit(montos, cantidad, NULL, 0);
+		liberarSplit(porcentajes, cantidad, NULL, 0);
+		if(!correcto || pagos[grupo] == NULL) goto fallo_calc_din;
+	}
+
+	char *total_texto = pm_formatear_double(total);
+	char *resultado = total_texto != NULL
+		? variable_string("%s%s%s%s%s",
+			pagos[0], GG_caracter_separacion_funciones_espesificas[1],
+			pagos[1], GG_caracter_separacion_funciones_espesificas[1],
+			total_texto)
+		: NULL;
+	sistema_memoria_liberar(total_texto, NULL, 0);
+	sistema_memoria_liberar(pagos[0], NULL, 0);
+	sistema_memoria_liberar(pagos[1], NULL, 0);
+	return resultado;
+
+fallo_calc_din:
+	sistema_memoria_liberar(pagos[0], NULL, 0);
+	sistema_memoria_liberar(pagos[1], NULL, 0);
+	return NULL;
+}
+
+char **acumulador_de_strings(
+	const char *texto,
+	int veces,
+	const char *separador_entrada,
+	const char *separador_salida)
+{
+	if(texto == NULL || veces < 0) return NULL;
+	if(separador_entrada == NULL || separador_entrada[0] == '\0')
+		separador_entrada = GG_caracter_separacion[0];
+	int cantidad = 0;
+	char **partes = split(texto, separador_entrada, &cantidad, NULL, 0);
+	if(partes == NULL) return NULL;
+	char **resultado = sistema_memoria_reservar(
+		((size_t)cantidad + 1) * sizeof(*resultado), NULL, 0);
+	if(resultado == NULL)
+	{
+		liberarSplit(partes, cantidad, NULL, 0);
+		return NULL;
+	}
+	memset(resultado, 0, ((size_t)cantidad + 1) * sizeof(*resultado));
+	for(int i = 0; i < cantidad; ++i)
+	{
+		resultado[i] = pm_copiar_texto("");
+		for(int repeticion = 0; repeticion < veces; ++repeticion)
+		{
+			char *nuevo = variable_string(
+				"%s%s%s",
+				resultado[i],
+				repeticion > 0 && separador_salida != NULL
+					? separador_salida : "",
+				partes[i]);
+			if(nuevo == NULL)
+			{
+				liberarSplit(resultado, cantidad, NULL, 0);
+				liberarSplit(partes, cantidad, NULL, 0);
+				return NULL;
+			}
+			sistema_memoria_liberar(resultado[i], NULL, 0);
+			resultado[i] = nuevo;
+		}
+		if(resultado[i] == NULL)
+		{
+			liberarSplit(resultado, cantidad, NULL, 0);
+			liberarSplit(partes, cantidad, NULL, 0);
+			return NULL;
+		}
+	}
+	liberarSplit(partes, cantidad, NULL, 0);
+	return resultado;
+}
+
+static char *pm_pedir_texto(
+	const char *solicitud,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	sistema_consola_escribir_formato(
+		error_o_datos_a_retornar, nivel_de_profundidad, "%s", solicitud);
+	return leerLineaConsola(error_o_datos_a_retornar, nivel_de_profundidad);
+}
+
+static int pm_pedir_entero(
+	const char *solicitud,
+	int *valor,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	char *texto = pm_pedir_texto(solicitud, error_o_datos_a_retornar,
+		nivel_de_profundidad);
+	if(texto == NULL) return 0;
+	int correcto = textoAEntero(texto, valor, error_o_datos_a_retornar,
+		nivel_de_profundidad);
+	sistema_memoria_liberar(texto, error_o_datos_a_retornar, 0);
+	return correcto;
+}
+
+static int submenu_pruebas_proceso_mul(
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	int opcion = 0;
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"\n=== PROCESO DE AFILIADOS (PROVISIONAL) ===\n"
+		"1. Registrar/actualizar relacion de afiliado\n"
+		"2. Calcular comision de una venta\n"
+		"3. Calcular comisiones simples\n"
+		"4. Buscar cadena de patrocinadores\n"
+		"5. Calcular pagos simples, complejos y total\n"
+		"6. Repetir elementos de una lista de texto\n"
+		"7. Volver\n");
+	if(!pm_pedir_entero("Seleccione una opcion: ", &opcion,
+		error_o_datos_a_retornar, nivel_de_profundidad)) return -1;
+
+	if(opcion == 7) return 0;
+	if(opcion < 1 || opcion > 6) return -1;
+
+	if(opcion == 1)
+	{
+		proceso_mul p;
+		proceso_mul_inicializar(&p);
+		char *ruta = pm_pedir_texto("Ruta de AFILIADOS_UNIFICADO.TXT: ",
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		char *id = pm_pedir_texto("ID del afiliado existente: ",
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		char *tipo_relacion = pm_pedir_texto(
+			"Tipo (PATROCINADOR o ENCARGADO): ",
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		char *proyecto = pm_pedir_texto("Proyecto/tabla: ",
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		char *id_relacionado = pm_pedir_texto("ID relacionado: ",
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		char *puntos_recibir = pm_pedir_texto("Puntos del proyecto por recibir: ",
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		char *puntos_total = pm_pedir_texto("Puntos recibidos totales: ",
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		char *nivel = pm_pedir_texto("Nivel: ",
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		char *horizontal = pm_pedir_texto("ID horizontal: ",
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		char *tipo_afiliado = pm_pedir_texto("Tipo de afiliado: ",
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		char *confirmacion = pm_pedir_texto(
+			"Se escribira el archivo. Escriba SI para confirmar: ",
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		int correcto = ruta != NULL && id != NULL && tipo_relacion != NULL &&
+			proyecto != NULL && id_relacionado != NULL && puntos_recibir != NULL &&
+			puntos_total != NULL && nivel != NULL && horizontal != NULL &&
+			tipo_afiliado != NULL && confirmacion != NULL &&
+			strcmp(confirmacion, "SI") == 0;
+		if(correcto)
+		{
+			char *resultado = registro_unificado_cod3_r(
+				&p, ruta, id, tipo_relacion, proyecto, id_relacionado,
+				puntos_recibir, puntos_total, nivel, horizontal, tipo_afiliado,
+				error_o_datos_a_retornar, nivel_de_profundidad);
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+				"Resultado: %s\n", resultado != NULL ? resultado : "(sin resultado)");
+			correcto = resultado != NULL &&
+				!resultadoTieneError(error_o_datos_a_retornar,
+					nivel_de_profundidad, resultado);
+			if(correcto)
+			{
+				sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+					"Registro de relacion guardado correctamente.\n");
+				char *lectura = leerArchivo(
+					ruta, error_o_datos_a_retornar, nivel_de_profundidad);
+				if(resultadoTieneError(error_o_datos_a_retornar,
+					nivel_de_profundidad, lectura)) correcto = 0;
+				sistema_memoria_liberar(
+					lectura, error_o_datos_a_retornar, 0);
+			}
+			sistema_memoria_liberar(resultado, error_o_datos_a_retornar, 0);
+		}
+		else
+		{
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+				"Cancelado o faltan parametros; no se modifico el archivo.\n");
+		}
+		const char *nombres[] = { ruta, id, tipo_relacion, proyecto,
+			id_relacionado, puntos_recibir, puntos_total, nivel,
+			horizontal, tipo_afiliado, confirmacion };
+		for(size_t i = 0; i < sizeof(nombres) / sizeof(nombres[0]); ++i)
+			sistema_memoria_liberar((void *)nombres[i], error_o_datos_a_retornar, 0);
+		return correcto ? 0 : -1;
+	}
+
+	if(opcion == 2)
+	{
+		char *cantidad = pm_pedir_texto("Monto de la venta: ",
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		char *comision = pm_pedir_texto("Comision (porcentaje o monto): ",
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		char *tipo = pm_pedir_texto("Tipo (PORCENTAJE o DINERO): ",
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		char *resultado = dinero_de_venta(cantidad, comision, tipo);
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"Pago calculado: %s\n", resultado != NULL ? resultado : "(entrada invalida)");
+		int correcto = resultado != NULL;
+		sistema_memoria_liberar(cantidad, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(comision, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(tipo, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(resultado, error_o_datos_a_retornar, 0);
+		return correcto ? 0 : -1;
+	}
+
+	if(opcion == 3)
+	{
+		char *cantidad = pm_pedir_texto("Monto de la venta: ",
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		char *comisiones = pm_pedir_texto(
+			"Comisiones separadas por | (ejemplo: 10|5|2): ",
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		char *tipo = pm_pedir_texto("Tipo (PORCENTAJE o DINERO): ",
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		char *resultado = entrada_dinero_simple(
+			cantidad, comisiones, tipo, GG_caracter_separacion[0]);
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"Pagos: %s\n", resultado != NULL ? resultado : "(entrada invalida)");
+		int correcto = resultado != NULL;
+		sistema_memoria_liberar(cantidad, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(comisiones, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(tipo, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(resultado, error_o_datos_a_retornar, 0);
+		return correcto ? 0 : -1;
+	}
+
+	if(opcion == 4)
+	{
+		char *ruta = pm_pedir_texto("Ruta de AFILIADOS_UNIFICADO.TXT: ",
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		char *id = pm_pedir_texto("ID inicial: ",
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		char *proyecto = pm_pedir_texto("Proyecto/tabla: ",
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		int profundidad = 0;
+		int correcto = pm_pedir_entero("Cantidad maxima de niveles: ",
+			&profundidad, error_o_datos_a_retornar, nivel_de_profundidad);
+		char *cadena = correcto ? extraer_patrosinadores_funcion_recursiva(
+			ruta, id, proyecto, profundidad, GG_caracter_separacion[0],
+			error_o_datos_a_retornar, nivel_de_profundidad) : NULL;
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"Patrocinadores ascendentes: %s\n",
+			cadena != NULL ? cadena : "(no se pudo consultar)");
+		correcto = cadena != NULL;
+		sistema_memoria_liberar(ruta, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(id, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(proyecto, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(cadena, error_o_datos_a_retornar, 0);
+		return correcto ? 0 : -1;
+	}
+
+	if(opcion == 5)
+	{
+		char *dinero = pm_pedir_texto("Monto de la venta: ",
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		char *simples = pm_pedir_texto("Porcentajes simples separados por |: ",
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		char *complejos = pm_pedir_texto("Porcentajes complejos separados por |: ",
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		char *comision_venta = pm_pedir_texto(
+			"Porcentaje base para la venta compleja: ",
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		char *resultado = calc_din_por_enc_y_total(
+			dinero, simples, complejos, comision_venta, GG_caracter_separacion[0]);
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"Pagos simples | pagos complejos | total: %s\n",
+			resultado != NULL ? resultado : "(entrada invalida)");
+		int correcto = resultado != NULL;
+		sistema_memoria_liberar(dinero, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(simples, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(complejos, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(comision_venta, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(resultado, error_o_datos_a_retornar, 0);
+		return correcto ? 0 : -1;
+	}
+
+	char *texto = pm_pedir_texto("Texto separado por |: ",
+		error_o_datos_a_retornar, nivel_de_profundidad);
+	int veces = 0;
+	int correcto = pm_pedir_entero("Repeticiones por elemento: ",
+		&veces, error_o_datos_a_retornar, nivel_de_profundidad) && veces >= 0;
+	char *separador_salida = pm_pedir_texto("Separador entre repeticiones: ",
+		error_o_datos_a_retornar, nivel_de_profundidad);
+	char **resultado = correcto && texto != NULL
+		? acumulador_de_strings(texto, veces, GG_caracter_separacion[0],
+			separador_salida) : NULL;
+	if(resultado != NULL)
+	{
+		for(size_t i = 0; resultado[i] != NULL; ++i)
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+				"[%d] %s\n", (int)i, resultado[i]);
+	}
+	else
+	{
+		correcto = 0;
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"No se pudo crear el arreglo de resultados.\n");
+	}
+	if(resultado != NULL)
+	{
+		for(size_t i = 0; resultado[i] != NULL; ++i)
+			sistema_memoria_liberar(resultado[i], error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(resultado, error_o_datos_a_retornar, 0);
+	}
+	sistema_memoria_liberar(texto, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(separador_salida, error_o_datos_a_retornar, 0);
+	return correcto ? 0 : -1;
+}
