@@ -486,6 +486,7 @@ const char *obtener_ultimo_retorno_formateado(void);
  void delay_ms(unsigned int ms);
  void fechaActual(char *buffer, const char *formato);
  static int submenu_pruebas_auxiliares(char *error_o_datos_a_retornar,int nivel_de_profundidad,int opcion_seleccionada);
+ static int probar_almacenamiento_dividido(char *error_o_datos_a_retornar,int nivel_de_profundidad);
  static int leerCodigoResultado(char *error_o_datos_a_retornar,int nivel_de_profundidad, const char *texto, int *codigo);
  static int resultadoTieneError(char *error_o_datos_a_retornar,int nivel_de_profundidad, const char *texto);
 
@@ -498,6 +499,7 @@ const char *obtener_ultimo_retorno_formateado(void);
  char * submenu_tex_base(const char * parametros_en_texto_a_splitear, char *error_o_datos_a_retornar,int nivel_de_profundidad,int opcion_seleccionada);
  char * submenu_enlasador_mandar_mensajes(const char * parametros_en_texto_a_splitear, char *error_o_datos_a_retornar,int nivel_de_profundidad,int opcion_seleccionada);
  char * submenu_operaciones_de_texto(const char * parametros_en_texto_a_splitear, char *error_o_datos_a_retornar,int nivel_de_profundidad,int opcion_seleccionada);
+ static int submenu_pruebas_espacios(char *error_o_datos_a_retornar,int nivel_de_profundidad);
  #pragma endregion FUNCIONES_SUBMENUS
  
  // ============================================================================
@@ -513,7 +515,7 @@ const char *obtener_ultimo_retorno_formateado(void);
 * Propósito: mostrar el menú de pruebas y codificar la acción elegida.
 * Entrada: nivel_de_profundidad indica la profundidad para registrar el resultado.
 * Salida y efectos: devuelve una cadena asignada con el protocolo de transferencia o un resultado de error; escribe el menú en consola.
-* Entrada de ejemplo: prueba(0), con entrada de consola "6".
+* Entrada de ejemplo: prueba(0), con entrada de consola "7".
 * Salida de ejemplo: "QU1R30N_SISTEMA_DEFINITIVO┴prueba■salir■0■INFORMACION_ESPEJO_NO_SE_MODIFICA".
 */
 char* prueba(int nivel_de_profundidad)
@@ -527,13 +529,30 @@ char* prueba(int nivel_de_profundidad)
 	char *comandoConcatenado = NULL;
 
 	char *error_o_datos_a_retornar ="";
+	/*
+	 * Menú principal de pruebas:
+	 * 1 = comandos y archivo datos.txt; ejemplo: entrada "1", después "2"
+	 *     agrega "registro_sintetico" y despacha tex_base.
+	 * 2 = mensajería; ejemplo: "2", luego "1" intenta enviar el mensaje
+	 *     sintético a todos los contactos configurados.
+	 * 3 = operaciones de texto; ejemplo: "3", luego "1" divide
+	 *     "uno,dos,tres" por coma.
+	 * 4 = auxiliares/infraestructura; ejemplo: "4", luego "7" solicita tres
+	 *     textos y muestra el arreglo resultante.
+	 * 5 = catálogo; ejemplo: "5", luego "1" imprime las rutas de inventario.
+	 * 6 = espacios/permisos; muestra otro menú y puede crear archivos reales
+	 *     solo después de confirmar "SI".
+	 * 7 = volver; genera el comando "salir" para que main retorne al menú previo.
+	 * La entrada recibida aquí siempre es el número del menú principal.
+	 */
 	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "\n=== MENÚ DE PRUEBAS ===\n");
 	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "1. Probar comandos de texto y archivos\n");
 	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "2. Probar envío y consulta de mensajes\n");
 	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "3. Probar operaciones de texto\n");
 	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "4. Probar funciones auxiliares e infraestructura\n");
 	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "5. Navegar el catálogo del negocio\n");
-	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "6. Volver al menú principal\n");
+	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "6. Probar espacios, permisos y estructuras\n");
+	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "7. Volver al menú principal\n");
 	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "Seleccione una opción: ");
 
 	char *entrada = leerLineaConsola(error_o_datos_a_retornar,nivel_de_profundidad);
@@ -547,6 +566,15 @@ char* prueba(int nivel_de_profundidad)
 	{
 		case 1:
 		{
+			/*
+			 * Submenú tex_base: la entrada "1" lee datos.txt; "2" agrega
+			 * "registro_sintetico"; "3" edita la línea 1; "4" cambia la
+			 * columna 1 de esa línea; "5" la elimina; "6" la vacía;
+			 * "7" ejecuta ejemplos; "8" vuelve. Las opciones 2-6 alteran
+			 * el archivo configurado, por lo que se debe usar con cuidado.
+			 * Ejemplo: principal=1, submenú=2 -> se despacha
+			 * escribirLinea(datos.txt, "registro_sintetico").
+			 */
 			comando = "tex_base";
 			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "\n=== SUBMENÚ comandos_tex_base ===\n");
 			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "1. Leer todo el archivo\n");
@@ -569,12 +597,15 @@ char* prueba(int nivel_de_profundidad)
 
 			switch (opcionSubmenu)
 			{
+				/* Entrada 1: se recibe la opción y se despacha la lectura de NOMBRE_ARCHIVO. */
 				case 1:
 					accionSubmenu = concatenar("%s%s%s", "leerArchivo", GG_caracter_separacion[2], NOMBRE_ARCHIVO);
 					break;
+				/* Entrada 2: agrega una fila de ejemplo; posible efecto: datos.txt termina con esa fila. */
 				case 2:
 					accionSubmenu = concatenar("%s%s%s%s%s", "escribirLinea", GG_caracter_separacion[2], NOMBRE_ARCHIVO, GG_caracter_separacion[2], "registro_sintetico");
 					break;
+				/* Entrada 3: reemplaza el contenido de la línea 1 por texto_editado_sintetico. */
 				case 3:
 					accionSubmenu = concatenar("%s%s%s%s%s", "editarLinea", GG_caracter_separacion[2], NOMBRE_ARCHIVO, GG_caracter_separacion[2], "1");
 					if(accionSubmenu != NULL)
@@ -584,6 +615,7 @@ char* prueba(int nivel_de_profundidad)
 						accionSubmenu = accionCompleta;
 					}
 					break;
+				/* Entrada 4: cambia la columna 1 de la línea 1 a valor_sintetico. */
 				case 4:
 					accionSubmenu = concatenar("%s%s%s%s%s%s%s", "editarColumna", GG_caracter_separacion[2], NOMBRE_ARCHIVO, GG_caracter_separacion[2], "1", GG_caracter_separacion[2], "1");
 					if(accionSubmenu != NULL)
@@ -593,15 +625,19 @@ char* prueba(int nivel_de_profundidad)
 						accionSubmenu = accionCompleta;
 					}
 					break;
+				/* Entrada 5: solicita eliminar la línea con ID 1 del archivo. */
 				case 5:
 					accionSubmenu = concatenar("%s%s%s%s%s", "eliminarLinea", GG_caracter_separacion[2], NOMBRE_ARCHIVO, GG_caracter_separacion[2], "1");
 					break;
+				/* Entrada 6: solicita vaciar el contenido de la línea con ID 1. */
 				case 6:
 					accionSubmenu = concatenar("%s%s%s%s%s", "vaciarLinea", GG_caracter_separacion[2], NOMBRE_ARCHIVO, GG_caracter_separacion[2], "1");
 					break;
+				/* Entrada 7: ejecuta los ejemplos predefinidos y muestra sus resultados. */
 				case 7:
 					accionSubmenu = concatenar("%s", "ejecutarEjemplosPrueba");
 					break;
+				/* Entrada 8: no ejecuta una operación; retorna al menú anterior. */
 				case 8:
 					accionSubmenu = concatenar("%s", "volver");
 					break;
@@ -611,6 +647,15 @@ char* prueba(int nivel_de_profundidad)
 		}
 		case 2:
 		{
+			/*
+			 * Submenú de mensajería: "1" intenta enviar un mensaje a todos;
+			 * "2" lo dirige al contacto sintético con identificador 1;
+			 * "3" consulta al primero que responda; "4" revisa mensajes no
+			 * leídos; "5" vuelve. Los ejemplos usan mensajes/contactos
+			 * sintéticos y dependen de que el backend y los contactos existan.
+			 * Ejemplo: principal=2, submenú=2 -> mensaje_sintetico se dirige
+			 * a contacto_sintetico, ID 1.
+			 */
 			comando = "mandar_mensajes";
 			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "\n=== SUBMENÚ enlasador_mandar_mensajes ===\n");
 			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "1. Enviar mensaje a todos\n");
@@ -632,18 +677,23 @@ char* prueba(int nivel_de_profundidad)
 			}
 			switch(opcionSubmenu)
 			{
+				/* Entrada 1: despacha el mensaje sintético a todos los contactos. */
 				case 1:
 					accionSubmenu = concatenar("%s%s%s", "mandar_mensje_a_todos", GG_caracter_separacion[2], "mensaje_sintetico");
 					break;
+				/* Entrada 2: despacha mensaje, contacto e ID de ejemplo. */
 				case 2:
 					accionSubmenu = concatenar("%s%s%s%s%s%s%s", "mandar_mensje_a_contacto", GG_caracter_separacion[2], "mensaje_sintetico", GG_caracter_separacion[2], "contacto_sintetico", GG_caracter_separacion[2], "1");
 					break;
+				/* Entrada 3: envía pregunta sintética y espera respuesta/aceptación. */
 				case 3:
 					accionSubmenu = concatenar("%s%s%s%s%s%s%s", "mandar_mensje_al_primero_que_responda", GG_caracter_separacion[2], "pregunta_sintetica", GG_caracter_separacion[2], "aceptacion_sintetica", GG_caracter_separacion[2], "respuesta_sintetica");
 					break;
+				/* Entrada 4: consulta el estado de mensajes no leídos. */
 				case 4:
 					accionSubmenu = concatenar("%s", "checar_si_hay_mensajes_no_leido");
 					break;
+				/* Entrada 5: retorna sin enviar ni consultar mensajes. */
 				case 5:
 					accionSubmenu = concatenar("%s", "volver");
 					break;
@@ -652,6 +702,13 @@ char* prueba(int nivel_de_profundidad)
 		}
 		case 3:
 		{
+			/*
+			 * Submenú de texto: "1" divide "uno,dos,tres" por ","; "2"
+			 * sustituye la columna 2 de esa línea; "3" lee texto adicional
+			 * desde consola; "4" vuelve.
+			 * Ejemplo: principal=3, submenú=1 -> split recibe el texto
+			 * "uno,dos,tres" y el delimitador ","; se esperan tres celdas.
+			 */
 			comando = "operaciones_de_texto";
 			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "\n=== SUBMENÚ operaciones_de_texto ===\n");
 			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "1. split(texto, delimitador)\n");
@@ -672,15 +729,19 @@ char* prueba(int nivel_de_profundidad)
 			}
 			switch(opcionSubmenu)
 			{
+				/* Entrada 1: resultado esperado de ejemplo: ["uno", "dos", "tres"]. */
 				case 1:
 					accionSubmenu = concatenar("%s%s%s%s%s", "split", GG_caracter_separacion[2], "uno,dos,tres", GG_caracter_separacion[2], ",");
 					break;
+				/* Entrada 2: cambia la segunda columna por valor_sintetico si la fila es válida. */
 				case 2:
 					accionSubmenu = concatenar("%s%s%s%s%s%s%s", "modificarColumna", GG_caracter_separacion[2], "uno,dos,tres", GG_caracter_separacion[2], "2", GG_caracter_separacion[2], "valor_sintetico");
 					break;
+				/* Entrada 3: el submenu pide una línea y devuelve el texto recibido. */
 				case 3:
 					accionSubmenu = concatenar("%s", "leerLineaConsola");
 					break;
+				/* Entrada 4: vuelve al menú principal sin procesar texto. */
 				case 4:
 					accionSubmenu = concatenar("%s", "volver");
 					break;
@@ -689,6 +750,16 @@ char* prueba(int nivel_de_profundidad)
 		}
 		case 4:
 		{
+			/*
+			 * Submenú de auxiliares: "1" divide y vuelve a unir texto; "2"
+			 * convierte enteros/analiza resultados; "3" forma una respuesta;
+			 * "4" prueba memoria; "5" prueba archivos temporales; "6" prueba
+			 * consola y depuración; "7" agrega tres textos a un arreglo;
+			 * "8" prueba almacenamiento dividido con confirmación "SI";
+			 * "9" vuelve.
+			 * Ejemplo: principal=4, submenú=7, entradas "uno", "dos", "tres"
+			 * -> se espera imprimir esos tres elementos en orden.
+			 */
 			comando = "pruebas_auxiliares";
 			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "\n=== SUBMENÚ funciones auxiliares ===\n");
 			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "1. Probar split, liberarSplit y join\n");
@@ -697,7 +768,9 @@ char* prueba(int nivel_de_profundidad)
 			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "4. Probar reserva, redimensionamiento y liberación\n");
 			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "5. Probar primitivas de archivos\n");
 			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "6. Probar consola, configuración UTF-8 y depuración\n");
-			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "7. Volver al menú de pruebas\n");
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "7. Probar agregar texto a un arreglo dinámico\n");
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "8. Probar almacenamiento dividido\n");
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "9. Volver al menú de pruebas\n");
 			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "Seleccione una opción: ");
 			char *entradaSubmenu = leerLineaConsola(error_o_datos_a_retornar, nivel_de_profundidad);
 			if(entradaSubmenu == NULL)
@@ -706,31 +779,46 @@ char* prueba(int nivel_de_profundidad)
 			}
 			int entradaSubmenuValida = textoAEntero(entradaSubmenu, &opcionSubmenu, error_o_datos_a_retornar, nivel_de_profundidad);
 			sistema_memoria_liberar(entradaSubmenu, error_o_datos_a_retornar, 0);
-			if(!entradaSubmenuValida || opcionSubmenu < 1 || opcionSubmenu > 7)
+			if(!entradaSubmenuValida || opcionSubmenu < 1 || opcionSubmenu > 9)
 			{
 				return crearResultado(-2, "opcion_submenu_no_valida", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);
 			}
 			switch(opcionSubmenu)
 			{
+				/* Entrada 1: ejemplo "uno,dos" con "," y "-", resultado "uno-dos". */
 				case 1:
 					accionSubmenu = concatenar("%s%s%s%s%s%s%s", "probar_split_join", GG_caracter_separacion[2], "uno,dos", GG_caracter_separacion[2], ",", GG_caracter_separacion[2], "-");
 					break;
+				/* Entrada 2: convierte 42 y analiza la traza sintética "42|prueba". */
 				case 2:
 					accionSubmenu = concatenar("%s%s%s%s%s", "probar_conversiones", GG_caracter_separacion[2], "42", GG_caracter_separacion[2], "42|prueba");
 					break;
+				/* Entrada 3: crea una serialización sintética con código 1 e información de prueba. */
 				case 3:
 					accionSubmenu = concatenar("%s%s%s%s%s%s%s%s%s%s%s", "probar_crearResultado", GG_caracter_separacion[2], "1", GG_caracter_separacion[2], "prueba_sintetica", GG_caracter_separacion[2], "", GG_caracter_separacion[2], "prueba", GG_caracter_separacion[2], "1");
 					break;
+				/* Entrada 4: pide al helper reservar 16 bytes, ampliarlos y liberarlos. */
 				case 4:
 					accionSubmenu = concatenar("%s%s%s", "probar_memoria", GG_caracter_separacion[2], "16");
 					break;
+				/* Entrada 5: pide texto y entero; crea, lee y borra archivos temporales. */
 				case 5:
 					accionSubmenu = concatenar("%s%s%s%s%s", "probar_archivos", GG_caracter_separacion[2], "texto_sintetico", GG_caracter_separacion[2], "42");
 					break;
+				/* Entrada 6: pide texto y lo imprime entre corchetes, además de depurarlo. */
 				case 6:
 					accionSubmenu = concatenar("%s%s%s", "probar_consola", GG_caracter_separacion[2], "texto_sintetico");
 					break;
+				/* Entrada 7: el helper pide tres textos y confirma el arreglo creado. */
 				case 7:
+					accionSubmenu = concatenar("%s", "probar_agregar_texto_a_arreglo");
+					break;
+				/* Entrada 8: el helper pide ruta/columnas/fila y confirma escritura con "SI". */
+				case 8:
+					accionSubmenu = concatenar("%s", "probar_almacenamiento_dividido");
+					break;
+				/* Entrada 9: vuelve sin ejecutar pruebas. */
+				case 9:
 					accionSubmenu = concatenar("%s", "volver");
 					break;
 			}
@@ -738,6 +826,12 @@ char* prueba(int nivel_de_profundidad)
 		}
 		case 5:
 		{
+			/*
+			 * Catálogo: las entradas 1-5 muestran grupos de rutas de negocio;
+			 * la 6 muestra configuración y archivos generales; la 7 vuelve.
+			 * Ejemplo: principal=5, sección=1 -> imprime Productos e inventario
+			 * junto con las rutas configuradas, sin modificar esos archivos.
+			 */
 			comando = "catalogo_negocio";
 			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "\n=== CATÁLOGO DEL NEGOCIO ===\n");
 			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "1. Productos e inventario\n");
@@ -763,7 +857,28 @@ char* prueba(int nivel_de_profundidad)
 			break;
 		}
 		case 6:
+		{
+			/*
+			 * Espacios/permisos: este caso llama directamente al submenu que
+			 * pregunta nombre, credenciales o rutas según la opción elegida.
+			 * Ejemplo: opción interna=1, "ventas", "ana", "clave", "SI"
+			 * -> intenta crear el espacio y muestra el nombre con folio.
+			 */
+			comando = "pruebas_auxiliares";
+			opcionSubmenu = 7;
+			if(submenu_pruebas_espacios(
+				error_o_datos_a_retornar, nivel_de_profundidad) != 0)
 			{
+				sistema_consola_escribir_formato(
+					error_o_datos_a_retornar, 0,
+					"La prueba de espacios/permisos terminó con error.\n");
+			}
+			accionSubmenu = concatenar("%s", "volver");
+			break;
+		}
+		case 7:
+			{
+				/* Entrada 7 del menú principal: se recibe la orden de salir y main vuelve al menú anterior. */
 				char *salida = concatenar(
 					"%s%s%s%s%s%s%d%s%s",
 					GG_id_programa,
@@ -817,6 +932,237 @@ char* prueba(int nivel_de_profundidad)
 	if(resultado == NULL){return crearResultado(-1, "error_al_concatenar_opcion", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);}
 	return resultado;
  }
+
+/**
+ * Ejecuta pruebas interactivas de creación de espacios, permisos y estructuras.
+ * Entradas: el contexto de error y profundidad se reenvía a la consola; los
+ * nombres, rutas y credenciales se solicitan durante la ejecución. Las opciones
+ * que crean archivos reales exigen confirmación escribiendo "SI".
+ * Salida: 0 si se completa o cancela una prueba; -1 por entrada inválida,
+ * lectura fallida o error en la operación probada.
+ * Entrada de ejemplo: elegir 1, escribir "ventas", "ana", "clave" y confirmar "SI".
+ * Salida de ejemplo: crea el espacio real, muestra su nombre con folio y retorna 0.
+ */
+static int submenu_pruebas_espacios(
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	/*
+	 * Menú de espacios:
+	 * 1 recibe nombre, administrador y contraseña; después pide "SI".
+	 *    Ejemplo: ventas / ana / clave / SI -> crea un espacio con folio.
+	 * 2 recibe ruta de permisos, ID, usuario, contraseña y nivel mínimo.
+	 *    Ejemplo: nivel mínimo 2 -> muestra PERMITIDO o DENEGADO y el nivel.
+	 * 3 recibe directorio o ID/nombre (no un archivo .txt) y, con "SI",
+	 *    crea los archivos base de negocio.
+	 * 4 recibe nombre de estructura y ruta del espacio; con "SI", crea
+	 *    la estructura base de inventario.
+	 * 5 vuelve sin escribir archivos.
+	 */
+	char *entradas[6] = {NULL, NULL, NULL, NULL, NULL, NULL};
+	char *nombre_creado = NULL;
+	char *direccion_negocio = NULL;
+	int opcion = 0;
+	int cantidad_entradas = 0;
+	int resultado = -1;
+
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"\n=== PRUEBAS DE ESPACIOS Y PERMISOS ===\n");
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"1. Crear un espacio real y sus archivos base\n");
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"2. Verificar permisos de un usuario\n");
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"3. Crear archivos base de negocio\n");
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"4. Crear estructura base de inventario\n");
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"5. Volver\nSeleccione una opción: ");
+
+	entradas[0] = leerLineaConsola(
+		error_o_datos_a_retornar, nivel_de_profundidad);
+	if(entradas[0] == NULL ||
+		!textoAEntero(entradas[0], &opcion,
+			error_o_datos_a_retornar, nivel_de_profundidad))
+		goto terminar_prueba_espacios;
+	sistema_memoria_liberar(entradas[0], error_o_datos_a_retornar, 0);
+	entradas[0] = NULL;
+
+	if(opcion == 5)
+	{
+		resultado = 0;
+		goto terminar_prueba_espacios;
+	}
+	if(opcion < 1 || opcion > 4)
+		goto terminar_prueba_espacios;
+
+	const char *prompts_crear[] = {
+		"Nombre del nuevo espacio: ",
+		"Usuario administrador: ",
+		"Contraseña (se escribe visible): "
+	};
+	const char *prompts_permiso[] = {
+		"Ruta del archivo de permisos: ",
+		"ID/nombre del espacio: ",
+		"Usuario: ",
+		"Contraseña (se escribe visible): ",
+		"Nivel mínimo requerido (entero): "
+	};
+	const char *prompts_archivos[] = {
+		"Directorio del espacio o ID/nombre (no el archivo .txt): "
+	};
+	const char *prompts_estructura[] = {
+		"Nombre descriptivo de la estructura: ",
+		"Ruta del archivo del espacio (por ejemplo, espacios/ventas.txt): "
+	};
+	const char **prompts = NULL;
+	switch(opcion)
+	{
+		/* Opción 1: datos esperados nombre/usuario/contraseña; éxito imprime el nombre foliado creado. */
+		case 1:
+			prompts = prompts_crear;
+			cantidad_entradas = 3;
+			break;
+		case 2:
+			prompts = prompts_permiso;
+			cantidad_entradas = 5;
+			break;
+		case 3:
+			prompts = prompts_archivos;
+			cantidad_entradas = 1;
+			break;
+		case 4:
+			prompts = prompts_estructura;
+			cantidad_entradas = 2;
+			break;
+	}
+
+	for(int i = 0; i < cantidad_entradas; ++i)
+	{
+		sistema_consola_escribir_formato(
+			error_o_datos_a_retornar, 0, "%s", prompts[i]);
+		entradas[i] = leerLineaConsola(
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		if(entradas[i] == NULL)
+			goto terminar_prueba_espacios;
+	}
+
+	if(opcion == 1 || opcion == 3 || opcion == 4)
+	{
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"Esta operación escribirá en las rutas reales configuradas.\n"
+			"Escriba SI para continuar: ");
+		entradas[cantidad_entradas] = leerLineaConsola(
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		if(entradas[cantidad_entradas] == NULL)
+			goto terminar_prueba_espacios;
+		if(strcmp(entradas[cantidad_entradas], "SI") != 0 &&
+			strcmp(entradas[cantidad_entradas], "si") != 0)
+		{
+			sistema_consola_escribir_formato(
+				error_o_datos_a_retornar, 0, "Operación cancelada.\n");
+			resultado = 0;
+			goto terminar_prueba_espacios;
+		}
+	}
+
+	switch(opcion)
+	{
+		case 1:
+		{
+			int estado = crear_espacios(
+				entradas[0], entradas[1], entradas[2], &nombre_creado);
+			if(estado == 0)
+			{
+				sistema_consola_escribir_formato(
+					error_o_datos_a_retornar, 0,
+					"Espacio creado: %s\n",
+					nombre_creado != NULL ? nombre_creado : "(nombre no devuelto)");
+				resultado = 0;
+			}
+			else
+			{
+				sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+					"No se pudo crear el espacio. Revisa los datos y la ruta configurada.\n");
+			}
+			break;
+		}
+		/* Opción 2: valida las mismas credenciales por ambos métodos y muestra niveles/ruta. */
+		case 2:
+		{
+			int nivel_minimo = 0;
+			int nivel_usuario = -1;
+			int nivel_negocios = -1;
+			int permiso = -1;
+			int permiso_negocios = -1;
+			if(texto_a_int_seguro(entradas[4], &nivel_minimo) != 0)
+			{
+				sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+					"El nivel mínimo debe ser un entero válido.\n");
+				break;
+			}
+			permiso = checar_permiso(
+				nivel_minimo,
+				entradas[0],
+				entradas[1],
+				entradas[2],
+				entradas[3],
+				&direccion_negocio,
+				&nivel_usuario);
+			permiso_negocios = checar_permiso_negocios(
+				nivel_minimo,
+				entradas[0],
+				entradas[1],
+				entradas[2],
+				entradas[3],
+				&nivel_negocios);
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+				"checar_permiso: %s; nivel: %d; dirección: %s\n"
+				"checar_permiso_negocios: %s; nivel: %d\n",
+				permiso == 0 ? "PERMITIDO" :
+					(permiso == 1 ? "DENEGADO" : "ERROR"),
+				nivel_usuario,
+				direccion_negocio != NULL ? direccion_negocio : "(sin dirección)",
+				permiso_negocios == 0 ? "PERMITIDO" :
+					(permiso_negocios == 1 ? "DENEGADO" : "ERROR"),
+				nivel_negocios);
+			if(permiso >= 0 && permiso_negocios >= 0)
+				resultado = 0;
+			break;
+		}
+		/* Opción 3: crea los archivos base para el espacio seleccionado si los datos son válidos. */
+		case 3:
+		{
+			int estado = crear_archivos_base_negocio(entradas[0]);
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+				estado == 0
+					? "Archivos base de negocio creados o ya existentes.\n"
+					: "No se pudieron crear todos los archivos base.\n");
+			if(estado == 0)
+				resultado = 0;
+			break;
+		}
+		/* Opción 4: crea estructura de inventario usando el nombre y la ruta proporcionados. */
+		case 4:
+		{
+			int estado = creacion_de_estructura_base(entradas[0], entradas[1]);
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+				estado == 0
+					? "Estructura base de inventario creada.\n"
+					: "No se pudo crear la estructura base de inventario.\n");
+			if(estado == 0)
+				resultado = 0;
+			break;
+		}
+	}
+
+terminar_prueba_espacios:
+	for(size_t i = 0; i < sizeof(entradas) / sizeof(entradas[0]); ++i)
+		sistema_memoria_liberar(entradas[i], error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(nombre_creado, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(direccion_negocio, error_o_datos_a_retornar, 0);
+	return resultado;
+}
 
 /*
  * Propósito: mostrar en consola una sección del catálogo del negocio.
@@ -1014,11 +1360,13 @@ int main(void)
 				opcionSubmenu
 			);
 		}
-		else if(nombreFuncion != NULL && strcmp(nombreFuncion, "pruebas_auxiliares") == 0 && opcionSubmenu != 7)
+		else if(nombreFuncion != NULL && strcmp(nombreFuncion, "pruebas_auxiliares") == 0 && opcionSubmenu != 9)
 		{
 			sistema_memoria_liberar(resultado,error_o_datos_a_retornar,  0);
 			resultado = crearResultado(
-				submenu_pruebas_auxiliares(error_o_datos_a_retornar, 1, opcionSubmenu) == 0 ? 1 : -1,
+				opcionSubmenu == 8
+					? probar_almacenamiento_dividido(error_o_datos_a_retornar, 1)
+					: submenu_pruebas_auxiliares(error_o_datos_a_retornar, 1, opcionSubmenu),
 				"pruebas_auxiliares",
 				"",
 				__func__,
@@ -8133,7 +8481,9 @@ static int submenu_pruebas_auxiliares(char *error_o_datos_a_retornar,int nivel_d
 			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "4. Probar reserva, redimensionamiento y liberación\n");
 			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "5. Probar primitivas de archivos\n");
 			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "6. Probar consola, configuración UTF-8 y depuración\n");
-			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "7. Volver al menú de pruebas\n");
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "7. Probar agregar texto a un arreglo dinámico\n");
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "8. Probar almacenamiento dividido\n");
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "9. Volver al menú de pruebas\n");
 			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "Seleccione una opción: ");
 
 			char *entrada = leerLineaConsola(error_o_datos_a_retornar, 1);
@@ -8145,6 +8495,12 @@ static int submenu_pruebas_auxiliares(char *error_o_datos_a_retornar,int nivel_d
 
 		switch(opcion)
 		{
+			/*
+			 * Opción 1: pide texto, separador y separador de unión.
+			 * Ejemplo: "uno,dos", "," y "-".
+			 * Resultado posible: muestra dos partes y "uno-dos"; luego libera
+			 * las partes creadas por split.
+			 */
 			case 1:
 			{
 				sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "Texto para dividir: ");
@@ -8196,6 +8552,12 @@ static int submenu_pruebas_auxiliares(char *error_o_datos_a_retornar,int nivel_d
 				sistema_memoria_liberar(separador,error_o_datos_a_retornar,  0);
 				break;
 			}
+			/*
+			 * Opción 2: convierte un entero y analiza una traza.
+			 * Ejemplo: entero "42", traza "°-2¬1".
+			 * Resultado posible: enteroATexto muestra "42" y se informa código
+			 * -2; el estado de error depende del código interpretado.
+			 */
 			case 2:
 			{
 				sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "Entero decimal para convertir: ");
@@ -8254,6 +8616,12 @@ static int submenu_pruebas_auxiliares(char *error_o_datos_a_retornar,int nivel_d
 				sistema_memoria_liberar(traza,error_o_datos_a_retornar,  0);
 				break;
 			}
+			/*
+			 * Opción 3: pide código, información, resultado previo, función y nivel.
+			 * Ejemplo: 1 / "prueba_sintetica" / vacío / "prueba" / 1.
+			 * Resultado posible: imprime la cadena codificada que construye
+			 * crearResultado; el formato concreto usa los separadores globales.
+			 */
 			case 3:
 			{
 				int codigo = 0;
@@ -8318,6 +8686,12 @@ static int submenu_pruebas_auxiliares(char *error_o_datos_a_retornar,int nivel_d
 				sistema_memoria_liberar(nivelTexto,error_o_datos_a_retornar,  0);
 				break;
 			}
+			/*
+			 * Opción 4: pide un tamaño positivo y prueba reservar, ampliar y liberar.
+			 * Ejemplo: tamaño "16".
+			 * Resultado posible: informa si los bytes iniciales se conservaron;
+			 * el backend puede declarar memoria no disponible.
+			 */
 			case 4:
 			{
 				int tamano = 0;
@@ -8362,6 +8736,12 @@ static int submenu_pruebas_auxiliares(char *error_o_datos_a_retornar,int nivel_d
 				sistema_memoria_liberar(redimensionado,error_o_datos_a_retornar,  0);
 				break;
 			}
+			/*
+			 * Opción 5: pide texto e entero; crea un archivo temporal, lo renombra,
+			 * vuelve a leerlo y lo elimina.
+			 * Ejemplo: "hola" y "42" -> contenido leído "hola|42".
+			 * Si los nombres temporales ya existen, la prueba no los modifica.
+			 */
 			case 5:
 			{
 				const char *rutaOriginal = "qu1ron_backend_test.tmp";
@@ -8471,6 +8851,10 @@ static int submenu_pruebas_auxiliares(char *error_o_datos_a_retornar,int nivel_d
 				sistema_memoria_liberar(texto,error_o_datos_a_retornar,  0);
 				break;
 			}
+			/*
+			 * Opción 6: pide texto y prueba impresión UTF-8 y depuración.
+			 * Ejemplo: "hola" -> imprime [hola] y reporta longitud 4.
+			 */
 			case 6:
 			{
 				configurarConsolaUTF8();
@@ -8493,7 +8877,79 @@ static int submenu_pruebas_auxiliares(char *error_o_datos_a_retornar,int nivel_d
 				sistema_memoria_liberar(texto,error_o_datos_a_retornar,  0);
 				break;
 			}
+			/*
+			 * Opción 7: recibe tres líneas y agrega una copia de cada una al arreglo.
+			 * Ejemplo: "uno", "dos", "tres" -> imprime esos valores en índices 0..2.
+			 */
 			case 7:
+			{
+				char **arreglo = NULL;
+				int correcto = 1;
+				for(int i = 0; i < 3; i++)
+				{
+					sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+						"Ingrese el texto %d que se agregará al arreglo: ", i + 1);
+					char *texto = leerLineaConsola(error_o_datos_a_retornar, 1);
+					if(texto == NULL)
+					{
+						correcto = 0;
+						break;
+					}
+
+					agregar_texto_a_arreglo(&arreglo, texto);
+					int cantidad_agregada = 0;
+					if(arreglo != NULL)
+					{
+						while(arreglo[cantidad_agregada] != NULL)
+						{
+							cantidad_agregada++;
+						}
+					}
+					if(cantidad_agregada != i + 1 ||
+						strcmp(arreglo[i], texto) != 0)
+					{
+						correcto = 0;
+					}
+					sistema_memoria_liberar(texto,error_o_datos_a_retornar,  0);
+					if(!correcto) break;
+				}
+
+				if(correcto)
+				{
+					sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+						"Elementos agregados:\n");
+					for(int i = 0; i < 3; i++)
+					{
+						sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+							"[%d] %s\n", i, arreglo[i]);
+					}
+				}
+				else
+				{
+					sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+						"No se pudo completar la prueba del arreglo dinámico.\n");
+				}
+
+				if(arreglo != NULL)
+				{
+					for(int i = 0; arreglo[i] != NULL; i++)
+					{
+						sistema_memoria_liberar(arreglo[i],error_o_datos_a_retornar,  0);
+					}
+					sistema_memoria_liberar(arreglo,error_o_datos_a_retornar,  0);
+				}
+				break;
+			}
+			/*
+			 * Opción 8: solicita ruta metadata, encabezado, registro y confirmación.
+			 * Ejemplo: encabezado "id|nombre|cantidad", fila "Ana|3", "SI".
+			 * Resultado posible: crea el registro 1|Ana|3, lo consulta y verifica
+			 * que un segundo agregado con el mismo ID se reconozca como existente.
+			 */
+			case 8:
+				return probar_almacenamiento_dividido(error_o_datos_a_retornar, 1) == 1 ? 0 : -1;
+			/* Opción 9: vuelve al menú de pruebas sin ejecutar una operación. */
+			case 9:
 				return 0;
 			default:
 				sistema_consola_escribir_formato(error_o_datos_a_retornar, 0, "Opción no válida.\n");
@@ -8504,7 +8960,163 @@ static int submenu_pruebas_auxiliares(char *error_o_datos_a_retornar,int nivel_d
 	}
 }
 
+/*
+ * Prueba el almacenamiento dividido con una ruta y un registro elegidos por el usuario.
+ * La escritura solo se ejecuta después de confirmar "SI".
+ */
+static int probar_almacenamiento_dividido(char *error_o_datos_a_retornar,int nivel_de_profundidad)
+{
+	char *ruta = NULL;
+	char *columnas = NULL;
+	char *datos = NULL;
+	char *confirmacion = NULL;
+	char *respuesta_agregar = NULL;
+	char *metadata = NULL;
+	char *registros = NULL;
+	char *respuesta_seleccion = NULL;
+	char *respuesta_extrae = NULL;
+	char *respuesta_busqueda = NULL;
+	char *respuesta_sino_existe = NULL;
+	char *valor_busqueda = NULL;
+	char *entrada_columna = NULL;
+	char **partes_respuesta = NULL;
+	char **celdas_fila = NULL;
+	int cantidad_celdas = 0;
+	int columna_busqueda = 0;
+	int resultado = -1;
 
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"Ruta del archivo metadata (use una carpeta existente): ");
+	ruta = leerLineaConsola(error_o_datos_a_retornar, nivel_de_profundidad);
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"Encabezado de columnas, incluyendo el ID (ejemplo: id|nombre|cantidad): ");
+	columnas = leerLineaConsola(error_o_datos_a_retornar, nivel_de_profundidad);
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"Datos del nuevo registro sin el ID (ejemplo: Ana|3): ");
+	datos = leerLineaConsola(error_o_datos_a_retornar, nivel_de_profundidad);
+	if(ruta == NULL || columnas == NULL || datos == NULL)
+	{
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"No se pudieron leer los parámetros de almacenamiento.\n");
+		goto limpiar;
+	}
+
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"Esta prueba creará o modificará archivos. Escriba SI para continuar: ");
+	confirmacion = leerLineaConsola(error_o_datos_a_retornar, nivel_de_profundidad);
+	if(confirmacion == NULL || strcmp(confirmacion, "SI") != 0)
+	{
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"Prueba cancelada; no se modificaron archivos.\n");
+		goto limpiar;
+	}
+
+	respuesta_agregar = agregar_info_dividida(ruta, datos, columnas);
+	if(respuesta_agregar == NULL ||
+		split_con_numero_de_celdas(
+			respuesta_agregar,
+			GG_caracter_para_confirmacion_o_error[0],
+			&partes_respuesta) < 2 ||
+		partes_respuesta == NULL ||
+		strcmp(partes_respuesta[0], "1") != 0)
+	{
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"No se pudo agregar el registro: %s\n",
+			respuesta_agregar != NULL ? respuesta_agregar : "(sin respuesta)");
+		goto limpiar;
+	}
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"Registro agregado: %s\n", partes_respuesta[1]);
+
+	cantidad_celdas = split_con_numero_de_celdas(
+		partes_respuesta[1], GG_caracter_separacion[0], &celdas_fila);
+	if(cantidad_celdas < 2 || celdas_fila[0] == NULL)
+	{
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"La fila agregada no tiene un formato válido.\n");
+		goto limpiar;
+	}
+
+	metadata = leer_info_dividida(ruta);
+	registros = leer_todo_info_dividida(ruta);
+	if(metadata == NULL || registros == NULL)
+	{
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"No se pudieron leer la metadata o los registros.\n");
+		goto limpiar;
+	}
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"Metadata:\n%s\nRegistros:\n%s\n", metadata, registros);
+
+	respuesta_seleccion = seleccionar_id_info_dividida(ruta, celdas_fila[0]);
+	respuesta_extrae = seleccionar_id_info_dividida_extrae(ruta, celdas_fila[0]);
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"Consulta por ID: %s\nConsulta con ubicación del bloque: %s\n",
+		respuesta_seleccion != NULL ? respuesta_seleccion : "(falló)",
+		respuesta_extrae != NULL ? respuesta_extrae : "(falló)");
+	if(respuesta_seleccion == NULL || respuesta_extrae == NULL)
+	{
+		goto limpiar;
+	}
+
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"Índice de columna para buscar (0 es el ID): ");
+	entrada_columna = leerLineaConsola(error_o_datos_a_retornar, nivel_de_profundidad);
+	if(entrada_columna == NULL ||
+		!textoAEntero(entrada_columna, &columna_busqueda,
+			error_o_datos_a_retornar, nivel_de_profundidad) ||
+		columna_busqueda < 0)
+	{
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"Índice de columna no válido.\n");
+		goto limpiar;
+	}
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"Valor que se buscará en esa columna: ");
+	valor_busqueda = leerLineaConsola(error_o_datos_a_retornar, nivel_de_profundidad);
+	if(valor_busqueda == NULL)
+	{
+		goto limpiar;
+	}
+
+	respuesta_busqueda = buscar_info_dividida(
+		ruta, valor_busqueda, columna_busqueda, 0);
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"Resultado de búsqueda: %s\n",
+		respuesta_busqueda != NULL ? respuesta_busqueda : "(falló)");
+	if(respuesta_busqueda == NULL)
+	{
+		goto limpiar;
+	}
+
+	respuesta_sino_existe = agregar_sino_existe_info_dividida(
+		ruta, 0, celdas_fila[0], datos, columnas);
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"Comprobación de agregar solo si no existe (mismo ID): %s\n",
+		respuesta_sino_existe != NULL ? respuesta_sino_existe : "(falló)");
+	if(respuesta_sino_existe != NULL)
+	{
+		resultado = 1;
+	}
+
+limpiar:
+	if(partes_respuesta != NULL) free_split_con_numero_de_celdas(partes_respuesta);
+	if(celdas_fila != NULL) free_split_con_numero_de_celdas(celdas_fila);
+	sistema_memoria_liberar(ruta, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(columnas, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(datos, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(confirmacion, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(respuesta_agregar, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(metadata, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(registros, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(respuesta_seleccion, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(respuesta_extrae, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(respuesta_busqueda, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(respuesta_sino_existe, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(valor_busqueda, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(entrada_columna, error_o_datos_a_retornar, 0);
+	return resultado;
+}
 
 /*
  * Extrae el código inicial de una traza, con o sin separador inicial.
