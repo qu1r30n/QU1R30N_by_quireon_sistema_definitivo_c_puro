@@ -41,7 +41,7 @@
 #define _POSIX_C_SOURCE 199309L
 #endif
 
-  #include <stdarg.h>     /* Permite recibir argumentos variables en el formateador común. */
+#include <stdarg.h>     /* Permite recibir argumentos variables en el formateador común. */
 
 #if !defined(SEMICONDUCTOR) || defined(PIC16F)
  #include <stdio.h>
@@ -52,15 +52,10 @@
 #endif
 
  #include <stdlib.h>     /* EXIT_SUCCESS/EXIT_FAILURE; malloc/free solo en el backend de escritorio. */
-
  #include <string.h>     /* strlen, memcpy, strcmp y otras operaciones portables de texto. */
-
  #include <errno.h>      /* errno para validar conversiones numericas del modulo de afiliados. */
-
  #include <stddef.h>     /* size_t y NULL. */
-
  #include <limits.h>     /* INT_MIN, INT_MAX y CHAR_BIT para conversiones con límites seguros. */
-
  #include <float.h>      /* FLT_MAX para validar conversiones decimales a float. */
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__linux__)
@@ -85,7 +80,6 @@
 #endif
 #include <xc.h>
 #endif
-
 
  /*
   * Tamaño de arranque, no límite máximo: las líneas largas se amplían mediante
@@ -219,6 +213,8 @@ static char * leerLineaDinamica(SistemaArchivo * flujo, char *error_o_datos_a_re
  int GG_indice_donde_comensar = 1;
 /* Buffer global reservado para resultados si un flujo lo necesita. */
  char * GG_resultados_de_funciones = NULL;
+/* Ruta de sesión activa para registrar ventas ocurridas durante el conteo. */
+ static char *GG_ruta_sesion_inventario_activa = NULL;
  /*
   * Caracteres utilizados como separadores.
   *
@@ -393,6 +389,7 @@ const char *obtener_ultimo_retorno_formateado(void);
  // ============================================================================
  // DECLARACIÓN DE FUNCIONES DE PERMISOS
  // ============================================================================
+ #pragma region DECLARACIÓN DE FUNCIONES DE PERMISOS
  int checar_permiso(
 	 int nivel_minimo,
 	 const char *ruta_archivo,
@@ -401,6 +398,7 @@ const char *obtener_ultimo_retorno_formateado(void);
 	 const char *contrasena,
 	 char **retorna_direccion_espacio_negocio,
 	 int *retornar_nivel);
+
  int checar_permiso_negocios(
 	 int nivel_minimo,
 	 const char *ruta_archivo,
@@ -408,6 +406,8 @@ const char *obtener_ultimo_retorno_formateado(void);
 	 const char *usuario,
 	 const char *contrasena,
 	 int *retornar_nivel);
+#pragma endregion DECLARACIÓN DE FUNCIONES DE PERMISOS
+
  // ============================================================================
  // DECLARACIÓN DE FUNCIONES DE OPERACIONES DE TEXTO
  // ============================================================================
@@ -497,8 +497,37 @@ const char *obtener_ultimo_retorno_formateado(void);
  int submenu_pruebas_proceso_mul(char *error_o_datos_a_retornar,int nivel_de_profundidad);
  static char *pruebas_recopilar_espacios(char *error_o_datos_a_retornar,int nivel_de_profundidad);
  static char *pruebas_recopilar_proceso_mul(char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ static char *pruebas_recopilar_ventas(char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ static char *pruebas_recopilar_compras(char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ static char *pruebas_recopilar_inventario(char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ static char *pruebas_recopilar_proveedores(char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ static char *pruebas_recopilar_analisis_compras(char *error_o_datos_a_retornar,int nivel_de_profundidad);
  static int ejecutar_prueba_espacios(int opcion,char **argumentos,int cantidad,char *error_o_datos_a_retornar,int nivel_de_profundidad);
  static int ejecutar_prueba_proceso_mul(int opcion,char **argumentos,int cantidad,char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ static int ejecutar_prueba_ventas(char **argumentos,int cantidad,char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ static int ejecutar_prueba_compras(char **argumentos,int cantidad,char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ static int ejecutar_prueba_inventario(int opcion,char **argumentos,int cantidad,char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ static int ejecutar_prueba_proveedores(int opcion,char **argumentos,int cantidad,char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ static int ejecutar_prueba_analisis_compras(int opcion,char **argumentos,int cantidad,char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ char *registro_unificado_cod3_r_(const char *dir_arch_afiliados,const char *dir_arch_niveles,const char *id_enc,const char *tabla_enc,const char *datos,char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ char *compras(const char *direccion_archivo,char **productos,int cantidad_productos,const char *proveedores,const char *sucursales,double porcentaje_ganancia,char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ char *ventas(const char *direccion_archivo,const char *codigos,const char *cantidades,char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ char *inventario_agregar_producto(const char *direccion_archivo,const char *producto,char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ char *inventario_agrega_si_no_existe(const char *direccion_archivo,const char *producto,char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ char *inventario_buscar(const char *direccion_archivo,const char *codigo_barras,const char *id_producto,char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ char *inventario_sacar_info_productos_unitario_del_paquete(const char *direccion_archivo,const char *codigo_barras,const char *id_producto,char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ char *inventario_archivos_inicio_hacer_inventario(const char *direccion_registro,char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ char *inventario_registrar_movimiento_conteo(const char *direccion_registro,const char *codigo_barras,const char *nombre,const char *cantidad,const char *fecha,char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ char *inventario_hacer_inventario(const char *direccion_archivo,const char *direccion_registro,const char *informacion,const char *fecha,char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ char *inventario_dar_el_inventario_string_caracter_sep(const char *direccion_archivo,const char *separador,char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ char *registro_provedores_cod3_r_(const char *direccion_archivo,const char *datos,char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ char *extraer_nombre_provedores(const char *direccion_archivo,char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ char *extraer_nombre_provedores_y_dinero(const char *direccion_archivo,char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ char *existe_informacion(const char *direccion_archivo,const char *informacion,int columna,char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ char *prediccion_arreglo_compra(char **todo_el_ranking,int cantidad_filas,int columna_historial,int columna_ranking,int columna_promedio_compra,int columna_veces_supera_promedio,char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ char *prediccion_archivo_compra(const char *direccion_ranking,int columna_historial,int columna_ranking,int columna_promedio_compra,int columna_veces_supera_promedio,char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ char *calculo_pred_compra(char **ranking,int cantidad_filas,int columna_ranking,int columna_promedio_compra,char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ int posicion_rango_nesecidad(double promedio_compra,double cantidad_inventario);
  static int leerCodigoResultado(char *error_o_datos_a_retornar,int nivel_de_profundidad, const char *texto, int *codigo);
  static int resultadoTieneError(char *error_o_datos_a_retornar,int nivel_de_profundidad, const char *texto);
 
@@ -554,7 +583,12 @@ char* prueba(int nivel_de_profundidad)
 	 * 5 = catálogo; ejemplo: "5", luego "1" imprime las rutas de inventario.
 	 * 6 = pregunta la opción y los parámetros de espacios; main ejecuta la acción.
 	 * 7 = pregunta la opción y los parámetros de afiliados; main ejecuta la acción.
-	 * 8 = volver; genera el comando "salir" para que main retorne al menú previo.
+	 * 8 = pregunta los parámetros de venta; main ejecuta la actualización de existencias.
+	 * 9 = pregunta los parámetros de compra; main ejecuta la actualización del inventario.
+	 * 10 = pregunta las opciones y parámetros de productos e inventario; main ejecuta la operación.
+	 * 11 = preguntar las opciones y campos de proveedores; main ejecuta la operación.
+	 * 12 = analizar ranking y predecir compras; main calcula sin alterar el ranking.
+	 * 13 = volver; genera el comando "salir" para que main retorne al menú previo.
 	 * La entrada recibida aquí siempre es el número del menú principal.
 	 */
 	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "\n=== MENÚ DE PRUEBAS ===\n");
@@ -565,7 +599,12 @@ char* prueba(int nivel_de_profundidad)
 	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "5. Navegar el catálogo del negocio\n");
 	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "6. Probar espacios, permisos y estructuras\n");
 	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "7. Probar proceso de afiliados y comisiones (provisional)\n");
-	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "8. Volver al menú principal\n");
+	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "8. Registrar una venta y descontar inventario\n");
+	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "9. Registrar compra y aumentar inventario\n");
+	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "10. Probar productos y proceso de inventario\n");
+	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "11. Probar proveedores\n");
+	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "12. Analizar ranking y predecir compras\n");
+	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "13. Volver al menú principal\n");
 	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "Seleccione una opción: ");
 
 	char *entrada = leerLineaConsola(error_o_datos_a_retornar,nivel_de_profundidad);
@@ -892,8 +931,63 @@ char* prueba(int nivel_de_profundidad)
 			break;
 		}
 		case 8:
+		{
+			comando = "pruebas_ventas";
+			accionSubmenu = pruebas_recopilar_ventas(
+				error_o_datos_a_retornar, nivel_de_profundidad);
+			if(accionSubmenu == NULL)
 			{
-				/* Entrada 8 del menú principal: se recibe la orden de salir y main vuelve al menú anterior. */
+				return crearResultado(-1, "no_se_pudieron_recopilar_parametros_de_venta", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);
+			}
+			break;
+		}
+		case 9:
+		{
+			comando = "pruebas_compras";
+			accionSubmenu = pruebas_recopilar_compras(
+				error_o_datos_a_retornar, nivel_de_profundidad);
+			if(accionSubmenu == NULL)
+			{
+				return crearResultado(-1, "no_se_pudieron_recopilar_parametros_de_compra", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);
+			}
+			break;
+		}
+		case 10:
+		{
+			comando = "pruebas_inventario";
+			accionSubmenu = pruebas_recopilar_inventario(
+				error_o_datos_a_retornar, nivel_de_profundidad);
+			if(accionSubmenu == NULL)
+			{
+				return crearResultado(-1, "no_se_pudieron_recopilar_parametros_de_inventario", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);
+			}
+			break;
+		}
+		case 11:
+		{
+			comando = "pruebas_proveedores";
+			accionSubmenu = pruebas_recopilar_proveedores(
+				error_o_datos_a_retornar, nivel_de_profundidad);
+			if(accionSubmenu == NULL)
+			{
+				return crearResultado(-1, "no_se_pudieron_recopilar_parametros_de_proveedores", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);
+			}
+			break;
+		}
+		case 12:
+		{
+			comando = "pruebas_analisis_compras";
+			accionSubmenu = pruebas_recopilar_analisis_compras(
+				error_o_datos_a_retornar, nivel_de_profundidad);
+			if(accionSubmenu == NULL)
+			{
+				return crearResultado(-1, "no_se_pudieron_recopilar_parametros_de_analisis_de_compras", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);
+			}
+			break;
+		}
+		case 13:
+			{
+				/* Entrada 13 del menú principal: se recibe la orden de salir y main vuelve al menú anterior. */
 				char *salida = concatenar(
 					"%s%s%s%s%s%s%d%s%s",
 					GG_id_programa,
@@ -1437,6 +1531,149 @@ int main(void)
 			resultado = crearResultado(
 				estado < 0 ? -1 : 1,
 				estado < 0 ? "error_en_pruebas_de_afiliados" : "pruebas_de_afiliados_completadas",
+				"",
+				__func__,
+				error_o_datos_a_retornar,
+				1
+			);
+		}
+		else if(nombreFuncion != NULL &&
+			strcmp(nombreFuncion, "pruebas_ventas") == 0)
+		{
+			int cantidadArgumentos = 0;
+			int opcionPrueba = 0;
+			char **argumentos = cantidadPartesComando > 1
+				? split(partesComando[1], GG_caracter_separacion[2],
+					&cantidadArgumentos, error_o_datos_a_retornar, 1)
+				: NULL;
+			int estado = argumentos != NULL && cantidadArgumentos > 0 &&
+				texto_a_int_seguro(argumentos[0], &opcionPrueba) == 0 &&
+				(opcionPrueba == 0 || opcionPrueba == 1)
+				? (opcionPrueba == 0 ? 0 : ejecutar_prueba_ventas(
+					argumentos + 1, cantidadArgumentos - 1,
+					error_o_datos_a_retornar, 1))
+				: -1;
+			liberarSplit(argumentos, cantidadArgumentos,
+				error_o_datos_a_retornar, 0);
+			sistema_memoria_liberar(resultado, error_o_datos_a_retornar, 0);
+			resultado = crearResultado(
+				estado < 0 ? -1 : 1,
+				estado < 0 ? "error_en_prueba_de_ventas" : "prueba_de_ventas_completada",
+				"",
+				__func__,
+				error_o_datos_a_retornar,
+				1
+			);
+		}
+		else if(nombreFuncion != NULL &&
+			strcmp(nombreFuncion, "pruebas_compras") == 0)
+		{
+			int cantidadArgumentos = 0;
+			int opcionPrueba = 0;
+			char **argumentos = cantidadPartesComando > 1
+				? split(partesComando[1], GG_caracter_separacion[2],
+					&cantidadArgumentos, error_o_datos_a_retornar, 1)
+				: NULL;
+			int estado = argumentos != NULL && cantidadArgumentos > 0 &&
+				texto_a_int_seguro(argumentos[0], &opcionPrueba) == 0 &&
+				(opcionPrueba == 0 || opcionPrueba == 1)
+				? (opcionPrueba == 0 ? 0 : ejecutar_prueba_compras(
+					argumentos + 1, cantidadArgumentos - 1,
+					error_o_datos_a_retornar, 1))
+				: -1;
+			liberarSplit(argumentos, cantidadArgumentos,
+				error_o_datos_a_retornar, 0);
+			sistema_memoria_liberar(resultado, error_o_datos_a_retornar, 0);
+			resultado = crearResultado(
+				estado < 0 ? -1 : 1,
+				estado < 0 ? "error_en_prueba_de_compras" : "prueba_de_compras_completada",
+				"",
+				__func__,
+				error_o_datos_a_retornar,
+				1
+			);
+		}
+		else if(nombreFuncion != NULL &&
+			strcmp(nombreFuncion, "pruebas_inventario") == 0)
+		{
+			int cantidadArgumentos = 0;
+			int opcionPrueba = 0;
+			char **argumentos = cantidadPartesComando > 1
+				? split(partesComando[1], GG_caracter_separacion[2],
+					&cantidadArgumentos, error_o_datos_a_retornar, 1)
+				: NULL;
+			int estado = argumentos != NULL && cantidadArgumentos > 0 &&
+				texto_a_int_seguro(argumentos[0], &opcionPrueba) == 0 &&
+				opcionPrueba >= 0 && opcionPrueba <= 7
+				? (opcionPrueba == 0 ? 0 : ejecutar_prueba_inventario(
+					opcionPrueba, argumentos + 1, cantidadArgumentos - 1,
+					error_o_datos_a_retornar, 1))
+				: -1;
+			liberarSplit(argumentos, cantidadArgumentos,
+				error_o_datos_a_retornar, 0);
+			sistema_memoria_liberar(resultado, error_o_datos_a_retornar, 0);
+			resultado = crearResultado(
+				estado < 0 ? -1 : 1,
+				estado < 0 ? "error_en_pruebas_de_inventario" : "pruebas_de_inventario_completadas",
+				"",
+				__func__,
+				error_o_datos_a_retornar,
+				1
+			);
+		}
+		else if(nombreFuncion != NULL &&
+			strcmp(nombreFuncion, "pruebas_proveedores") == 0)
+		{
+			int cantidadArgumentos = 0;
+			int opcionPrueba = 0;
+			char **argumentos = cantidadPartesComando > 1
+				? split(partesComando[1], GG_caracter_separacion[2],
+					&cantidadArgumentos, error_o_datos_a_retornar, 1)
+				: NULL;
+			int estado = argumentos != NULL && cantidadArgumentos > 0 &&
+				texto_a_int_seguro(argumentos[0], &opcionPrueba) == 0 &&
+				opcionPrueba >= 0 && opcionPrueba <= 3
+				? (opcionPrueba == 0 ? 0 : ejecutar_prueba_proveedores(
+					opcionPrueba, argumentos + 1,
+					cantidadArgumentos - 1,
+					error_o_datos_a_retornar, 1))
+				: -1;
+			liberarSplit(argumentos, cantidadArgumentos,
+				error_o_datos_a_retornar, 0);
+			sistema_memoria_liberar(resultado, error_o_datos_a_retornar, 0);
+			resultado = crearResultado(
+				estado < 0 ? -1 : 1,
+				estado < 0 ? "error_en_pruebas_de_proveedores" : "pruebas_de_proveedores_completadas",
+				"",
+				__func__,
+				error_o_datos_a_retornar,
+				1
+			);
+		}
+		else if(nombreFuncion != NULL &&
+			strcmp(nombreFuncion, "pruebas_analisis_compras") == 0)
+		{
+			int cantidadArgumentos = 0;
+			int opcionPrueba = 0;
+			char **argumentos = cantidadPartesComando > 1
+				? split(partesComando[1], GG_caracter_separacion[2],
+					&cantidadArgumentos, error_o_datos_a_retornar, 1)
+				: NULL;
+			int estado = argumentos != NULL && cantidadArgumentos > 0 &&
+				texto_a_int_seguro(argumentos[0], &opcionPrueba) == 0 &&
+				opcionPrueba >= 0 && opcionPrueba <= 2
+				? (opcionPrueba == 0 ? 0 :
+					ejecutar_prueba_analisis_compras(
+						opcionPrueba, argumentos + 1,
+						cantidadArgumentos - 1,
+						error_o_datos_a_retornar, 1))
+				: -1;
+			liberarSplit(argumentos, cantidadArgumentos,
+				error_o_datos_a_retornar, 0);
+			sistema_memoria_liberar(resultado, error_o_datos_a_retornar, 0);
+			resultado = crearResultado(
+				estado < 0 ? -1 : 1,
+				estado < 0 ? "error_en_analisis_de_compras" : "analisis_de_compras_completado",
 				"",
 				__func__,
 				error_o_datos_a_retornar,
@@ -6055,7 +6292,7 @@ static int gg_editar_campos_en_archivo(const char *ruta_data, int indice_fila, c
  * Entrada de ejemplo: editar_celda_id_info_dividida(NULL,"7","2","4").
  * Salida de ejemplo: "0╣no_se_encontro_informacion"; no modifica archivos.
  * Para una dirección existente no puede precisarse el resultado: el cuerpo usa
- * GG_caracter_separacion_funciones_espesificas[4], fuera del arreglo de 4 elementos.
+ * Las listas paralelas usan GG_caracter_separacion_funciones_espesificas[0].
  */
 /**
  * Edita uno o varios campos de la fila identificada por ID.
@@ -6075,8 +6312,8 @@ char *editar_celda_id_info_dividida(const char *direccion, const char *id, const
 		return gg_info_respuesta(0, "no_se_encontro_informacion");
 	char **indices = NULL;
 	char **valores = NULL;
-	int n_indices = split_con_numero_de_celdas(cols_str, GG_caracter_separacion_funciones_espesificas[4], &indices);
-	int n_valores = split_con_numero_de_celdas(vals_str, GG_caracter_separacion_funciones_espesificas[4], &valores);
+	int n_indices = split_con_numero_de_celdas(cols_str, GG_caracter_separacion_funciones_espesificas[0], &indices);
+	int n_valores = split_con_numero_de_celdas(vals_str, GG_caracter_separacion_funciones_espesificas[0], &valores);
 	int n = n_indices < n_valores ? n_indices : n_valores;
 	int resultado = n > 0 && indices != NULL && valores != NULL
 		? gg_editar_campos_en_archivo(ruta_data, indice, indices, valores, n) : -1;
@@ -6156,7 +6393,7 @@ char *editar_id_info_dividida(const char *direccion, const char *id, const char 
  * copia_si_vacio=0, fuentes_texto=NULL y fila_resultado apuntando a NULL.
  * Salida de ejemplo: retorna -1 y fila_resultado permanece NULL.
  * Para una dirección existente no puede precisarse el resultado: el cuerpo usa
- * GG_caracter_separacion_funciones_espesificas[4], fuera del arreglo de 4 elementos.
+ * Las listas paralelas usan GG_caracter_separacion_funciones_espesificas[0].
  */
 /**
  * Suma cantidades a campos numéricos de una fila y guarda la fila actualizada.
@@ -6179,10 +6416,10 @@ static int gg_incrementar_campos(const char *direccion, const char *id, const ch
 	char **indices = NULL;
 	char **cantidades = NULL;
 	char **fuentes = NULL;
-	int n_indices = split_con_numero_de_celdas(indices_texto, GG_caracter_separacion_funciones_espesificas[4], &indices);
-	int n_cantidades = split_con_numero_de_celdas(cantidades_texto, GG_caracter_separacion_funciones_espesificas[4], &cantidades);
+	int n_indices = split_con_numero_de_celdas(indices_texto, GG_caracter_separacion_funciones_espesificas[0], &indices);
+	int n_cantidades = split_con_numero_de_celdas(cantidades_texto, GG_caracter_separacion_funciones_espesificas[0], &cantidades);
 	int n_fuentes = copia_si_vacio
-		? split_con_numero_de_celdas(fuentes_texto != NULL ? fuentes_texto : "", GG_caracter_separacion_funciones_espesificas[4], &fuentes)
+		? split_con_numero_de_celdas(fuentes_texto != NULL ? fuentes_texto : "", GG_caracter_separacion_funciones_espesificas[0], &fuentes)
 		: 0;
 	char **celdas = NULL;
 	int n_celdas = split_con_numero_de_celdas(fila, GG_caracter_separacion[0], &celdas);
@@ -6258,8 +6495,7 @@ static int gg_incrementar_campos(const char *direccion, const char *id, const ch
  * en éxito o estado 0 si no se encontró/pudo actualizar.
  * Entrada de ejemplo: incrementa_celda_id_info_dividida(NULL,"7","2","2").
  * Salida de ejemplo: "0╣no_se_encontro_informacion".
- * Para actualizar una fila no se puede predecir el resultado: la rutina auxiliar usa
- * GG_caracter_separacion_funciones_espesificas[4], fuera del arreglo de 4 elementos.
+ * Las columnas y cantidades usan GG_caracter_separacion_funciones_espesificas[0].
  */
 char *incrementa_celda_id_info_dividida(const char *direccion, const char *id, const char *cols_str, const char *cants_str)
 {
@@ -6279,8 +6515,7 @@ char *incrementa_celda_id_info_dividida(const char *direccion, const char *id, c
  * de bultos requeridos como tercer campo.
  * Entrada de ejemplo: incrementa_celda_id_info_dividida_copia_si_cero(NULL,"7","1","2","2").
  * Salida de ejemplo: "0╣no_se_encontro_informacion".
- * Para una fila existente no se puede predecir la respuesta: la rutina auxiliar usa
- * GG_caracter_separacion_funciones_espesificas[4], fuera del arreglo de 4 elementos.
+ * Las columnas y cantidades usan GG_caracter_separacion_funciones_espesificas[0].
  */
 char *incrementa_celda_id_info_dividida_copia_si_cero(const char *direccion, const char *id, const char *cols_str, const char *cants_str, const char *cols_fuente_str)
 {
@@ -6415,8 +6650,7 @@ char *buscar_info_dividida(const char *direccion, const char *dato_buscar, int c
  * de la actualización, del agregado o de ausencia.
  * Entrada de ejemplo: incrementa_celda_busqueda_info_dividida(NULL,"Manzana",1,"2","2",NULL).
  * Salida de ejemplo: "0╣no_se_encontro_informacion".
- * Si encuentra fila, el resultado del incremento no se puede precisar porque la rutina
- * auxiliar usa GG_caracter_separacion_funciones_espesificas[4], fuera del arreglo.
+ * Si encuentra fila, las columnas/cantidades se separan con el primer delimitador específico.
  */
 char *incrementa_celda_busqueda_info_dividida(const char *direccion, const char *dato_a_buscar, int col_buscar, const char *cols_inc_str, const char *cants_inc_str, const char *agregar_fallback)
 {
@@ -9369,7 +9603,7 @@ typedef struct proceso_mul
 	const char *columnas_afiliados;
 } proceso_mul;
 
-static char *pm_copiar_texto(const char *texto)
+static char * pm_copiar_texto(const char *texto)
 {
 	if(texto == NULL) texto = "";
 	size_t longitud = strlen(texto) + 1;
@@ -10191,7 +10425,7 @@ int submenu_pruebas_proceso_mul(
 {
 	int opcion = 0;
 	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
-		"\n=== PROCESO DE AFILIADOS (PROVISIONAL) ===\n"
+		"\n=== PROCESO DE AFILIADOS ===\n"
 		"1. Agregar usuario nuevo a AFILIADOS_UNIFICADO\n"
 		"2. Registrar/actualizar relacion de afiliado\n"
 		"3. Calcular comision de una venta\n"
@@ -10543,7 +10777,7 @@ static char *pruebas_recopilar_proceso_mul(
 {
 	int opcion = 0;
 	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
-		"\n=== PROCESO DE AFILIADOS (PROVISIONAL) ===\n"
+		"\n=== PROCESO DE AFILIADOS ===\n"
 		"1. Agregar usuario nuevo a AFILIADOS_UNIFICADO\n"
 		"2. Registrar/actualizar relación de afiliado\n"
 		"3. Calcular comisión de una venta\n"
@@ -10551,15 +10785,16 @@ static char *pruebas_recopilar_proceso_mul(
 		"5. Buscar cadena de patrocinadores\n"
 		"6. Calcular pagos simples, complejos y total\n"
 		"7. Repetir elementos de una lista de texto\n"
-		"8. Volver\n");
+		"8. Agregar usuario nuevo con encargado\n"
+		"9. Volver\n");
 	if(!pm_pedir_entero("Seleccione una opción: ", &opcion,
 		error_o_datos_a_retornar, nivel_de_profundidad)) return NULL;
-	if(opcion == 8) return pm_copiar_texto("0");
-	if(opcion < 1 || opcion > 7) return NULL;
+	if(opcion == 9) return pm_copiar_texto("0");
+	if(opcion < 1 || opcion > 8) return NULL;
 
 	char **campos = NULL;
 	int cantidad = 0;
-	if(opcion == 1)
+	if(opcion == 1 || opcion == 8)
 	{
 		int columnas = 0;
 		char **nombres = split(GG_secciones_negocio[4].columnas,
@@ -10570,7 +10805,9 @@ static char *pruebas_recopilar_proceso_mul(
 			liberarSplit(nombres, columnas, error_o_datos_a_retornar, 0);
 			return NULL;
 		}
-		cantidad = 45;
+		int inicio_datos = opcion == 8 ? 3 : 1;
+		int ultima_columna = opcion == 8 ? 32 : 44;
+		cantidad = opcion == 8 ? 35 : 45;
 		campos = sistema_memoria_reservar(
 			(size_t)cantidad * sizeof(*campos),
 			error_o_datos_a_retornar, nivel_de_profundidad);
@@ -10586,19 +10823,31 @@ static char *pruebas_recopilar_proceso_mul(
 				campos[0] = pm_copiar_texto(
 					"CONFIG/AFILIADOS/AFILIADOS_UNIFICADO.TXT");
 			}
-			for(int i = 1; campos[0] != NULL && i < 44; ++i)
+			if(opcion == 8)
+			{
+				campos[1] = pm_pedir_texto(
+					"ID del encargado existente: ",
+					error_o_datos_a_retornar, nivel_de_profundidad);
+				campos[2] = pm_pedir_texto(
+					"Proyecto/tabla: ",
+					error_o_datos_a_retornar, nivel_de_profundidad);
+			}
+			for(int i = 1; campos[0] != NULL && i < ultima_columna; ++i)
 			{
 				char *solicitud = variable_string(
 					"Valor para %s (Enter lo deja vacío): ", nombres[i]);
-				campos[i] = solicitud != NULL
+				campos[inicio_datos + i - 1] = solicitud != NULL
 					? pm_pedir_texto(solicitud, error_o_datos_a_retornar,
 						nivel_de_profundidad)
 					: NULL;
 				sistema_memoria_liberar(solicitud, error_o_datos_a_retornar, 0);
 			}
-			campos[44] = campos[43] != NULL
+			campos[cantidad - 1] =
+				campos[inicio_datos + ultima_columna - 2] != NULL
 				? pm_pedir_texto(
-					"Se agregará un usuario. Escriba SI para confirmar: ",
+					opcion == 8
+						? "Se agregará el usuario con la relación de encargado. Escriba SI para confirmar: "
+						: "Se agregará un usuario. Escriba SI para confirmar: ",
 					error_o_datos_a_retornar, nivel_de_profundidad)
 				: NULL;
 		}
@@ -10651,14 +10900,27 @@ static char *pruebas_recopilar_proceso_mul(
 	{
 		if(campos[i] == NULL || !pruebas_campo_serializable(campos[i]) ||
 			(opcion == 1 && i > 0 && i < 44 &&
+				strstr(campos[i], GG_caracter_separacion[1]) != NULL) ||
+			(opcion == 8 && i >= 3 && i < 34 &&
 				strstr(campos[i], GG_caracter_separacion[1]) != NULL))
 		{
 			pruebas_liberar_campos(campos, cantidad, error_o_datos_a_retornar);
 			return NULL;
 		}
 	}
+	if(opcion == 8 &&
+		(campos[1][0] == '\0' || campos[2][0] == '\0' ||
+			campos[3][0] == '\0'))
+	{
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"El ID del encargado, el proyecto/tabla y el nombre del usuario son obligatorios.\n");
+		pruebas_liberar_campos(campos, cantidad, error_o_datos_a_retornar);
+		return NULL;
+	}
 	if((opcion == 1 && strcmp(campos[44], "SI") != 0 &&
 		strcmp(campos[44], "si") != 0) ||
+		(opcion == 8 && (strcmp(campos[34], "SI") != 0 &&
+			strcmp(campos[34], "si") != 0)) ||
 		(opcion == 2 && strcmp(campos[10], "SI") != 0 &&
 			strcmp(campos[10], "si") != 0))
 	{
@@ -10671,6 +10933,1525 @@ static char *pruebas_recopilar_proceso_mul(
 		opcion, campos, cantidad, error_o_datos_a_retornar);
 	pruebas_liberar_campos(campos, cantidad, error_o_datos_a_retornar);
 	return resultado;
+}
+
+static char *pruebas_recopilar_ventas(
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	const char *prompts[] = {
+		"Ruta del inventario dividido (Enter usa la ruta configurada): ",
+		"Códigos de barras separados por °: ",
+		"Cantidades en el mismo orden, separadas por °: ",
+		"Se descontarán existencias y se guardarán registros y rankings. Escriba SI para confirmar: "
+	};
+	char **campos = NULL;
+	if(!pruebas_leer_campos(prompts, 4, &campos,
+		error_o_datos_a_retornar, nivel_de_profundidad))
+	{
+		pruebas_liberar_campos(campos, 4, error_o_datos_a_retornar);
+		return NULL;
+	}
+	if(campos[0][0] == '\0')
+	{
+		sistema_memoria_liberar(campos[0], error_o_datos_a_retornar, 0);
+		campos[0] = pm_copiar_texto(
+			"CONFIG/INF/INVENTARIO/INVENTARIO.TXT");
+	}
+	if(campos[0] == NULL)
+	{
+		pruebas_liberar_campos(campos, 4, error_o_datos_a_retornar);
+		return NULL;
+	}
+	if(strcmp(campos[3], "SI") != 0 && strcmp(campos[3], "si") != 0)
+	{
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"Venta cancelada; no se modificó el inventario.\n");
+		pruebas_liberar_campos(campos, 4, error_o_datos_a_retornar);
+		return pm_copiar_texto("0");
+	}
+	char *resultado = pruebas_serializar(
+		1, campos, 4, error_o_datos_a_retornar);
+	pruebas_liberar_campos(campos, 4, error_o_datos_a_retornar);
+	return resultado;
+}
+
+static int ventas_parsear_numero(const char *texto, double *valor)
+{
+	if(texto == NULL || valor == NULL || texto[0] == '\0') return 0;
+	char *fin = NULL;
+	errno = 0;
+	double convertido = strtod(texto, &fin);
+	if(errno == ERANGE || fin == texto || *fin != '\0' ||
+		convertido != convertido || convertido > DBL_MAX ||
+		convertido < -DBL_MAX)
+		return 0;
+	*valor = convertido;
+	return 1;
+}
+
+static int ventas_respuesta_exitosa(const char *respuesta)
+{
+	int cantidad_partes = 0;
+	char **partes = respuesta != NULL
+		? split(respuesta, GG_caracter_para_confirmacion_o_error[0],
+			&cantidad_partes, NULL, 0)
+		: NULL;
+	int codigo = 0;
+	int correcta = partes != NULL && cantidad_partes >= 2 &&
+		texto_a_int_seguro(partes[0], &codigo) == 0 && codigo > 0;
+	liberarSplit(partes, cantidad_partes, NULL, 0);
+	return correcta;
+}
+
+static int gg_registros_base_desde_inventario(
+	const char *direccion_archivo,
+	char **base_out)
+{
+	if(base_out == NULL) return 0;
+	*base_out = NULL;
+	if(direccion_archivo == NULL) return 0;
+	const char *marcadores[] = {
+		"/CONFIG/INF/INVENTARIO/INVENTARIO.TXT",
+		"\\CONFIG\\INF\\INVENTARIO\\INVENTARIO.TXT",
+		"CONFIG/INF/INVENTARIO/INVENTARIO.TXT",
+		"CONFIG\\INF\\INVENTARIO\\INVENTARIO.TXT"
+	};
+	const char *encontrado = NULL;
+	for(size_t i = 0; i < sizeof(marcadores) / sizeof(marcadores[0]); ++i)
+	{
+		encontrado = strstr(direccion_archivo, marcadores[i]);
+		if(encontrado != NULL)
+			break;
+	}
+	if(encontrado == NULL) return 0;
+	size_t largo_base = (size_t)(encontrado - direccion_archivo);
+	*base_out = variable_string("%.*s", (int)largo_base, direccion_archivo);
+	return *base_out != NULL;
+}
+
+static char *gg_registros_unir_ruta(const char *base, const char *relativa)
+{
+	if(base == NULL || relativa == NULL) return NULL;
+	if(base[0] == '\0') return variable_string("%s", relativa);
+	size_t largo = strlen(base);
+	const char *separador = base[largo - 1] == '/' ||
+		base[largo - 1] == '\\' ? "" : "/";
+	return variable_string("%s%s%s", base, separador, relativa);
+}
+
+static char *gg_registros_ruta_fecha(
+	const char *base,
+	int seccion,
+	const char *fecha)
+{
+	if(base == NULL || fecha == NULL ||
+		(seccion != 9 && seccion != 13 && strlen(fecha) < 8))
+		return NULL;
+	char *relativa = NULL;
+	switch(seccion)
+	{
+		case 6:
+			relativa = variable_string(
+				"CONFIG/INF/REGISTROS/FECHAS/%.4s/%.6s/%.8s_REGISTRO.TXT",
+				fecha, fecha, fecha);
+			break;
+		case 7:
+			relativa = variable_string(
+				"CONFIG/INF/REGISTROS/FECHAS/%.4s/%.6s_REGISTRO.TXT",
+				fecha, fecha);
+			break;
+		case 8:
+			relativa = variable_string(
+				"CONFIG/INF/REGISTROS/FECHAS/%.4s_REGISTRO.TXT", fecha);
+			break;
+		case 9:
+			relativa = variable_string(
+				"CONFIG/INF/REGISTROS/ACUMULADO_REGISTRO.TXT");
+			break;
+		case 10:
+			relativa = variable_string(
+				"CONFIG/INF/REGISTROS/FECHAS/%.4s/%.6s/%.8s_PRODUC_REGISTRO.TXT",
+				fecha, fecha, fecha);
+			break;
+		case 11:
+			relativa = variable_string(
+				"CONFIG/INF/REGISTROS/FECHAS/%.4s/%.6s_PRODUC_REGISTRO.TXT",
+				fecha, fecha);
+			break;
+		case 12:
+			relativa = variable_string(
+				"CONFIG/INF/REGISTROS/FECHAS/%.4s_PRODUC_REGISTRO.TXT",
+				fecha);
+			break;
+		case 13:
+			relativa = variable_string(
+				"CONFIG/INF/REGISTROS/ACUMULADO_PRODUC_REGISTRO.TXT");
+			break;
+		default:
+			return NULL;
+	}
+	if(relativa == NULL) return NULL;
+	char *ruta = gg_registros_unir_ruta(base, relativa);
+	sistema_memoria_liberar(relativa, NULL, 0);
+	return ruta;
+}
+
+static int gg_registros_guardar_archivo(
+	const char *ruta,
+	char **lineas,
+	int cantidad_lineas)
+{
+	guardar_archivo(ruta, lineas, cantidad_lineas);
+	int cantidad_verificacion = 0;
+	char **verificacion = leer_archivo(ruta, &cantidad_verificacion);
+	int correcto = verificacion != NULL &&
+		cantidad_verificacion == cantidad_lineas;
+	for(int i = 0; correcto && i < cantidad_lineas; ++i)
+		if(strcmp(verificacion[i], lineas[i]) != 0) correcto = 0;
+	free_lineas(verificacion, cantidad_verificacion);
+	return correcto;
+}
+
+static int gg_registros_numero_opcional(const char *texto, double *valor)
+{
+	if(texto == NULL || texto[0] == '\0')
+	{
+		*valor = 0.0;
+		return 1;
+	}
+	return ventas_parsear_numero(texto, valor);
+}
+
+static int gg_registros_calcular_impuestos(
+	const char *direccion_archivo,
+	const char *ids_impuestos,
+	double base_imponible,
+	double *total_impuestos,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	if(total_impuestos == NULL || base_imponible < 0.0) return 0;
+	*total_impuestos = 0.0;
+	if(ids_impuestos == NULL || ids_impuestos[0] == '\0') return 1;
+	char *base = NULL;
+	if(!gg_registros_base_desde_inventario(direccion_archivo, &base))
+		return 0;
+	char *ruta_impuestos = base[0] != '\0'
+		? gg_registros_unir_ruta(base, GG_secciones_negocio[14].ruta)
+		: variable_string("%s", GG_secciones_negocio[14].ruta);
+	sistema_memoria_liberar(base, error_o_datos_a_retornar, 0);
+	if(ruta_impuestos == NULL) return 0;
+	int cantidad_lineas = 0;
+	char **lineas = leer_archivo(ruta_impuestos, &cantidad_lineas);
+	sistema_memoria_liberar(ruta_impuestos, error_o_datos_a_retornar, 0);
+	if(lineas == NULL) return 0;
+	int cantidad_ids = 0;
+	char **ids = split(ids_impuestos, GG_caracter_separacion[1],
+		&cantidad_ids, error_o_datos_a_retornar, nivel_de_profundidad);
+	int correcto = ids != NULL;
+	for(int i = 0; correcto && i < cantidad_ids; ++i)
+	{
+		if(ids[i][0] == '\0') continue;
+		int repetido = 0;
+		for(int previo = 0; previo < i; ++previo)
+			if(strcmp(ids[previo], ids[i]) == 0) repetido = 1;
+		if(repetido) continue;
+		int encontrado = 0;
+		for(int j = 1; j < cantidad_lineas; ++j)
+		{
+			int cantidad_campos = 0;
+			char **campos = split(lineas[j], GG_caracter_separacion[1],
+				&cantidad_campos, error_o_datos_a_retornar,
+				nivel_de_profundidad);
+			if(campos != NULL && cantidad_campos >= 3 &&
+				strcmp(campos[0], ids[i]) == 0)
+			{
+				double porcentaje = 0.0;
+				if(ventas_parsear_numero(campos[2], &porcentaje) &&
+					porcentaje >= 0.0)
+				{
+					double fraccion = porcentaje / 100.0;
+					if(fraccion == 0.0 ||
+						base_imponible <= DBL_MAX / fraccion)
+					{
+						double monto = base_imponible * fraccion;
+						if(monto <= DBL_MAX - *total_impuestos)
+						{
+							*total_impuestos += monto;
+							encontrado = 1;
+						}
+					}
+				}
+			}
+			liberarSplit(campos, cantidad_campos,
+				error_o_datos_a_retornar, 0);
+			if(encontrado) break;
+		}
+		if(!encontrado) correcto = 0;
+	}
+	liberarSplit(ids, cantidad_ids, error_o_datos_a_retornar, 0);
+	free_lineas(lineas, cantidad_lineas);
+	return correcto;
+}
+
+static int gg_registros_campo_serializable(const char *texto)
+{
+	return texto != NULL &&
+		strstr(texto, GG_caracter_separacion[1]) == NULL &&
+		strstr(texto, GG_caracter_separacion[2]) == NULL &&
+		strchr(texto, '\n') == NULL && strchr(texto, '\r') == NULL;
+}
+
+static int gg_registros_agregar_detalle(
+	char **lista,
+	const char *codigo,
+	const char *importe,
+	const char *nombre,
+	const char *cantidad,
+	const char *proveedores,
+	const char *tipo,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	if(lista == NULL || !gg_registros_campo_serializable(codigo) ||
+		!gg_registros_campo_serializable(importe) ||
+		!gg_registros_campo_serializable(nombre) ||
+		!gg_registros_campo_serializable(cantidad) ||
+		!gg_registros_campo_serializable(proveedores) ||
+		!gg_registros_campo_serializable(tipo))
+		return 0;
+	char *campos[] = {
+		(char *)codigo, (char *)importe, (char *)nombre,
+		(char *)cantidad, (char *)proveedores, (char *)tipo
+	};
+	char *detalle = join(campos, 6, GG_caracter_separacion[2],
+		error_o_datos_a_retornar, nivel_de_profundidad);
+	if(detalle == NULL) return 0;
+	char *nuevo = (*lista == NULL || (*lista)[0] == '\0')
+		? variable_string("%s", detalle)
+		: variable_string("%s%s%s", *lista,
+			GG_caracter_separacion[1], detalle);
+	sistema_memoria_liberar(detalle, error_o_datos_a_retornar, 0);
+	if(nuevo == NULL) return 0;
+	sistema_memoria_liberar(*lista, error_o_datos_a_retornar, 0);
+	*lista = nuevo;
+	return 1;
+}
+
+static char *gg_registros_crear_fila(
+	const char *ruta,
+	const char *cabecera,
+	const char *campos)
+{
+	if(crearArchivo(ruta, cabecera) < 0) return NULL;
+	int cantidad_lineas = 0;
+	char **lineas = leer_archivo(ruta, &cantidad_lineas);
+	if(lineas == NULL) return NULL;
+	char *fila = variable_string("%d%s%s",
+		cantidad_lineas, GG_caracter_separacion[1], campos);
+	free_lineas(lineas, cantidad_lineas);
+	if(fila == NULL) return NULL;
+	char *respuesta = escribirLinea(ruta, fila, NULL, 0);
+	int partes_respuesta = 0;
+	char **respuesta_separada = respuesta != NULL
+		? split(respuesta, GG_caracter_separacion[1],
+			&partes_respuesta, NULL, 0)
+		: NULL;
+	int codigo_respuesta = 0;
+	int agregado = respuesta_separada != NULL &&
+		partes_respuesta >= 2 &&
+		texto_a_int_seguro(respuesta_separada[1], &codigo_respuesta) == 0 &&
+		codigo_respuesta > 0;
+	liberarSplit(respuesta_separada, partes_respuesta, NULL, 0);
+	sistema_memoria_liberar(respuesta, NULL, 0);
+	sistema_memoria_liberar(fila, NULL, 0);
+	return agregado
+		? variable_string("1%sregistro_guardado",
+			GG_caracter_para_confirmacion_o_error[0])
+		: NULL;
+}
+
+static int gg_registros_acumular_resumen(
+	const char *base,
+	int seccion,
+	const char *fecha,
+	const char *periodo,
+	const char *operacion,
+	double venta,
+	double costo,
+	double impuestos,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	char *ruta = gg_registros_ruta_fecha(base, seccion, fecha);
+	if(ruta == NULL) return 0;
+	if(crearArchivo(ruta, GG_secciones_negocio[seccion].columnas) < 0)
+	{
+		sistema_memoria_liberar(ruta, error_o_datos_a_retornar, 0);
+		return 0;
+	}
+	int cantidad_lineas = 0;
+	char **lineas = leer_archivo(ruta, &cantidad_lineas);
+	if(lineas == NULL)
+	{
+		sistema_memoria_liberar(ruta, error_o_datos_a_retornar, 0);
+		return 0;
+	}
+	int indice_fila = -1;
+	for(int i = 1; i < cantidad_lineas; ++i)
+	{
+		int cantidad_campos = 0;
+		char **campos = split(lineas[i], GG_caracter_separacion[1],
+			&cantidad_campos, error_o_datos_a_retornar,
+			nivel_de_profundidad);
+		int coincide = campos != NULL && cantidad_campos >= 9 &&
+			strcmp(campos[1], periodo) == 0 &&
+			strcmp(campos[2], operacion) == 0;
+		liberarSplit(campos, cantidad_campos,
+			error_o_datos_a_retornar, 0);
+		if(coincide)
+		{
+			indice_fila = i;
+			break;
+		}
+	}
+
+	char *resultado_fila = NULL;
+	int fila_actualizada = 0;
+	if(indice_fila >= 0)
+	{
+		int cantidad_campos = 0;
+		char **campos = split(lineas[indice_fila],
+			GG_caracter_separacion[1], &cantidad_campos,
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		double venta_actual = 0.0, costo_actual = 0.0;
+		double impuesto_actual = 0.0, impuestos_actuales = 0.0;
+		int valido = campos != NULL && cantidad_campos >= 9 &&
+			gg_registros_numero_opcional(campos[3], &impuesto_actual) &&
+			gg_registros_numero_opcional(campos[5], &venta_actual) &&
+			gg_registros_numero_opcional(campos[6], &costo_actual) &&
+			gg_registros_numero_opcional(campos[7], &impuestos_actuales) &&
+			impuestos <= DBL_MAX - impuesto_actual &&
+			venta <= DBL_MAX - venta_actual &&
+			costo <= DBL_MAX - costo_actual &&
+			impuestos <= DBL_MAX - impuestos_actuales;
+		if(valido)
+		{
+			char *texto_impuesto = variable_string("%.17g",
+				impuesto_actual + impuestos);
+			char *texto_venta = variable_string("%.17g", venta_actual + venta);
+			char *texto_costo = variable_string("%.17g", costo_actual + costo);
+			char *texto_impuestos = variable_string("%.17g",
+				impuestos_actuales + impuestos);
+			char *texto_ganancia = variable_string("%.17g",
+				venta_actual + venta - costo_actual - costo -
+				impuestos_actuales - impuestos);
+			if(texto_impuesto != NULL && texto_venta != NULL && texto_costo != NULL &&
+				texto_impuestos != NULL && texto_ganancia != NULL)
+			{
+				sistema_memoria_liberar(campos[3], error_o_datos_a_retornar, 0);
+				sistema_memoria_liberar(campos[5], error_o_datos_a_retornar, 0);
+				sistema_memoria_liberar(campos[6], error_o_datos_a_retornar, 0);
+				sistema_memoria_liberar(campos[7], error_o_datos_a_retornar, 0);
+				sistema_memoria_liberar(campos[8], error_o_datos_a_retornar, 0);
+				campos[3] = texto_impuesto;
+				campos[5] = texto_venta;
+				campos[6] = texto_costo;
+				campos[7] = texto_impuestos;
+				campos[8] = texto_ganancia;
+				resultado_fila = join(campos, cantidad_campos,
+					GG_caracter_separacion[1], error_o_datos_a_retornar,
+					nivel_de_profundidad);
+			}
+			else
+			{
+				sistema_memoria_liberar(texto_impuesto, error_o_datos_a_retornar, 0);
+				sistema_memoria_liberar(texto_venta, error_o_datos_a_retornar, 0);
+				sistema_memoria_liberar(texto_costo, error_o_datos_a_retornar, 0);
+				sistema_memoria_liberar(texto_impuestos, error_o_datos_a_retornar, 0);
+				sistema_memoria_liberar(texto_ganancia, error_o_datos_a_retornar, 0);
+			}
+		}
+		liberarSplit(campos, cantidad_campos,
+			error_o_datos_a_retornar, 0);
+		if(resultado_fila != NULL)
+		{
+			sistema_memoria_liberar(lineas[indice_fila],
+				error_o_datos_a_retornar, 0);
+			lineas[indice_fila] = resultado_fila;
+			resultado_fila = NULL;
+			fila_actualizada = 1;
+		}
+	}
+	else
+	{
+		char *texto_impuestos = variable_string("%.17g", impuestos);
+		char *texto_venta = variable_string("%.17g", venta);
+		char *texto_costo = variable_string("%.17g", costo);
+		char *texto_ganancia = variable_string("%.17g",
+			venta - costo - impuestos);
+		char *campos_fila[8] = {
+			(char *)periodo, (char *)operacion, texto_impuestos,
+			"REGISTRO_AUTOMATICO", texto_venta, texto_costo,
+			texto_impuestos, texto_ganancia
+		};
+		char *campos = texto_impuestos != NULL && texto_venta != NULL &&
+			texto_costo != NULL && texto_ganancia != NULL
+			? join(campos_fila, 8, GG_caracter_separacion[1],
+				error_o_datos_a_retornar, nivel_de_profundidad)
+			: NULL;
+		if(campos != NULL)
+		{
+			char *respuesta = gg_registros_crear_fila(ruta,
+				GG_secciones_negocio[seccion].columnas, campos);
+			if(ventas_respuesta_exitosa(respuesta))
+				fila_actualizada = 1;
+			sistema_memoria_liberar(respuesta, error_o_datos_a_retornar, 0);
+		}
+		sistema_memoria_liberar(campos, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(texto_impuestos, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(texto_venta, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(texto_costo, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(texto_ganancia, error_o_datos_a_retornar, 0);
+	}
+
+	int guardado = 0;
+	if(indice_fila >= 0)
+		guardado = fila_actualizada &&
+			gg_registros_guardar_archivo(ruta, lineas, cantidad_lineas);
+	else
+		guardado = fila_actualizada;
+	sistema_memoria_liberar(resultado_fila, error_o_datos_a_retornar, 0);
+	free_lineas(lineas, cantidad_lineas);
+	sistema_memoria_liberar(ruta, error_o_datos_a_retornar, 0);
+	return guardado;
+}
+
+static int gg_registros_actualizar_producto(
+	const char *base,
+	int seccion,
+	const char *fecha,
+	const char *codigo,
+	const char *nombre,
+	const char *cantidad,
+	const char *proveedores,
+	const char *tipo,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	char *ruta = gg_registros_ruta_fecha(base, seccion, fecha);
+	if(ruta == NULL) return 0;
+	if(crearArchivo(ruta, GG_secciones_negocio[seccion].columnas) < 0)
+	{
+		sistema_memoria_liberar(ruta, error_o_datos_a_retornar, 0);
+		return 0;
+	}
+	int n_lineas = 0;
+	char **lineas = leer_archivo(ruta, &n_lineas);
+	if(lineas == NULL)
+	{
+		sistema_memoria_liberar(ruta, error_o_datos_a_retornar, 0);
+		return 0;
+	}
+	int indice = -1;
+	for(int i = 1; i < n_lineas; ++i)
+	{
+		int n_campos = 0;
+		char **campos = split(lineas[i], GG_caracter_separacion[1],
+			&n_campos, error_o_datos_a_retornar, nivel_de_profundidad);
+		int coincide = campos != NULL && n_campos >= 4 &&
+			strcmp(campos[3], codigo) == 0;
+		liberarSplit(campos, n_campos, error_o_datos_a_retornar, 0);
+		if(coincide)
+		{
+			indice = i;
+			break;
+		}
+	}
+	int guardado = 0;
+	if(indice >= 0)
+	{
+		int n_campos = 0;
+		char **campos = split(lineas[indice], GG_caracter_separacion[1],
+			&n_campos, error_o_datos_a_retornar, nivel_de_profundidad);
+		double anterior = 0.0, incremento = 0.0;
+		if(campos != NULL && n_campos >= 12 &&
+			gg_registros_numero_opcional(campos[2], &anterior) &&
+			ventas_parsear_numero(cantidad, &incremento))
+		{
+			char *texto_cantidad = variable_string("%.17g", anterior + incremento);
+			if(texto_cantidad != NULL)
+			{
+				char *texto_historial = variable_string("%.17g",
+					anterior + incremento);
+				char *texto_ranking = variable_string("%.17g",
+					anterior + incremento);
+				char *texto_promedio = variable_string("%.17g",
+					anterior + incremento);
+				if(texto_historial == NULL || texto_ranking == NULL ||
+					texto_promedio == NULL)
+				{
+					sistema_memoria_liberar(texto_cantidad,
+						error_o_datos_a_retornar, 0);
+					sistema_memoria_liberar(texto_historial,
+						error_o_datos_a_retornar, 0);
+					sistema_memoria_liberar(texto_ranking,
+						error_o_datos_a_retornar, 0);
+					sistema_memoria_liberar(texto_promedio,
+						error_o_datos_a_retornar, 0);
+					liberarSplit(campos, n_campos,
+						error_o_datos_a_retornar, 0);
+					free_lineas(lineas, n_lineas);
+					sistema_memoria_liberar(ruta,
+						error_o_datos_a_retornar, 0);
+					return 0;
+				}
+				sistema_memoria_liberar(campos[2], error_o_datos_a_retornar, 0);
+				sistema_memoria_liberar(campos[5], error_o_datos_a_retornar, 0);
+				sistema_memoria_liberar(campos[6], error_o_datos_a_retornar, 0);
+				sistema_memoria_liberar(campos[7], error_o_datos_a_retornar, 0);
+				campos[2] = texto_cantidad;
+				campos[5] = texto_historial;
+				campos[6] = texto_ranking;
+				campos[7] = texto_promedio;
+				char *fila = join(campos, n_campos,
+					GG_caracter_separacion[1], error_o_datos_a_retornar,
+					nivel_de_profundidad);
+				if(fila != NULL)
+				{
+					sistema_memoria_liberar(lineas[indice],
+						error_o_datos_a_retornar, 0);
+					lineas[indice] = fila;
+					guardado = gg_registros_guardar_archivo(
+						ruta, lineas, n_lineas);
+				}
+			}
+		}
+		liberarSplit(campos, n_campos, error_o_datos_a_retornar, 0);
+	}
+	else
+	{
+		char *inicial = variable_string("%s", cantidad);
+		char *campos[11] = {
+			(char *)nombre, (char *)cantidad, (char *)codigo,
+			(char *)(proveedores != NULL ? proveedores : ""),
+			inicial, inicial, inicial, "4", "0",
+			(char *)(tipo != NULL ? tipo : ""), "0"
+		};
+		char *datos = inicial != NULL
+			? join(campos, 11, GG_caracter_separacion[1],
+				error_o_datos_a_retornar, nivel_de_profundidad)
+			: NULL;
+		char *respuesta = datos != NULL
+			? gg_registros_crear_fila(ruta,
+				GG_secciones_negocio[seccion].columnas, datos)
+			: NULL;
+		guardado = ventas_respuesta_exitosa(respuesta);
+		sistema_memoria_liberar(inicial, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(datos, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(respuesta, error_o_datos_a_retornar, 0);
+	}
+	free_lineas(lineas, n_lineas);
+	sistema_memoria_liberar(ruta, error_o_datos_a_retornar, 0);
+	return guardado;
+}
+
+static int gg_registros_registrar_operacion(
+	const char *direccion_archivo,
+	const char *fecha_hora,
+	const char *operacion,
+	double venta,
+	double costo,
+	double impuestos,
+	const char *productos,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	if(fecha_hora == NULL || strlen(fecha_hora) < 10 ||
+		(operacion == NULL) || (productos == NULL))
+		return 0;
+	char *base = NULL;
+	if(!gg_registros_base_desde_inventario(direccion_archivo, &base))
+		return 0;
+	char *ruta_diaria = gg_registros_ruta_fecha(base, 6, fecha_hora);
+	char *texto_venta = variable_string("%.17g", venta);
+	char *texto_costo = variable_string("%.17g", costo);
+	char *texto_impuestos = variable_string("%.17g", impuestos);
+	char *campos_diarios_lista[10] = {
+		(char *)(fecha_hora + 8), (char *)operacion, texto_impuestos,
+		(char *)productos, "REGISTRO_AUTOMATICO", texto_venta,
+		texto_costo, texto_impuestos, "0", ""
+	};
+	char *campos_diarios = texto_venta != NULL && texto_costo != NULL &&
+		texto_impuestos != NULL
+		? join(campos_diarios_lista, 10, GG_caracter_separacion[1],
+			error_o_datos_a_retornar, nivel_de_profundidad)
+		: NULL;
+	char *respuesta = ruta_diaria != NULL && campos_diarios != NULL
+		? gg_registros_crear_fila(ruta_diaria,
+			GG_secciones_negocio[6].columnas, campos_diarios)
+		: NULL;
+	int correcto = ventas_respuesta_exitosa(respuesta);
+	sistema_memoria_liberar(respuesta, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(campos_diarios, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(ruta_diaria, error_o_datos_a_retornar, 0);
+	if(correcto)
+	{
+		char dia[3] = {fecha_hora[6], fecha_hora[7], '\0'};
+		char mes[3] = {fecha_hora[4], fecha_hora[5], '\0'};
+		char anio[5] = {fecha_hora[0], fecha_hora[1],
+			fecha_hora[2], fecha_hora[3], '\0'};
+		correcto = gg_registros_acumular_resumen(base, 7, fecha_hora, dia,
+			operacion, venta, costo, impuestos, error_o_datos_a_retornar,
+			nivel_de_profundidad) &&
+			gg_registros_acumular_resumen(base, 8, fecha_hora, mes,
+				operacion, venta, costo, impuestos,
+				error_o_datos_a_retornar, nivel_de_profundidad) &&
+			gg_registros_acumular_resumen(base, 9, anio, anio,
+				operacion, venta, costo, impuestos,
+				error_o_datos_a_retornar, nivel_de_profundidad);
+	}
+	if(correcto && strcmp(operacion, "VENTA") == 0 && productos[0] != '\0')
+	{
+		int n_productos = 0;
+		char **lista = split(productos, GG_caracter_separacion[1],
+			&n_productos, error_o_datos_a_retornar, nivel_de_profundidad);
+		if(lista == NULL) correcto = 0;
+		for(int i = 0; correcto && i < n_productos; ++i)
+		{
+			int n_campos = 0;
+			char **item = split(lista[i], GG_caracter_separacion[2],
+				&n_campos, error_o_datos_a_retornar, nivel_de_profundidad);
+			double cantidad = 0.0;
+			char *cantidad_texto = NULL;
+			if(item == NULL || n_campos < 6 ||
+				!ventas_parsear_numero(item[3], &cantidad))
+			{
+				correcto = 0;
+			}
+			else
+			{
+				cantidad_texto = variable_string("%.17g", cantidad);
+				for(int seccion = 10; correcto && seccion <= 13; ++seccion)
+					correcto = cantidad_texto != NULL &&
+						gg_registros_actualizar_producto(base, seccion,
+							fecha_hora, item[0], item[2], cantidad_texto,
+							item[4], item[5], error_o_datos_a_retornar,
+							nivel_de_profundidad);
+			}
+			sistema_memoria_liberar(cantidad_texto,
+				error_o_datos_a_retornar, 0);
+			liberarSplit(item, n_campos, error_o_datos_a_retornar, 0);
+		}
+		liberarSplit(lista, n_productos, error_o_datos_a_retornar, 0);
+	}
+	sistema_memoria_liberar(texto_venta, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(texto_costo, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(texto_impuestos, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(base, error_o_datos_a_retornar, 0);
+	return correcto;
+}
+
+char *ventas(
+	const char *direccion_archivo,
+	const char *codigos,
+	const char *cantidades,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	if(direccion_archivo == NULL || direccion_archivo[0] == '\0' ||
+		codigos == NULL || cantidades == NULL)
+		return crearResultado(-1, "parametros_de_venta_invalidos", "",
+			__func__, error_o_datos_a_retornar, nivel_de_profundidad);
+
+	int cantidad_codigos = 0;
+	int cantidad_cantidades = 0;
+	char **lista_codigos = split(codigos, GG_caracter_separacion[1],
+		&cantidad_codigos, error_o_datos_a_retornar, nivel_de_profundidad);
+	char **lista_cantidades = split(cantidades, GG_caracter_separacion[1],
+		&cantidad_cantidades, error_o_datos_a_retornar, nivel_de_profundidad);
+	if(lista_codigos == NULL || lista_cantidades == NULL ||
+		cantidad_codigos <= 0 || cantidad_codigos != cantidad_cantidades)
+	{
+		liberarSplit(lista_codigos, cantidad_codigos,
+			error_o_datos_a_retornar, 0);
+		liberarSplit(lista_cantidades, cantidad_cantidades,
+			error_o_datos_a_retornar, 0);
+		return crearResultado(-1, "codigos_y_cantidades_no_coinciden", "",
+			__func__, error_o_datos_a_retornar, nivel_de_profundidad);
+	}
+
+	int actualizados = 0;
+	int omitidos = 0;
+	int errores_registro_inventario = 0;
+	int error_detalle_registro = 0;
+	double total_costo_venta = 0.0;
+	double total_impuestos_venta = 0.0;
+	double total_venta = 0.0;
+	char *productos_registro = variable_string("%s", "");
+	char fecha_hora[20];
+	fechaActual(fecha_hora, "%Y%m%d%H");
+	if(fecha_hora[0] == '\0' || productos_registro == NULL)
+	{
+		sistema_memoria_liberar(productos_registro,
+			error_o_datos_a_retornar, 0);
+		liberarSplit(lista_codigos, cantidad_codigos,
+			error_o_datos_a_retornar, 0);
+		liberarSplit(lista_cantidades, cantidad_cantidades,
+			error_o_datos_a_retornar, 0);
+		return crearResultado(-1, "no_se_pudo_obtener_fecha_de_venta", "",
+			__func__, error_o_datos_a_retornar, nivel_de_profundidad);
+	}
+
+	for(int i = 0; i < cantidad_codigos; ++i)
+	{
+		double cantidad_solicitada = 0.0;
+		if(lista_codigos[i][0] == '\0' ||
+			!ventas_parsear_numero(lista_cantidades[i], &cantidad_solicitada) ||
+			cantidad_solicitada <= 0.0)
+		{
+			++omitidos;
+			continue;
+		}
+
+		char *respuesta_busqueda = buscar_info_dividida(
+			direccion_archivo, lista_codigos[i], 5, -1);
+		int cantidad_partes = 0;
+		char **partes = respuesta_busqueda != NULL
+			? split(respuesta_busqueda,
+				GG_caracter_para_confirmacion_o_error[0],
+				&cantidad_partes, error_o_datos_a_retornar,
+				nivel_de_profundidad)
+			: NULL;
+		if(partes == NULL || cantidad_partes < 3 ||
+			strcmp(partes[0], "1") != 0)
+		{
+			++omitidos;
+			liberarSplit(partes, cantidad_partes,
+				error_o_datos_a_retornar, 0);
+			sistema_memoria_liberar(respuesta_busqueda,
+				error_o_datos_a_retornar, 0);
+			continue;
+		}
+
+		int columnas_producto = 0;
+		char **producto = split(partes[1], GG_caracter_separacion[0],
+			&columnas_producto, error_o_datos_a_retornar,
+			nivel_de_profundidad);
+		if(producto == NULL || columnas_producto <= 18 ||
+			(strcmp(producto[9], "PRODUCTO_PIEZA") != 0 &&
+				strcmp(producto[9], "PRODUCTO_CANTIDAD") != 0 &&
+				strcmp(producto[9], "PRODUCTO_ELABORADO") != 0))
+		{
+			++omitidos;
+			liberarSplit(producto, columnas_producto,
+				error_o_datos_a_retornar, 0);
+			liberarSplit(partes, cantidad_partes,
+				error_o_datos_a_retornar, 0);
+			sistema_memoria_liberar(respuesta_busqueda,
+				error_o_datos_a_retornar, 0);
+			continue;
+		}
+
+		double stock = 0.0;
+		double precio = 0.0;
+		double costo_unitario = 0.0;
+		if(!ventas_parsear_numero(producto[6], &stock) ||
+			!ventas_parsear_numero(producto[4], &precio) ||
+			stock < cantidad_solicitada || stock < 0.0 || precio < 0.0)
+		{
+			++omitidos;
+			liberarSplit(producto, columnas_producto,
+				error_o_datos_a_retornar, 0);
+			liberarSplit(partes, cantidad_partes,
+				error_o_datos_a_retornar, 0);
+			sistema_memoria_liberar(respuesta_busqueda,
+				error_o_datos_a_retornar, 0);
+			continue;
+		}
+
+		char *columnas_actualizar = concatenar(
+			"%s%s%s", "6",
+			GG_caracter_separacion_funciones_espesificas[0], "18");
+		char *valores_actualizar = variable_string(
+			"%.17g%s%s", stock - cantidad_solicitada,
+			GG_caracter_separacion_funciones_espesificas[0], fecha_hora);
+		char *respuesta_edicion = columnas_actualizar != NULL &&
+			valores_actualizar != NULL
+			? editar_celda_id_info_dividida(direccion_archivo, partes[2],
+				columnas_actualizar, valores_actualizar)
+			: NULL;
+		int editado = ventas_respuesta_exitosa(respuesta_edicion);
+		if(editado)
+		{
+			++actualizados;
+			double importe_producto = cantidad_solicitada * precio;
+			if(precio > 0.0 && cantidad_solicitada > DBL_MAX / precio)
+				error_detalle_registro = 1;
+			else
+			{
+				if(importe_producto > DBL_MAX - total_venta)
+					error_detalle_registro = 1;
+				else
+					total_venta += importe_producto;
+				double impuesto_producto = 0.0;
+				if(!gg_registros_calcular_impuestos(
+					direccion_archivo, producto[15], importe_producto,
+					&impuesto_producto, error_o_datos_a_retornar,
+					nivel_de_profundidad) ||
+					impuesto_producto > DBL_MAX - total_impuestos_venta)
+					error_detalle_registro = 1;
+				else
+					total_impuestos_venta += impuesto_producto;
+				if(ventas_parsear_numero(producto[7], &costo_unitario) &&
+					costo_unitario >= 0.0 &&
+					(costo_unitario == 0.0 ||
+						cantidad_solicitada <= DBL_MAX / costo_unitario))
+				{
+					double importe_costo = cantidad_solicitada * costo_unitario;
+					if(importe_costo <= DBL_MAX - total_costo_venta)
+						total_costo_venta += importe_costo;
+					else
+						error_detalle_registro = 1;
+				}
+				else
+				{
+					error_detalle_registro = 1;
+				}
+				char *nombre = variable_string("%s %s %s",
+					producto[1], producto[2], producto[3]);
+				char *cantidad_texto = variable_string("%.17g",
+					cantidad_solicitada);
+				char *importe_texto = variable_string("%.17g",
+					importe_producto);
+				if(nombre == NULL || cantidad_texto == NULL ||
+					importe_texto == NULL ||
+					!gg_registros_agregar_detalle(&productos_registro,
+						lista_codigos[i], importe_texto, nombre,
+						cantidad_texto, producto[8], producto[9],
+						error_o_datos_a_retornar, nivel_de_profundidad))
+					error_detalle_registro = 1;
+				sistema_memoria_liberar(nombre, error_o_datos_a_retornar, 0);
+				sistema_memoria_liberar(cantidad_texto,
+					error_o_datos_a_retornar, 0);
+				sistema_memoria_liberar(importe_texto,
+					error_o_datos_a_retornar, 0);
+			}
+			if(GG_ruta_sesion_inventario_activa != NULL)
+			{
+				char *cantidad_texto = variable_string(
+					"%.17g", cantidad_solicitada);
+				char *registro = cantidad_texto != NULL
+					? inventario_registrar_movimiento_conteo(
+						GG_ruta_sesion_inventario_activa, lista_codigos[i],
+						producto[1], cantidad_texto, fecha_hora,
+						error_o_datos_a_retornar, nivel_de_profundidad)
+					: NULL;
+				if(!ventas_respuesta_exitosa(registro))
+					++errores_registro_inventario;
+				sistema_memoria_liberar(cantidad_texto,
+					error_o_datos_a_retornar, 0);
+				sistema_memoria_liberar(registro,
+					error_o_datos_a_retornar, 0);
+			}
+		}
+		else
+		{
+			++omitidos;
+		}
+		sistema_memoria_liberar(columnas_actualizar,
+			error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(valores_actualizar,
+			error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(respuesta_edicion,
+			error_o_datos_a_retornar, 0);
+		liberarSplit(producto, columnas_producto,
+			error_o_datos_a_retornar, 0);
+		liberarSplit(partes, cantidad_partes,
+			error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(respuesta_busqueda,
+			error_o_datos_a_retornar, 0);
+	}
+
+	char *mensaje = variable_string(
+		"Productos actualizados: %d; omitidos: %d; errores al registrar movimientos del inventario: %d; total calculado: %.17g",
+		actualizados, omitidos, errores_registro_inventario, total_venta);
+	liberarSplit(lista_codigos, cantidad_codigos,
+		error_o_datos_a_retornar, 0);
+	liberarSplit(lista_cantidades, cantidad_cantidades,
+		error_o_datos_a_retornar, 0);
+	int error_reporte = actualizados > 0 &&
+		(!gg_registros_registrar_operacion(direccion_archivo, fecha_hora,
+			"VENTA", total_venta, total_costo_venta,
+			total_impuestos_venta,
+			productos_registro, error_o_datos_a_retornar,
+			nivel_de_profundidad) || error_detalle_registro);
+	sistema_memoria_liberar(productos_registro,
+		error_o_datos_a_retornar, 0);
+	if(mensaje == NULL)
+		return crearResultado(-1, "no_se_pudo_generar_resumen_de_venta", "",
+			__func__, error_o_datos_a_retornar, nivel_de_profundidad);
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"Venta: %s%s\n", mensaje,
+		error_reporte ? "; ERROR: no se pudo completar el registro automático del movimiento" : "");
+	char *mensaje_final = error_reporte
+		? variable_string("%s; ERROR: no se pudo completar el registro automático del movimiento",
+			mensaje)
+		: variable_string("%s", mensaje);
+	char *resultado = mensaje_final != NULL
+		? crearResultado(actualizados > 0 ? 1 : -1,
+			mensaje_final, "", __func__, error_o_datos_a_retornar,
+			nivel_de_profundidad)
+		: crearResultado(-1, "no_se_pudo_generar_resultado_de_venta", "",
+			__func__, error_o_datos_a_retornar, nivel_de_profundidad);
+	sistema_memoria_liberar(mensaje_final, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(mensaje, error_o_datos_a_retornar, 0);
+	return resultado;
+}
+
+static int compras_respuesta_codigo(
+	const char *respuesta,
+	int *codigo,
+	char ***partes_salida,
+	int *cantidad_salida,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	int cantidad = 0;
+	char **partes = respuesta != NULL
+		? split(respuesta, GG_caracter_para_confirmacion_o_error[0],
+			&cantidad, error_o_datos_a_retornar, nivel_de_profundidad)
+		: NULL;
+	int correcto = partes != NULL && cantidad >= 2 &&
+		texto_a_int_seguro(partes[0], codigo) == 0;
+	if(!correcto)
+	{
+		liberarSplit(partes, cantidad, error_o_datos_a_retornar, 0);
+		return 0;
+	}
+	if(partes_salida != NULL && cantidad_salida != NULL)
+	{
+		*partes_salida = partes;
+		*cantidad_salida = cantidad;
+	}
+	else
+	{
+		liberarSplit(partes, cantidad, error_o_datos_a_retornar, 0);
+	}
+	return 1;
+}
+
+char *compras(
+	const char *direccion_archivo,
+	char **productos,
+	int cantidad_productos,
+	const char *proveedores,
+	const char *sucursales,
+	double porcentaje_ganancia,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	if(direccion_archivo == NULL || direccion_archivo[0] == '\0' ||
+		productos == NULL || cantidad_productos <= 0 ||
+		proveedores == NULL || sucursales == NULL ||
+		porcentaje_ganancia < 0.0 ||
+		porcentaje_ganancia > DBL_MAX)
+		return crearResultado(-1, "parametros_de_compra_invalidos", "",
+			__func__, error_o_datos_a_retornar, nivel_de_profundidad);
+
+	char fecha_hora[20];
+	fechaActual(fecha_hora, "%Y%m%d%H");
+	if(fecha_hora[0] == '\0')
+		return crearResultado(-1, "no_se_pudo_obtener_fecha_de_compra", "",
+			__func__, error_o_datos_a_retornar, nivel_de_profundidad);
+
+	int agregados = 0;
+	int actualizados = 0;
+	int fallidos = 0;
+	int error_detalle_registro = 0;
+	double total_compra = 0.0;
+	double total_impuestos_compra = 0.0;
+	char *productos_registro = variable_string("%s", "");
+	if(productos_registro == NULL)
+		return crearResultado(-1, "error_de_memoria_en_registro_de_compra", "",
+			__func__, error_o_datos_a_retornar, nivel_de_profundidad);
+	for(int i = 0; i < cantidad_productos; ++i)
+	{
+		char **item = productos + (size_t)i * 5;
+		double cantidad = 0.0;
+		double costo = 0.0;
+		if(item[0] == NULL || item[0][0] == '\0' ||
+			!ventas_parsear_numero(item[1], &cantidad) || cantidad <= 0.0 ||
+			!ventas_parsear_numero(item[2], &costo) || costo < 0.0 ||
+			item[3] == NULL || item[3][0] == '\0' ||
+			item[4] == NULL || item[4][0] == '\0')
+		{
+			++fallidos;
+			continue;
+		}
+
+		char *respuesta_busqueda = buscar_info_dividida(
+			direccion_archivo, item[0], 5, -1);
+		int codigo_busqueda = 0;
+		char **partes_busqueda = NULL;
+		int cantidad_partes = 0;
+		if(!compras_respuesta_codigo(respuesta_busqueda, &codigo_busqueda,
+			&partes_busqueda, &cantidad_partes, error_o_datos_a_retornar,
+			nivel_de_profundidad))
+		{
+			++fallidos;
+			sistema_memoria_liberar(respuesta_busqueda,
+				error_o_datos_a_retornar, 0);
+			continue;
+		}
+		if(codigo_busqueda == 1 && cantidad_partes >= 3)
+		{
+			char **fila = NULL;
+			int cantidad_campos = 0;
+			fila = split(partes_busqueda[1], GG_caracter_separacion[0],
+				&cantidad_campos, error_o_datos_a_retornar,
+				nivel_de_profundidad);
+			double stock_actual = 0.0;
+			double precio_actual = 0.0;
+			double stock_nuevo = 0.0;
+			double precio_nuevo = 0.0;
+			int valida = fila != NULL && cantidad_campos >= 20 &&
+				ventas_parsear_numero(fila[6], &stock_actual) &&
+				ventas_parsear_numero(fila[4], &precio_actual) &&
+				stock_actual >= 0.0 && precio_actual >= 0.0 &&
+				stock_actual <= DBL_MAX - cantidad;
+			stock_nuevo = valida ? stock_actual + cantidad : 0.0;
+			precio_nuevo = precio_actual;
+			if(valida && precio_actual <= costo)
+			{
+				precio_nuevo = costo * (1.0 + porcentaje_ganancia / 100.0);
+				if(precio_nuevo > DBL_MAX || precio_nuevo < 0.0)
+					valida = 0;
+			}
+
+			char *columnas = NULL;
+			char *valores = NULL;
+			char *stock_formateado = valida
+				? variable_string("%.17g", stock_nuevo) : NULL;
+			char *costo_formateado = valida
+				? variable_string("%.17g", costo) : NULL;
+			char *precio_formateado = valida && precio_nuevo != precio_actual
+				? variable_string("%.17g", precio_nuevo) : NULL;
+			double importe_producto = cantidad * costo;
+			if(valida && costo > 0.0 && cantidad > DBL_MAX / costo)
+				valida = 0;
+			if(valida && (importe_producto > DBL_MAX - total_compra))
+				valida = 0;
+			double impuestos_producto = 0.0;
+			if(valida && !gg_registros_calcular_impuestos(
+				direccion_archivo, fila[15], importe_producto,
+				&impuestos_producto, error_o_datos_a_retornar,
+				nivel_de_profundidad))
+			{
+				error_detalle_registro = 1;
+				impuestos_producto = 0.0;
+			}
+			if(valida &&
+				impuestos_producto > DBL_MAX - total_impuestos_compra)
+			{
+				error_detalle_registro = 1;
+				impuestos_producto = 0.0;
+			}
+			if(valida && stock_formateado != NULL && costo_formateado != NULL &&
+				(precio_nuevo == precio_actual || precio_formateado != NULL))
+			{
+				if(precio_formateado != NULL)
+				{
+					columnas = variable_string("6%s7%s8%s18%s19%s4",
+						GG_caracter_separacion_funciones_espesificas[0],
+						GG_caracter_separacion_funciones_espesificas[0],
+						GG_caracter_separacion_funciones_espesificas[0],
+						GG_caracter_separacion_funciones_espesificas[0],
+						GG_caracter_separacion_funciones_espesificas[0]);
+					valores = variable_string("%s%s%s%s%s%s%s%s%s%s%s",
+						stock_formateado, GG_caracter_separacion_funciones_espesificas[0],
+						costo_formateado, GG_caracter_separacion_funciones_espesificas[0],
+						proveedores, GG_caracter_separacion_funciones_espesificas[0],
+						fecha_hora, GG_caracter_separacion_funciones_espesificas[0],
+						sucursales, GG_caracter_separacion_funciones_espesificas[0],
+						precio_formateado);
+				}
+				else
+				{
+					columnas = variable_string("6%s7%s8%s18%s19",
+						GG_caracter_separacion_funciones_espesificas[0],
+						GG_caracter_separacion_funciones_espesificas[0],
+						GG_caracter_separacion_funciones_espesificas[0],
+						GG_caracter_separacion_funciones_espesificas[0]);
+					valores = variable_string("%s%s%s%s%s%s%s%s%s",
+						stock_formateado, GG_caracter_separacion_funciones_espesificas[0],
+						costo_formateado, GG_caracter_separacion_funciones_espesificas[0],
+						proveedores, GG_caracter_separacion_funciones_espesificas[0],
+						fecha_hora, GG_caracter_separacion_funciones_espesificas[0],
+						sucursales);
+				}
+			}
+			char *respuesta_edicion = columnas != NULL && valores != NULL
+				? editar_celda_id_info_dividida(direccion_archivo,
+					partes_busqueda[2], columnas, valores)
+				: NULL;
+			int codigo_edicion = 0;
+			int editado = compras_respuesta_codigo(respuesta_edicion,
+				&codigo_edicion, NULL, NULL, error_o_datos_a_retornar,
+				nivel_de_profundidad) && codigo_edicion == 1;
+			if(editado)
+			{
+				++actualizados;
+				double importe_producto = cantidad * costo;
+				if(costo > 0.0 && cantidad > DBL_MAX / costo)
+				{
+					error_detalle_registro = 1;
+				}
+				else
+				{
+					total_compra += importe_producto;
+					total_impuestos_compra += impuestos_producto;
+					char *cantidad_texto = variable_string("%.17g", cantidad);
+					char *importe_texto = variable_string("%.17g", importe_producto);
+					if(cantidad_texto == NULL || importe_texto == NULL ||
+						!gg_registros_agregar_detalle(&productos_registro,
+							item[0], importe_texto, item[3], cantidad_texto,
+							proveedores, item[4], error_o_datos_a_retornar,
+							nivel_de_profundidad))
+						error_detalle_registro = 1;
+					sistema_memoria_liberar(cantidad_texto,
+						error_o_datos_a_retornar, 0);
+					sistema_memoria_liberar(importe_texto,
+						error_o_datos_a_retornar, 0);
+				}
+			}
+			else
+			{
+				++fallidos;
+			}
+			sistema_memoria_liberar(stock_formateado,
+				error_o_datos_a_retornar, 0);
+			sistema_memoria_liberar(costo_formateado,
+				error_o_datos_a_retornar, 0);
+			sistema_memoria_liberar(precio_formateado,
+				error_o_datos_a_retornar, 0);
+			sistema_memoria_liberar(columnas, error_o_datos_a_retornar, 0);
+			sistema_memoria_liberar(valores, error_o_datos_a_retornar, 0);
+			sistema_memoria_liberar(respuesta_edicion,
+				error_o_datos_a_retornar, 0);
+			liberarSplit(fila, cantidad_campos,
+				error_o_datos_a_retornar, 0);
+		}
+		else if(codigo_busqueda == 0 && cantidad_partes >= 2 &&
+			strcmp(partes_busqueda[1], "no_encontro_el_producto") == 0)
+		{
+			char *campos[32];
+			for(int columna = 0; columna < 32; ++columna)
+				campos[columna] = "";
+			double precio = costo * (1.0 + porcentaje_ganancia / 100.0);
+			int numericos_validos = precio >= 0.0 && precio <= DBL_MAX;
+			double importe_producto = cantidad * costo;
+			if(costo > 0.0 && cantidad > DBL_MAX / costo)
+				numericos_validos = 0;
+			if(importe_producto > DBL_MAX - total_compra)
+				numericos_validos = 0;
+			char *cantidad_formateada = numericos_validos
+				? variable_string("%.17g", cantidad) : NULL;
+			char *costo_formateado = numericos_validos
+				? variable_string("%.17g", costo) : NULL;
+			char *precio_formateado = numericos_validos
+				? variable_string("%.17g", precio) : NULL;
+			campos[0] = item[3];
+			campos[3] = precio_formateado;
+			campos[4] = item[0];
+			campos[5] = cantidad_formateada;
+			campos[6] = costo_formateado;
+			campos[7] = (char *)proveedores;
+			campos[8] = item[4];
+			campos[17] = fecha_hora;
+			campos[18] = (char *)sucursales;
+			char *fila_nueva = numericos_validos && cantidad_formateada != NULL &&
+				costo_formateado != NULL && precio_formateado != NULL
+				? join(campos, 32, GG_caracter_separacion[0],
+					error_o_datos_a_retornar, nivel_de_profundidad)
+				: NULL;
+			char *respuesta_agregado = fila_nueva != NULL
+				? agregar_info_dividida(direccion_archivo, fila_nueva,
+					GG_secciones_negocio[1].columnas)
+				: NULL;
+			int codigo_agregado = 0;
+			if(compras_respuesta_codigo(respuesta_agregado,
+				&codigo_agregado, NULL, NULL, error_o_datos_a_retornar,
+				nivel_de_profundidad) && codigo_agregado == 1)
+			{
+				++agregados;
+				double importe_producto = cantidad * costo;
+				if(costo > 0.0 && cantidad > DBL_MAX / costo)
+				{
+					error_detalle_registro = 1;
+				}
+				else
+				{
+					total_compra += importe_producto;
+					char *importe_texto = variable_string("%.17g", importe_producto);
+					if(!gg_registros_agregar_detalle(&productos_registro,
+						item[0], importe_texto, item[3],
+						cantidad_formateada, proveedores, item[4],
+						error_o_datos_a_retornar, nivel_de_profundidad))
+						error_detalle_registro = 1;
+					sistema_memoria_liberar(importe_texto,
+						error_o_datos_a_retornar, 0);
+				}
+			}
+			else
+			{
+				++fallidos;
+			}
+			sistema_memoria_liberar(fila_nueva,
+				error_o_datos_a_retornar, 0);
+			sistema_memoria_liberar(respuesta_agregado,
+				error_o_datos_a_retornar, 0);
+			sistema_memoria_liberar(cantidad_formateada,
+				error_o_datos_a_retornar, 0);
+			sistema_memoria_liberar(costo_formateado,
+				error_o_datos_a_retornar, 0);
+			sistema_memoria_liberar(precio_formateado,
+				error_o_datos_a_retornar, 0);
+		}
+		else
+		{
+			++fallidos;
+		}
+		liberarSplit(partes_busqueda, cantidad_partes,
+			error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(respuesta_busqueda,
+			error_o_datos_a_retornar, 0);
+	}
+
+	char *resumen = variable_string(
+		"Productos agregados: %d; actualizados: %d; fallidos: %d; total de compra procesado: %.17g",
+		agregados, actualizados, fallidos, total_compra);
+	int error_reporte = (agregados + actualizados) > 0 &&
+		(!gg_registros_registrar_operacion(direccion_archivo, fecha_hora,
+			"COMPRA", 0.0, total_compra, total_impuestos_compra,
+			productos_registro,
+			error_o_datos_a_retornar, nivel_de_profundidad) ||
+			error_detalle_registro);
+	sistema_memoria_liberar(productos_registro,
+		error_o_datos_a_retornar, 0);
+	if(resumen == NULL)
+		return crearResultado(-1, "no_se_pudo_generar_resumen_de_compra", "",
+			__func__, error_o_datos_a_retornar, nivel_de_profundidad);
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"Compra: %s%s\n", resumen,
+		error_reporte ? "; ERROR: no se pudo completar el registro automático del movimiento" : "");
+	char *mensaje_final = error_reporte
+		? variable_string("%s; ERROR: no se pudo completar el registro automático del movimiento",
+			resumen)
+		: variable_string("%s", resumen);
+	char *resultado = mensaje_final != NULL ? crearResultado(
+		(agregados + actualizados) > 0 && fallidos == 0 ? 1 :
+			((agregados + actualizados) > 0 ? 1 : -1),
+		mensaje_final, "", __func__, error_o_datos_a_retornar,
+		nivel_de_profundidad) : crearResultado(-1,
+			"no_se_pudo_generar_resultado_de_compra", "",
+			__func__, error_o_datos_a_retornar, nivel_de_profundidad);
+	sistema_memoria_liberar(mensaje_final, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(resumen, error_o_datos_a_retornar, 0);
+	return resultado;
+}
+
+static char *pruebas_recopilar_compras(
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	int cantidad_productos = 0;
+	char *ruta = pm_pedir_texto(
+		"Ruta del inventario dividido (Enter usa la ruta configurada): ",
+		error_o_datos_a_retornar, nivel_de_profundidad);
+	char *proveedor = pm_pedir_texto("Proveedor: ",
+		error_o_datos_a_retornar, nivel_de_profundidad);
+	char *sucursal = pm_pedir_texto("ID/nombre de sucursal: ",
+		error_o_datos_a_retornar, nivel_de_profundidad);
+	char *porcentaje = pm_pedir_texto(
+		"Porcentaje de ganancia para el precio de venta: ",
+		error_o_datos_a_retornar, nivel_de_profundidad);
+	char **campos = NULL;
+	int capacidad = 0;
+	int correcto = 0;
+	double porcentaje_numero = 0.0;
+	correcto = ruta != NULL && proveedor != NULL && sucursal != NULL &&
+		porcentaje != NULL &&
+		ventas_parsear_numero(porcentaje, &porcentaje_numero) &&
+		porcentaje_numero >= 0.0;
+	if(!correcto ||
+		!pm_pedir_entero("Cantidad de productos en la compra: ",
+			&cantidad_productos, error_o_datos_a_retornar,
+			nivel_de_profundidad) ||
+		cantidad_productos < 1 || cantidad_productos > 1000)
+	{
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"Datos de compra inválidos; indica entre 1 y 1000 productos y un porcentaje válido.\n");
+		goto error_recopilar_compras;
+	}
+	if(ruta[0] == '\0')
+	{
+		sistema_memoria_liberar(ruta, error_o_datos_a_retornar, 0);
+		ruta = pm_copiar_texto("CONFIG/INF/INVENTARIO/INVENTARIO.TXT");
+		if(ruta == NULL) goto error_recopilar_compras;
+	}
+	if(strchr(ruta, GG_caracter_separacion[1][0]) != NULL ||
+		strchr(proveedor, GG_caracter_separacion[1][0]) != NULL ||
+		strchr(sucursal, GG_caracter_separacion[1][0]) != NULL)
+	{
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"Ruta, proveedor y sucursal no pueden contener el separador °.\n");
+		goto error_recopilar_compras;
+	}
+	if((size_t)cantidad_productos > ((size_t)-1 / sizeof(*campos) - 6) / 5)
+		goto error_recopilar_compras;
+	capacidad = 6 + cantidad_productos * 5;
+	campos = sistema_memoria_reservar((size_t)capacidad * sizeof(*campos),
+		error_o_datos_a_retornar, nivel_de_profundidad);
+	if(campos == NULL) goto error_recopilar_compras;
+	for(int i = 0; i < capacidad; ++i) campos[i] = NULL;
+	campos[0] = ruta; ruta = NULL;
+	campos[1] = proveedor; proveedor = NULL;
+	campos[2] = sucursal; sucursal = NULL;
+	campos[3] = porcentaje; porcentaje = NULL;
+	campos[4] = variable_string("%d", cantidad_productos);
+	for(int i = 0; i < cantidad_productos && campos[4] != NULL; ++i)
+	{
+		int base = 5 + i * 5;
+		const char *prompts[] = {
+			"Código de barras del producto: ",
+			"Cantidad comprada: ",
+			"Costo unitario de compra: ",
+			"Nombre del producto (se usa si no existe): ",
+			"Tipo (PRODUCTO_PIEZA, PRODUCTO_CANTIDAD o PRODUCTO_ELABORADO): "
+		};
+		for(int j = 0; j < 5; ++j)
+		{
+			campos[base + j] = pm_pedir_texto(
+				prompts[j], error_o_datos_a_retornar, nivel_de_profundidad);
+			if(campos[base + j] == NULL) goto error_recopilar_compras;
+		}
+		for(int j = 0; j < 5; ++j)
+		{
+			if(campos[base + j][0] == '\0' ||
+				strchr(campos[base + j], GG_caracter_separacion[0][0]) != NULL ||
+				strchr(campos[base + j], GG_caracter_separacion[1][0]) != NULL)
+			{
+				sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+					"Los datos del producto no pueden estar vacíos ni contener | o °.\n");
+				goto error_recopilar_compras;
+			}
+		}
+		if(strcmp(campos[base + 4], "PRODUCTO_PIEZA") != 0 &&
+			strcmp(campos[base + 4], "PRODUCTO_CANTIDAD") != 0 &&
+			strcmp(campos[base + 4], "PRODUCTO_ELABORADO") != 0)
+		{
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+				"Tipo no válido; usa PRODUCTO_PIEZA, PRODUCTO_CANTIDAD o PRODUCTO_ELABORADO.\n");
+			goto error_recopilar_compras;
+		}
+	}
+	if(campos[4] == NULL) goto error_recopilar_compras;
+	{
+		char *confirmacion = pm_pedir_texto(
+			"Se actualizará el inventario y se guardarán registros de compra. Escriba SI para confirmar: ",
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		if(confirmacion == NULL) goto error_recopilar_compras;
+		if(strcmp(confirmacion, "SI") != 0 && strcmp(confirmacion, "si") != 0)
+		{
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+				"Compra cancelada; no se modificó el inventario.\n");
+			sistema_memoria_liberar(confirmacion, error_o_datos_a_retornar, 0);
+			for(int i = 0; i < capacidad; ++i)
+				sistema_memoria_liberar(campos[i], error_o_datos_a_retornar, 0);
+			sistema_memoria_liberar(campos, error_o_datos_a_retornar, 0);
+			return pm_copiar_texto("0");
+		}
+		campos[capacidad - 1] = confirmacion;
+	}
+	{
+		char *serializado = pruebas_serializar(1, campos, capacidad,
+			error_o_datos_a_retornar);
+		for(int i = 0; i < capacidad; ++i)
+			sistema_memoria_liberar(campos[i], error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(campos, error_o_datos_a_retornar, 0);
+		return serializado;
+	}
+
+error_recopilar_compras:
+	sistema_memoria_liberar(ruta, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(proveedor, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(sucursal, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(porcentaje, error_o_datos_a_retornar, 0);
+	if(campos != NULL)
+	{
+		for(int i = 0; i < capacidad; ++i)
+			sistema_memoria_liberar(campos[i], error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(campos, error_o_datos_a_retornar, 0);
+	}
+	return NULL;
+}
+
+static int ejecutar_prueba_compras(
+	char **argumentos,
+	int cantidad,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	if(argumentos == NULL || cantidad < 6 ||
+		(strcmp(argumentos[cantidad - 1], "SI") != 0 &&
+			strcmp(argumentos[cantidad - 1], "si") != 0))
+		return -1;
+	int cantidad_productos = 0;
+	double porcentaje = 0.0;
+	if(texto_a_int_seguro(argumentos[4], &cantidad_productos) != 0 ||
+		cantidad_productos < 1 || cantidad_productos > 1000 ||
+		cantidad != 6 + cantidad_productos * 5 ||
+		!ventas_parsear_numero(argumentos[3], &porcentaje) ||
+		porcentaje < 0.0)
+		return -1;
+	char **productos = argumentos + 5;
+	char *resultado = compras(argumentos[0], productos,
+		cantidad_productos, argumentos[1], argumentos[2], porcentaje,
+		error_o_datos_a_retornar, nivel_de_profundidad);
+	int codigo = -1;
+	int correcto = resultado != NULL &&
+		leerCodigoResultado(error_o_datos_a_retornar, 0, resultado, &codigo) &&
+		codigo > 0;
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"Resultado de compra: %s\n",
+		resultado != NULL ? resultado : "(no se pudo procesar la compra)");
+	sistema_memoria_liberar(resultado, error_o_datos_a_retornar, 0);
+	return correcto ? 0 : -1;
+}
+
+static int ejecutar_prueba_ventas(
+	char **argumentos,
+	int cantidad,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	if(argumentos == NULL || cantidad != 4 ||
+		(strcmp(argumentos[3], "SI") != 0 &&
+			strcmp(argumentos[3], "si") != 0))
+		return cantidad == 4 ? 0 : -1;
+	char *resultado = ventas(argumentos[0], argumentos[1], argumentos[2],
+		error_o_datos_a_retornar, nivel_de_profundidad);
+	int codigo = -1;
+	int correcto = resultado != NULL &&
+		leerCodigoResultado(error_o_datos_a_retornar, 0, resultado, &codigo) &&
+		codigo > 0;
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"Resultado de venta: %s\n",
+		resultado != NULL ? resultado : "(no se pudo procesar la venta)");
+	sistema_memoria_liberar(resultado, error_o_datos_a_retornar, 0);
+	return correcto ? 0 : -1;
 }
 
 static int ejecutar_prueba_espacios(
@@ -10807,6 +12588,130 @@ static int pm_agregar_usuario_afiliado_parametros(
 	return correcto ? 0 : -1;
 }
 
+static int pm_agregar_usuario_afiliado_con_encargado(
+	const char *ruta,
+	const char *id_encargado,
+	const char *proyecto_tabla,
+	char **datos,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	const char *ruta_final = ruta != NULL && ruta[0] != '\0'
+		? ruta : GG_secciones_negocio[4].ruta;
+	if(id_encargado == NULL || id_encargado[0] == '\0' ||
+		proyecto_tabla == NULL || proyecto_tabla[0] == '\0' ||
+		datos == NULL ||
+		strstr(id_encargado, GG_caracter_separacion[1]) != NULL ||
+		strstr(proyecto_tabla, GG_caracter_separacion[1]) != NULL ||
+		strstr(id_encargado, GG_caracter_separacion[2]) != NULL ||
+		strstr(proyecto_tabla, GG_caracter_separacion[2]) != NULL)
+		return -1;
+
+	for(int i = 0; i < 31; ++i)
+	{
+		if(datos[i] == NULL ||
+			strstr(datos[i], GG_caracter_separacion[1]) != NULL ||
+			strchr(datos[i], '\r') != NULL || strchr(datos[i], '\n') != NULL)
+			return -1;
+	}
+
+	proceso_mul p;
+	proceso_mul_inicializar(&p);
+	char *fila_patrocinador = NULL;
+	int numero_linea = 0;
+	int encontrado = pm_obtener_fila_afiliado(
+		&p, ruta_final, id_encargado, NULL, &fila_patrocinador,
+		&numero_linea, error_o_datos_a_retornar, nivel_de_profundidad);
+	sistema_memoria_liberar(fila_patrocinador,
+		error_o_datos_a_retornar, 0);
+	if(encontrado <= 0)
+	{
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"No se encontró un encargado válido en AFILIADOS_UNIFICADO.\n");
+		return -1;
+	}
+
+	char *relacion = variable_string(
+		"ENCARGADO%s%s%s%s",
+		GG_caracter_separacion[2], proyecto_tabla,
+		GG_caracter_separacion[2], id_encargado);
+	char *puntos_proyecto = variable_string(
+		"%s%s0", proyecto_tabla, GG_caracter_separacion[2]);
+	char *cero = pm_copiar_texto("0");
+	char *vacio_nivel = pm_copiar_texto("");
+	char *vacio_horizontal = pm_copiar_texto("");
+	char *vacio_tipo = pm_copiar_texto("");
+	if(relacion == NULL || puntos_proyecto == NULL || cero == NULL ||
+		vacio_nivel == NULL || vacio_horizontal == NULL || vacio_tipo == NULL)
+	{
+		sistema_memoria_liberar(relacion, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(puntos_proyecto, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(cero, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(vacio_nivel, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(vacio_horizontal, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(vacio_tipo, error_o_datos_a_retornar, 0);
+		return -1;
+	}
+
+	char *datos_nuevos[43];
+	for(int i = 0; i < 43; ++i) datos_nuevos[i] = "";
+	memcpy(datos_nuevos, datos, 31 * sizeof(*datos_nuevos));
+	datos_nuevos[31] = relacion;
+	for(int i = 32; i <= 36; ++i) datos_nuevos[i] = cero;
+	datos_nuevos[37] = vacio_nivel;
+	datos_nuevos[40] = puntos_proyecto;
+	datos_nuevos[41] = vacio_horizontal;
+	datos_nuevos[42] = vacio_tipo;
+	int resultado = pm_agregar_usuario_afiliado_parametros(
+		ruta_final, datos_nuevos, error_o_datos_a_retornar,
+		nivel_de_profundidad);
+
+	sistema_memoria_liberar(relacion, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(puntos_proyecto, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(cero, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(vacio_nivel, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(vacio_horizontal, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(vacio_tipo, error_o_datos_a_retornar, 0);
+	return resultado;
+}
+
+char *registro_unificado_cod3_r_(
+	const char *dir_arch_afiliados,
+	const char *dir_arch_niveles,
+	const char *id_enc,
+	const char *tabla_enc,
+	const char *datos,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	/* El esquema unificado actual guarda nivel y relación en una sola tabla. */
+	(void)dir_arch_niveles;
+	int cantidad_datos = 0;
+	char **datos_personales = datos != NULL
+		? split(datos, GG_caracter_separacion[1], &cantidad_datos,
+			error_o_datos_a_retornar, nivel_de_profundidad)
+		: NULL;
+	if(datos_personales == NULL || cantidad_datos != 31)
+	{
+		liberarSplit(datos_personales, cantidad_datos,
+			error_o_datos_a_retornar, 0);
+		return crearResultado(-1,
+			"se_requieren_31_campos_personales_de_afiliado",
+			"Los campos corresponden a las columnas 1 a 31 del esquema unificado.",
+			__func__, error_o_datos_a_retornar, nivel_de_profundidad);
+	}
+
+	int correcto = pm_agregar_usuario_afiliado_con_encargado(
+		dir_arch_afiliados, id_enc, tabla_enc, datos_personales,
+		error_o_datos_a_retornar, nivel_de_profundidad);
+	liberarSplit(datos_personales, cantidad_datos,
+		error_o_datos_a_retornar, 0);
+	return crearResultado(correcto == 0 ? 1 : -1,
+		correcto == 0 ? "afiliado_registrado_con_encargado"
+			: "no_se_pudo_registrar_afiliado",
+		"", __func__, error_o_datos_a_retornar, nivel_de_profundidad);
+}
+
 static int ejecutar_prueba_proceso_mul(
 	int opcion,
 	char **a,
@@ -10817,6 +12722,26 @@ static int ejecutar_prueba_proceso_mul(
 	if(opcion == 1 && n == 45)
 		return pm_agregar_usuario_afiliado_parametros(
 			a[0], a + 1, error_o_datos_a_retornar, nivel_de_profundidad);
+	if(opcion == 8 && n == 35 &&
+		(strcmp(a[34], "SI") == 0 || strcmp(a[34], "si") == 0))
+	{
+		char *datos = join(a + 3, 31, GG_caracter_separacion[1],
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		char *respuesta = datos != NULL
+			? registro_unificado_cod3_r_(
+				a[0], "", a[1], a[2], datos,
+				error_o_datos_a_retornar, nivel_de_profundidad)
+			: NULL;
+		int correcto = respuesta != NULL &&
+			!resultadoTieneError(error_o_datos_a_retornar,
+				nivel_de_profundidad, respuesta);
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"Resultado: %s\n",
+			respuesta != NULL ? respuesta : "(sin resultado)");
+		sistema_memoria_liberar(datos, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(respuesta, error_o_datos_a_retornar, 0);
+		return correcto ? 0 : -1;
+	}
 	if(opcion == 2 && n == 11)
 	{
 		proceso_mul p;
@@ -10885,4 +12810,2006 @@ static int ejecutar_prueba_proceso_mul(
 		return 0;
 	}
 	return -1;
+}
+
+static char *pruebas_recopilar_inventario(
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	int opcion = 0;
+	char **campos = NULL;
+	const char *prompts_producto[] = {
+		"Ruta del inventario dividido (Enter usa la ruta configurada): ",
+		"Producto: 21 campos heredados o 32 campos actuales separados por |: ",
+		"Escriba SI para confirmar: "
+	};
+	const char *prompts_busqueda[] = {
+		"Ruta del inventario dividido (Enter usa la ruta configurada): ",
+		"Código de barras: ",
+		"ID sugerido (opcional; Enter busca todos): "
+	};
+	const char *prompts_ruta[] = {
+		"Ruta del inventario dividido (Enter usa la ruta configurada): "
+	};
+	const char *prompts_inicio[] = {
+		"Ruta del registro de conteo (Enter usa la ruta predeterminada): ",
+		"Escriba SI para iniciar el conteo: "
+	};
+	const char *prompts_conciliar[] = {
+		"Ruta del inventario dividido (Enter usa la ruta configurada): ",
+		"Ruta del registro de conteo: ",
+		"Operación (MODIFICAR_INVENTARIO o MOSTRAR_FALTANTES): ",
+		"Fecha del conteo en formato AAAAMMDD: ",
+		"Conteos separados por ╬; cada fila: código|nombre|cantidad|fecha: ",
+		"Esta operación actualizará archivos. Escriba SI para confirmar: "
+	};
+	const char **prompts = NULL;
+	int cantidad = 0;
+	const char *columnas_producto = GG_secciones_negocio[1].columnas;
+	const char *separador_id = strstr(
+		columnas_producto, GG_caracter_separacion[1]);
+	if(separador_id != NULL)
+		columnas_producto = separador_id +
+			strlen(GG_caracter_separacion[1]);
+
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"\n=== PRODUCTOS E INVENTARIO ===\n"
+		"1. Agregar producto\n"
+		"2. Agregar producto solo si no existe el código\n"
+		"3. Buscar producto por código\n"
+		"4. Buscar producto unitario del paquete por código\n"
+		"5. Obtener el inventario como texto\n"
+		"6. Inicializar un registro de conteo\n"
+		"7. Conciliar conteo (sumará ventas registradas durante el conteo)\n"
+		"8. Volver\n");
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"Para agregar productos, la fila actual lleva estos campos (sin ID):\n%s\n",
+		columnas_producto);
+	if(!pm_pedir_entero("Seleccione una opción: ", &opcion,
+		error_o_datos_a_retornar, nivel_de_profundidad))
+		return NULL;
+	if(opcion == 8) return pm_copiar_texto("0");
+	switch(opcion)
+	{
+		case 1:
+		case 2:
+			prompts = prompts_producto;
+			cantidad = 3;
+			break;
+		case 3:
+		case 4:
+			prompts = prompts_busqueda;
+			cantidad = 3;
+			break;
+		case 5:
+			prompts = prompts_ruta;
+			cantidad = 1;
+			break;
+		case 6:
+			prompts = prompts_inicio;
+			cantidad = 2;
+			break;
+		case 7:
+			prompts = prompts_conciliar;
+			cantidad = 6;
+			break;
+		default:
+			return NULL;
+	}
+	if(!pruebas_leer_campos(prompts, cantidad, &campos,
+		error_o_datos_a_retornar, nivel_de_profundidad))
+	{
+		pruebas_liberar_campos(campos, cantidad, error_o_datos_a_retornar);
+		return NULL;
+	}
+	if((opcion == 1 || opcion == 2 || opcion == 3 || opcion == 4 ||
+		opcion == 5) && campos[0][0] == '\0')
+	{
+		sistema_memoria_liberar(campos[0], error_o_datos_a_retornar, 0);
+		campos[0] = pm_copiar_texto(
+			"CONFIG/INF/INVENTARIO/INVENTARIO.TXT");
+	}
+	if(opcion == 6 && campos[0][0] == '\0')
+	{
+		char fecha_hora[24];
+		fechaActual(fecha_hora, "%Y%m%d%H%M%S");
+		sistema_memoria_liberar(campos[0], error_o_datos_a_retornar, 0);
+		campos[0] = fecha_hora[0] != '\0'
+			? variable_string(
+				"CONFIG/INF/INVENTARIO/INVENTARIO_EN_CURSO_%s.TXT",
+				fecha_hora)
+			: NULL;
+	}
+	if(opcion == 7 && campos[0][0] == '\0')
+	{
+		sistema_memoria_liberar(campos[0], error_o_datos_a_retornar, 0);
+		campos[0] = pm_copiar_texto(
+			"CONFIG/INF/INVENTARIO/INVENTARIO.TXT");
+	}
+	int indice_confirmacion = opcion == 1 || opcion == 2 ? 2 :
+		(opcion == 6 ? 1 : (opcion == 7 ? 5 : -1));
+	if(campos[0] == NULL ||
+		(opcion == 7 && (strcmp(campos[2], "MODIFICAR_INVENTARIO") != 0 &&
+			strcmp(campos[2], "MOSTRAR_FALTANTES") != 0)))
+	{
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"Ruta u operación de inventario no válida.\n");
+		pruebas_liberar_campos(campos, cantidad, error_o_datos_a_retornar);
+		return NULL;
+	}
+	if(indice_confirmacion >= 0 &&
+		strcmp(campos[indice_confirmacion], "SI") != 0 &&
+		strcmp(campos[indice_confirmacion], "si") != 0)
+	{
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"Operación cancelada; no se modificaron archivos.\n");
+		pruebas_liberar_campos(campos, cantidad, error_o_datos_a_retornar);
+		return pm_copiar_texto("0");
+	}
+	for(int i = 0; i < cantidad; ++i)
+	{
+		if(campos[i] == NULL || !pruebas_campo_serializable(campos[i]))
+		{
+			pruebas_liberar_campos(campos, cantidad,
+				error_o_datos_a_retornar);
+			return NULL;
+		}
+	}
+	char *serializado = pruebas_serializar(
+		opcion, campos, cantidad, error_o_datos_a_retornar);
+	pruebas_liberar_campos(campos, cantidad, error_o_datos_a_retornar);
+	return serializado;
+}
+
+static int ejecutar_prueba_inventario(
+	int opcion,
+	char **a,
+	int n,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	const char *ruta_predeterminada =
+		"CONFIG/INF/INVENTARIO/INVENTARIO.TXT";
+	char *ruta = NULL;
+	char *resultado = NULL;
+	int codigo = -1;
+
+	if((opcion == 1 || opcion == 2) && n == 3)
+	{
+		ruta = a[0][0] != '\0' ? pm_copiar_texto(a[0])
+			: pm_copiar_texto(ruta_predeterminada);
+		resultado = ruta != NULL
+			? (opcion == 1
+				? inventario_agregar_producto(ruta, a[1],
+					error_o_datos_a_retornar, nivel_de_profundidad)
+				: inventario_agrega_si_no_existe(ruta, a[1],
+					error_o_datos_a_retornar, nivel_de_profundidad))
+			: NULL;
+		if(opcion == 2 && resultado != NULL &&
+			compras_respuesta_codigo(resultado, &codigo, NULL, NULL,
+				error_o_datos_a_retornar, nivel_de_profundidad) &&
+			codigo == 0)
+		{
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+				"El código ya existía; no se agregó otra fila.\n");
+			sistema_memoria_liberar(ruta, error_o_datos_a_retornar, 0);
+			sistema_memoria_liberar(resultado, error_o_datos_a_retornar, 0);
+			return 0;
+		}
+	}
+	else if((opcion == 3 || opcion == 4) && n == 3)
+	{
+		ruta = a[0][0] != '\0' ? pm_copiar_texto(a[0])
+			: pm_copiar_texto(ruta_predeterminada);
+		resultado = ruta != NULL
+			? (opcion == 3
+				? inventario_buscar(ruta, a[1], a[2],
+					error_o_datos_a_retornar, nivel_de_profundidad)
+				: inventario_sacar_info_productos_unitario_del_paquete(
+					ruta, a[1], a[2], error_o_datos_a_retornar,
+					nivel_de_profundidad))
+			: NULL;
+	}
+	else if(opcion == 5 && n == 1)
+	{
+		ruta = a[0][0] != '\0' ? pm_copiar_texto(a[0])
+			: pm_copiar_texto(ruta_predeterminada);
+		resultado = ruta != NULL
+			? inventario_dar_el_inventario_string_caracter_sep(
+				ruta, GG_caracter_separacion_funciones_espesificas[0],
+				error_o_datos_a_retornar, nivel_de_profundidad)
+			: NULL;
+		if(resultado != NULL)
+		{
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+				"%s\n", resultado);
+			sistema_memoria_liberar(ruta, error_o_datos_a_retornar, 0);
+			sistema_memoria_liberar(resultado, error_o_datos_a_retornar, 0);
+			return 0;
+		}
+	}
+	else if(opcion == 6 && n == 2 &&
+		(strcmp(a[1], "SI") == 0 || strcmp(a[1], "si") == 0))
+	{
+		resultado = inventario_archivos_inicio_hacer_inventario(
+			a[0], error_o_datos_a_retornar, nivel_de_profundidad);
+	}
+	else if(opcion == 7 && n == 6 &&
+		(strcmp(a[5], "SI") == 0 || strcmp(a[5], "si") == 0))
+	{
+		char *ruta_inventario = a[0][0] != '\0'
+			? pm_copiar_texto(a[0]) : pm_copiar_texto(ruta_predeterminada);
+		resultado = ruta_inventario != NULL
+			? inventario_hacer_inventario(
+				ruta_inventario, a[1], a[2], a[3],
+				error_o_datos_a_retornar, nivel_de_profundidad)
+			: NULL;
+		sistema_memoria_liberar(ruta_inventario,
+			error_o_datos_a_retornar, 0);
+	}
+	else
+	{
+		return -1;
+	}
+
+	int correcto = resultado != NULL &&
+		compras_respuesta_codigo(resultado, &codigo, NULL, NULL,
+			error_o_datos_a_retornar, nivel_de_profundidad) &&
+		(opcion == 2 ? codigo >= 0 : codigo > 0);
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"Resultado de inventario: %s\n",
+		resultado != NULL ? resultado : "(no se pudo ejecutar)");
+	sistema_memoria_liberar(ruta, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(resultado, error_o_datos_a_retornar, 0);
+	return correcto ? 0 : -1;
+}
+
+typedef struct
+{
+	char *codigo;
+	char *nombre;
+	char *fecha;
+	double cantidad;
+} InventarioConteoItem;
+
+static void inventario_liberar_items(
+	InventarioConteoItem *items,
+	int cantidad)
+{
+	if(items == NULL) return;
+	for(int i = 0; i < cantidad; ++i)
+	{
+		sistema_memoria_liberar(items[i].codigo, NULL, 0);
+		sistema_memoria_liberar(items[i].nombre, NULL, 0);
+		sistema_memoria_liberar(items[i].fecha, NULL, 0);
+	}
+	sistema_memoria_liberar(items, NULL, 0);
+}
+
+static int inventario_agregar_item(
+	InventarioConteoItem *items,
+	int *cantidad_items,
+	int capacidad,
+	const char *codigo,
+	const char *nombre,
+	double cantidad,
+	const char *fecha)
+{
+	if(items == NULL || cantidad_items == NULL || codigo == NULL ||
+		codigo[0] == '\0' || nombre == NULL || cantidad < 0.0 ||
+		cantidad > DBL_MAX)
+		return 0;
+	for(int i = 0; i < *cantidad_items; ++i)
+	{
+		if(strcmp(items[i].codigo, codigo) == 0)
+		{
+			if(cantidad > DBL_MAX - items[i].cantidad) return 0;
+			items[i].cantidad += cantidad;
+			if(items[i].nombre[0] == '\0' && nombre[0] != '\0')
+			{
+				char *copia = pm_copiar_texto(nombre);
+				if(copia == NULL) return 0;
+				sistema_memoria_liberar(items[i].nombre, NULL, 0);
+				items[i].nombre = copia;
+			}
+			if(fecha != NULL && fecha[0] != '\0')
+			{
+				char *copia = pm_copiar_texto(fecha);
+				if(copia == NULL) return 0;
+				sistema_memoria_liberar(items[i].fecha, NULL, 0);
+				items[i].fecha = copia;
+			}
+			return 1;
+		}
+	}
+	if(*cantidad_items >= capacidad) return 0;
+	InventarioConteoItem *item = &items[*cantidad_items];
+	item->codigo = pm_copiar_texto(codigo);
+	item->nombre = pm_copiar_texto(nombre);
+	item->fecha = pm_copiar_texto(fecha != NULL ? fecha : "");
+	item->cantidad = cantidad;
+	if(item->codigo == NULL || item->nombre == NULL || item->fecha == NULL)
+	{
+		sistema_memoria_liberar(item->codigo, NULL, 0);
+		sistema_memoria_liberar(item->nombre, NULL, 0);
+		sistema_memoria_liberar(item->fecha, NULL, 0);
+		item->codigo = NULL;
+		item->nombre = NULL;
+		item->fecha = NULL;
+		return 0;
+	}
+	++*cantidad_items;
+	return 1;
+}
+
+static int inventario_codigo_respuesta(const char *respuesta, int *codigo)
+{
+	return compras_respuesta_codigo(respuesta, codigo, NULL, NULL, NULL, 0);
+}
+
+static char *inventario_respuesta(int codigo, const char *mensaje)
+{
+	return variable_string("%d%s%s", codigo,
+		GG_caracter_para_confirmacion_o_error[0],
+		mensaje != NULL ? mensaje : "");
+}
+
+static int inventario_validar_numericos(
+	char **campos,
+	int cantidad,
+	int heredado)
+{
+	static const int indices_actuales[] = {1, 3, 5, 6, 9, 17};
+	static const int indices_heredados[] = {1, 3, 5, 6, 9, 15};
+	const int *indices = heredado ? indices_heredados : indices_actuales;
+	int cantidad_indices = 6;
+	for(int i = 0; i < cantidad_indices; ++i)
+	{
+		int indice = indices[i];
+		if(indice >= cantidad) return 0;
+		if(campos[indice][0] == '\0')
+		{
+			if(i < 4) return 0;
+			continue;
+		}
+		double valor = 0.0;
+		if(!ventas_parsear_numero(campos[indice], &valor) || valor < 0.0)
+			return 0;
+	}
+	return 1;
+}
+
+static int inventario_preparar_producto(
+	const char *producto,
+	char **fila_actual,
+	char **codigo_barras,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	int cantidad = 0;
+	char **campos = producto != NULL
+		? split(producto, GG_caracter_separacion[0], &cantidad,
+			error_o_datos_a_retornar, nivel_de_profundidad)
+		: NULL;
+	if(campos == NULL || (cantidad != 21 && cantidad != 32))
+	{
+		liberarSplit(campos, cantidad, error_o_datos_a_retornar, 0);
+		return 0;
+	}
+	int heredado = cantidad == 21;
+	char **actuales = campos;
+	if(heredado)
+	{
+		actuales = sistema_memoria_reservar(
+			32 * sizeof(*actuales), error_o_datos_a_retornar,
+			nivel_de_profundidad);
+		if(actuales == NULL)
+		{
+			liberarSplit(campos, cantidad, error_o_datos_a_retornar, 0);
+			return 0;
+		}
+		for(int i = 0; i < 32; ++i) actuales[i] = "";
+		actuales[0] = campos[0];
+		actuales[1] = campos[1];
+		actuales[2] = campos[2];
+		actuales[3] = campos[3];
+		actuales[4] = campos[4];
+		actuales[5] = campos[5];
+		actuales[6] = campos[6];
+		actuales[7] = campos[7];
+		actuales[8] = campos[8];
+		actuales[9] = campos[9];
+		actuales[11] = campos[10];
+		actuales[13] = campos[11];
+		actuales[14] = campos[12];
+		actuales[15] = campos[13];
+		actuales[16] = campos[14];
+		actuales[17] = campos[15];
+		actuales[18] = campos[16];
+		actuales[19] = campos[17];
+		actuales[20] = campos[18];
+		actuales[21] = campos[19];
+		actuales[22] = campos[20];
+	}
+	int validos = inventario_validar_numericos(
+		heredado ? campos : actuales, cantidad, heredado) &&
+		actuales[4] != NULL && actuales[4][0] != '\0';
+	char *fila = validos ? join(actuales, 32,
+		GG_caracter_separacion[0], error_o_datos_a_retornar,
+		nivel_de_profundidad) : NULL;
+	char *codigo = validos
+		? pm_copiar_texto(actuales[4]) : NULL;
+	if(heredado)
+		sistema_memoria_liberar(actuales, error_o_datos_a_retornar, 0);
+	liberarSplit(campos, cantidad, error_o_datos_a_retornar, 0);
+	if(fila == NULL || codigo == NULL)
+	{
+		sistema_memoria_liberar(fila, error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(codigo, error_o_datos_a_retornar, 0);
+		return 0;
+	}
+	*fila_actual = fila;
+	*codigo_barras = codigo;
+	return 1;
+}
+
+char *inventario_agregar_producto(
+	const char *direccion_archivo,
+	const char *producto,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	const char *ruta = direccion_archivo != NULL &&
+		direccion_archivo[0] != '\0'
+		? direccion_archivo : GG_secciones_negocio[1].ruta;
+	char *fila = NULL;
+	char *codigo = NULL;
+	if(!inventario_preparar_producto(producto, &fila, &codigo,
+		error_o_datos_a_retornar, nivel_de_profundidad))
+		return inventario_respuesta(
+			0, "producto_o_valores_numericos_invalidos");
+	char *respuesta = agregar_info_dividida(
+		ruta, fila, GG_secciones_negocio[1].columnas);
+	sistema_memoria_liberar(fila, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(codigo, error_o_datos_a_retornar, 0);
+	return respuesta;
+}
+
+char *inventario_agrega_si_no_existe(
+	const char *direccion_archivo,
+	const char *producto,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	const char *ruta = direccion_archivo != NULL &&
+		direccion_archivo[0] != '\0'
+		? direccion_archivo : GG_secciones_negocio[1].ruta;
+	char *fila = NULL;
+	char *codigo = NULL;
+	if(!inventario_preparar_producto(producto, &fila, &codigo,
+		error_o_datos_a_retornar, nivel_de_profundidad))
+		return inventario_respuesta(
+			0, "producto_o_valores_numericos_invalidos");
+	char *respuesta = agregar_sino_existe_info_dividida(
+		ruta, 5, codigo, fila, GG_secciones_negocio[1].columnas);
+	sistema_memoria_liberar(fila, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(codigo, error_o_datos_a_retornar, 0);
+	return respuesta;
+}
+
+char *inventario_buscar(
+	const char *direccion_archivo,
+	const char *codigo_barras,
+	const char *id_producto,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	const char *ruta = direccion_archivo != NULL &&
+		direccion_archivo[0] != '\0'
+		? direccion_archivo : GG_secciones_negocio[1].ruta;
+	int id = -1;
+	if(codigo_barras == NULL || codigo_barras[0] == '\0')
+		return inventario_respuesta(0, "codigo_de_barras_vacio");
+	if(id_producto != NULL && id_producto[0] != '\0' &&
+		(texto_a_int_seguro(id_producto, &id) != 0 || id <= 0))
+		return inventario_respuesta(0, "id_sugerido_invalido");
+	(void)error_o_datos_a_retornar;
+	(void)nivel_de_profundidad;
+	return buscar_info_dividida(ruta, codigo_barras, 5, id);
+}
+
+char *inventario_sacar_info_productos_unitario_del_paquete(
+	const char *direccion_archivo,
+	const char *codigo_barras,
+	const char *id_producto,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	return inventario_buscar(direccion_archivo, codigo_barras,
+		id_producto, error_o_datos_a_retornar, nivel_de_profundidad);
+}
+
+char *inventario_archivos_inicio_hacer_inventario(
+	const char *direccion_registro,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	const char *ruta = direccion_registro != NULL &&
+		direccion_registro[0] != '\0'
+		? direccion_registro
+		: "CONFIG/INF/INVENTARIO/INVENTARIO_EN_CURSO.TXT";
+	static const char columnas[] =
+		"COD_BARRAS°NOMBRE°CANTIDAD°FECHA";
+	if(GG_ruta_sesion_inventario_activa == NULL ||
+		strcmp(GG_ruta_sesion_inventario_activa, ruta) != 0)
+	{
+		if(existe_archivo(ruta))
+			return inventario_respuesta(
+				0, "el_registro_ya_existe; use_una_ruta_nueva");
+		char *metadata = variable_string(
+			"tipo_info%sinfo\nID_TOT%s0\nCOLUMNAS%s%s\nCANT_POR_ARCH%s100",
+			GG_caracter_separacion[0], GG_caracter_separacion[0],
+			GG_caracter_separacion[0], columnas,
+			GG_caracter_separacion[0]);
+		int creado = metadata != NULL
+			? crearArchivo(ruta, metadata) : -1;
+		sistema_memoria_liberar(metadata,
+			error_o_datos_a_retornar, 0);
+		if(creado < 0)
+			return inventario_respuesta(
+				0, "no_se_pudo_inicializar_el_conteo");
+	}
+	char *ruta_activa = pm_copiar_texto(ruta);
+	if(ruta_activa == NULL)
+		return inventario_respuesta(0, "error_de_memoria");
+	sistema_memoria_liberar(GG_ruta_sesion_inventario_activa,
+		error_o_datos_a_retornar, 0);
+	GG_ruta_sesion_inventario_activa = ruta_activa;
+	(void)nivel_de_profundidad;
+	return inventario_respuesta(1, "registro_de_conteo_inicializado");
+}
+
+char *inventario_registrar_movimiento_conteo(
+	const char *direccion_registro,
+	const char *codigo_barras,
+	const char *nombre,
+	const char *cantidad,
+	const char *fecha,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	const char *ruta = direccion_registro != NULL &&
+		direccion_registro[0] != '\0'
+		? direccion_registro : GG_ruta_sesion_inventario_activa;
+	double numero = 0.0;
+	if(ruta == NULL || codigo_barras == NULL || codigo_barras[0] == '\0' ||
+		nombre == NULL || !ventas_parsear_numero(cantidad, &numero) ||
+		numero <= 0.0 || fecha == NULL || fecha[0] == '\0')
+		return inventario_respuesta(0, "movimiento_de_conteo_invalido");
+	if(GG_ruta_sesion_inventario_activa == NULL ||
+		strcmp(GG_ruta_sesion_inventario_activa, ruta) != 0)
+	{
+		char *respuesta_inicio =
+			inventario_archivos_inicio_hacer_inventario(
+				ruta, error_o_datos_a_retornar, nivel_de_profundidad);
+		int codigo_inicio = -1;
+		int iniciado = inventario_codigo_respuesta(
+			respuesta_inicio, &codigo_inicio) && codigo_inicio > 0;
+		sistema_memoria_liberar(respuesta_inicio,
+			error_o_datos_a_retornar, 0);
+		if(!iniciado)
+			return inventario_respuesta(
+				0, "no_se_pudo_abrir_el_registro_de_conteo");
+	}
+	char *fila = variable_string("%s%s%s%s%s%s%s",
+		codigo_barras, GG_caracter_separacion[0], nombre,
+		GG_caracter_separacion[0], cantidad,
+		GG_caracter_separacion[0], fecha);
+	if(fila == NULL) return inventario_respuesta(0, "error_de_memoria");
+	char *respuesta = agregar_info_dividida(
+		ruta, fila, "COD_BARRAS°NOMBRE°CANTIDAD°FECHA");
+	sistema_memoria_liberar(fila, error_o_datos_a_retornar, 0);
+	return respuesta;
+}
+
+char *inventario_dar_el_inventario_string_caracter_sep(
+	const char *direccion_archivo,
+	const char *separador,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	const char *ruta = direccion_archivo != NULL &&
+		direccion_archivo[0] != '\0'
+		? direccion_archivo : GG_secciones_negocio[1].ruta;
+	const char *union_filas = separador != NULL && separador[0] != '\0'
+		? separador : GG_caracter_separacion_funciones_espesificas[0];
+	char *filas = leer_todo_info_dividida(ruta);
+	if(filas == NULL)
+		return inventario_respuesta(0, "no_se_pudo_leer_el_inventario");
+	char *filas_formateadas = ReemplazarCaracteres_de_texto_string(
+		filas, GG_caracter_separacion_funciones_espesificas[3],
+		union_filas);
+	char *columnas = ReemplazarCaracteres_de_texto_string(
+		GG_secciones_negocio[1].columnas, GG_caracter_separacion[1],
+		GG_caracter_separacion[0]);
+	char *resultado = columnas != NULL && filas_formateadas != NULL
+		? (filas_formateadas[0] != '\0'
+			? variable_string("%s%s%s", columnas, union_filas,
+				filas_formateadas)
+			: pm_copiar_texto(columnas))
+		: NULL;
+	sistema_memoria_liberar(filas, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(filas_formateadas,
+		error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(columnas, error_o_datos_a_retornar, 0);
+	(void)nivel_de_profundidad;
+	return resultado;
+}
+
+static int inventario_cargar_conteos(
+	const char *texto_filas,
+	int incluye_id,
+	InventarioConteoItem *items,
+	int *cantidad_items,
+	int capacidad,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	if(texto_filas == NULL || texto_filas[0] == '\0') return 1;
+	int cantidad_filas = 0;
+	char **filas = split(texto_filas,
+		GG_caracter_separacion_funciones_espesificas[3],
+		&cantidad_filas, error_o_datos_a_retornar,
+		nivel_de_profundidad);
+	if(filas == NULL) return 0;
+	int correcto = 1;
+	for(int i = 0; correcto && i < cantidad_filas; ++i)
+	{
+		if(filas[i][0] == '\0') continue;
+		int cantidad_campos = 0;
+		char **campos = split(filas[i], GG_caracter_separacion[0],
+			&cantidad_campos, error_o_datos_a_retornar,
+			nivel_de_profundidad);
+		int offset = incluye_id ? 1 : 0;
+		double cantidad = 0.0;
+		correcto = campos != NULL && cantidad_campos >= offset + 3 &&
+			campos[offset][0] != '\0' &&
+			ventas_parsear_numero(campos[offset + 2], &cantidad) &&
+			cantidad >= 0.0 &&
+			inventario_agregar_item(items, cantidad_items, capacidad,
+				campos[offset], campos[offset + 1], cantidad,
+				cantidad_campos > offset + 3 ? campos[offset + 3] : "");
+		liberarSplit(campos, cantidad_campos,
+			error_o_datos_a_retornar, 0);
+	}
+	liberarSplit(filas, cantidad_filas, error_o_datos_a_retornar, 0);
+	return correcto;
+}
+
+static char *inventario_reporte_path(
+	const char *direccion_registro,
+	const char *tipo)
+{
+	return variable_string("%s.%s", direccion_registro, tipo);
+}
+
+static int inventario_iniciar_reporte(const char *ruta)
+{
+	if(ruta == NULL) return 0;
+	if(existe_archivo(ruta)) return 1;
+	char *metadata = variable_string(
+		"tipo_info%sinfo\nID_TOT%s0\nCOLUMNAS%s%s\nCANT_POR_ARCH%s100",
+		GG_caracter_separacion[0], GG_caracter_separacion[0],
+		GG_caracter_separacion[0],
+		"COD_BARRAS°NOMBRE°CANTIDAD_CONTEO°CANTIDAD_SISTEMA°ULTIMO_MOVIMIENTO",
+		GG_caracter_separacion[0]);
+	int creado = metadata != NULL ? crearArchivo(ruta, metadata) : -1;
+	sistema_memoria_liberar(metadata, NULL, 0);
+	return creado >= 0;
+}
+
+static int inventario_agregar_reporte(
+	const char *ruta,
+	const char *codigo,
+	const char *nombre,
+	double cantidad_conteo,
+	double cantidad_sistema,
+	const char *ultimo_movimiento)
+{
+	char *conteo = variable_string("%.17g", cantidad_conteo);
+	char *sistema = variable_string("%.17g", cantidad_sistema);
+	if(conteo == NULL || sistema == NULL)
+	{
+		sistema_memoria_liberar(conteo, NULL, 0);
+		sistema_memoria_liberar(sistema, NULL, 0);
+		return 0;
+	}
+	const char *campos[] = {
+		codigo, nombre, conteo, sistema,
+		ultimo_movimiento != NULL ? ultimo_movimiento : ""
+	};
+	char *fila = join((char **)campos, 5, GG_caracter_separacion[0],
+		NULL, 0);
+	char *respuesta = fila != NULL
+		? agregar_info_dividida(ruta, fila,
+			"COD_BARRAS°NOMBRE°CANTIDAD_CONTEO°CANTIDAD_SISTEMA°ULTIMO_MOVIMIENTO")
+		: NULL;
+	int codigo_respuesta = -1;
+	int correcto = inventario_codigo_respuesta(
+		respuesta, &codigo_respuesta) && codigo_respuesta > 0;
+	sistema_memoria_liberar(conteo, NULL, 0);
+	sistema_memoria_liberar(sistema, NULL, 0);
+	sistema_memoria_liberar(fila, NULL, 0);
+	sistema_memoria_liberar(respuesta, NULL, 0);
+	return correcto;
+}
+
+static int inventario_parsear_fecha(const char *fecha, long *valor)
+{
+	if(fecha == NULL || strlen(fecha) != 8 || valor == NULL) return 0;
+	for(int i = 0; i < 8; ++i)
+		if(fecha[i] < '0' || fecha[i] > '9') return 0;
+	char *fin = NULL;
+	errno = 0;
+	long convertido = strtol(fecha, &fin, 10);
+	if(errno == ERANGE || fin == fecha || *fin != '\0') return 0;
+	*valor = convertido;
+	return 1;
+}
+
+static int inventario_agregar_producto_desde_conteo(
+	const char *ruta,
+	const InventarioConteoItem *item,
+	const char *fecha,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	char *cantidad = variable_string("%.17g", item->cantidad);
+	if(cantidad == NULL) return 0;
+	char *campos[32];
+	for(int i = 0; i < 32; ++i) campos[i] = "";
+	campos[0] = item->nombre;
+	campos[1] = "0";
+	campos[3] = "0";
+	campos[4] = item->codigo;
+	campos[5] = cantidad;
+	campos[6] = "0";
+	campos[8] = "PRODUCTO_PIEZA";
+	campos[9] = "1";
+	campos[10] = "INDIVIDUAL";
+	campos[17] = (char *)fecha;
+	char *fila = join(campos, 32, GG_caracter_separacion[0],
+		error_o_datos_a_retornar, nivel_de_profundidad);
+	sistema_memoria_liberar(cantidad, error_o_datos_a_retornar, 0);
+	char *respuesta = fila != NULL
+		? inventario_agrega_si_no_existe(ruta, fila,
+			error_o_datos_a_retornar, nivel_de_profundidad)
+		: NULL;
+	int codigo = -1;
+	int correcto = inventario_codigo_respuesta(respuesta, &codigo) &&
+		codigo > 0;
+	sistema_memoria_liberar(fila, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(respuesta, error_o_datos_a_retornar, 0);
+	return correcto;
+}
+
+char *inventario_hacer_inventario(
+	const char *direccion_archivo,
+	const char *direccion_registro,
+	const char *informacion,
+	const char *fecha,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	const char *ruta_inventario = direccion_archivo != NULL &&
+		direccion_archivo[0] != '\0'
+		? direccion_archivo : GG_secciones_negocio[1].ruta;
+	if(direccion_registro == NULL || direccion_registro[0] == '\0' ||
+		informacion == NULL || fecha == NULL)
+		return inventario_respuesta(0, "parametros_de_conteo_invalidos");
+	long fecha_numero = 0;
+	if(!inventario_parsear_fecha(fecha, &fecha_numero))
+		return inventario_respuesta(0, "fecha_de_conteo_invalida");
+	int partes_info_n = 0;
+	char **partes_info = split(informacion,
+		GG_caracter_separacion_funciones_espesificas[2],
+		&partes_info_n, error_o_datos_a_retornar,
+		nivel_de_profundidad);
+	if(partes_info == NULL || partes_info_n != 2 ||
+		(strcmp(partes_info[0], "MODIFICAR_INVENTARIO") != 0 &&
+			strcmp(partes_info[0], "MOSTRAR_FALTANTES") != 0))
+	{
+		liberarSplit(partes_info, partes_info_n,
+			error_o_datos_a_retornar, 0);
+		return inventario_respuesta(0, "formato_de_conteo_invalido");
+	}
+	int cantidad_filas_conteo = 0;
+	char **filas_conteo = partes_info[1][0] != '\0'
+		? split(partes_info[1],
+			GG_caracter_separacion_funciones_espesificas[3],
+			&cantidad_filas_conteo, error_o_datos_a_retornar,
+			nivel_de_profundidad)
+		: NULL;
+	if(partes_info[1][0] != '\0' && filas_conteo == NULL)
+	{
+		liberarSplit(partes_info, partes_info_n,
+			error_o_datos_a_retornar, 0);
+		return inventario_respuesta(0, "no_se_pudieron_leer_los_conteos");
+	}
+	char *movimientos = leer_todo_info_dividida(direccion_registro);
+	if(movimientos == NULL)
+	{
+		liberarSplit(filas_conteo, cantidad_filas_conteo,
+			error_o_datos_a_retornar, 0);
+		liberarSplit(partes_info, partes_info_n,
+			error_o_datos_a_retornar, 0);
+		return inventario_respuesta(
+			0, "no_se_pudo_leer_el_registro_de_conteo");
+	}
+	int cantidad_movimientos = 0;
+	char **filas_movimiento = movimientos[0] != '\0'
+		? split(movimientos,
+			GG_caracter_separacion_funciones_espesificas[3],
+			&cantidad_movimientos, error_o_datos_a_retornar,
+			nivel_de_profundidad)
+		: NULL;
+	if(movimientos[0] != '\0' && filas_movimiento == NULL)
+	{
+		sistema_memoria_liberar(movimientos, error_o_datos_a_retornar, 0);
+		liberarSplit(filas_conteo, cantidad_filas_conteo,
+			error_o_datos_a_retornar, 0);
+		liberarSplit(partes_info, partes_info_n,
+			error_o_datos_a_retornar, 0);
+		return inventario_respuesta(
+			0, "no_se_pudieron_leer_los_movimientos");
+	}
+	int capacidad = cantidad_filas_conteo + cantidad_movimientos;
+	InventarioConteoItem *items = capacidad > 0
+		? sistema_memoria_reservar((size_t)capacidad * sizeof(*items),
+			error_o_datos_a_retornar, nivel_de_profundidad)
+		: NULL;
+	if(capacidad > 0 && items == NULL)
+	{
+		liberarSplit(filas_movimiento, cantidad_movimientos,
+			error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(movimientos, error_o_datos_a_retornar, 0);
+		liberarSplit(filas_conteo, cantidad_filas_conteo,
+			error_o_datos_a_retornar, 0);
+		liberarSplit(partes_info, partes_info_n,
+			error_o_datos_a_retornar, 0);
+		return inventario_respuesta(0, "error_de_memoria");
+	}
+	for(int i = 0; i < capacidad; ++i)
+	{
+		items[i].codigo = NULL;
+		items[i].nombre = NULL;
+		items[i].fecha = NULL;
+		items[i].cantidad = 0.0;
+	}
+	int cantidad_items = 0;
+	int correcto = inventario_cargar_conteos(
+		partes_info[1], 0, items, &cantidad_items, capacidad,
+		error_o_datos_a_retornar, nivel_de_profundidad) &&
+		inventario_cargar_conteos(
+			movimientos, 1, items, &cantidad_items, capacidad,
+			error_o_datos_a_retornar, nivel_de_profundidad);
+	liberarSplit(filas_movimiento, cantidad_movimientos,
+		error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(movimientos, error_o_datos_a_retornar, 0);
+	liberarSplit(filas_conteo, cantidad_filas_conteo,
+		error_o_datos_a_retornar, 0);
+	if(!correcto || cantidad_items == 0)
+	{
+		inventario_liberar_items(items, cantidad_items);
+		liberarSplit(partes_info, partes_info_n,
+			error_o_datos_a_retornar, 0);
+		return inventario_respuesta(0, cantidad_items == 0
+			? "no_hay_productos_para_procesar"
+			: "conteo_o_movimiento_invalido");
+	}
+
+	int procesados = 0;
+	int fallidos = 0;
+	int productos_agregados = 0;
+	if(strcmp(partes_info[0], "MODIFICAR_INVENTARIO") == 0)
+	{
+		for(int i = 0; i < cantidad_items; ++i)
+		{
+			char *cantidad = variable_string("%.17g",
+				items[i].cantidad);
+			if(cantidad == NULL)
+			{
+				++fallidos;
+				continue;
+			}
+			char *respuesta = incrementa_celda_busqueda_info_dividida(
+				ruta_inventario, items[i].codigo, 5, "6", cantidad, NULL);
+			sistema_memoria_liberar(cantidad,
+				error_o_datos_a_retornar, 0);
+			int codigo = -1;
+			if(inventario_codigo_respuesta(respuesta, &codigo) &&
+				codigo > 0)
+				++procesados;
+			else
+				++fallidos;
+			sistema_memoria_liberar(respuesta,
+				error_o_datos_a_retornar, 0);
+		}
+	}
+	else
+	{
+		char *reporte_sobrantes = inventario_reporte_path(
+			direccion_registro, "SOBRANTES");
+		char *reporte_faltantes = inventario_reporte_path(
+			direccion_registro, "FALTANTES");
+		char *reporte_no_fisico = inventario_reporte_path(
+			direccion_registro, "NO_ENCONTRADOS");
+		char *reporte_posibles = inventario_reporte_path(
+			direccion_registro, "POSIBLES_FALTANTES");
+		char *filas_inventario = leer_todo_info_dividida(ruta_inventario);
+		int cantidad_filas_inventario = 0;
+		char **inventario = filas_inventario != NULL &&
+			filas_inventario[0] != '\0'
+			? split(filas_inventario,
+				GG_caracter_separacion_funciones_espesificas[3],
+				&cantidad_filas_inventario, error_o_datos_a_retornar,
+				nivel_de_profundidad)
+			: NULL;
+		unsigned char *encontrados = sistema_memoria_reservar(
+			(size_t)cantidad_items, error_o_datos_a_retornar,
+			nivel_de_profundidad);
+		if(encontrados == NULL || reporte_sobrantes == NULL ||
+			reporte_faltantes == NULL || reporte_no_fisico == NULL ||
+			reporte_posibles == NULL || filas_inventario == NULL ||
+			!inventario_iniciar_reporte(reporte_sobrantes) ||
+			!inventario_iniciar_reporte(reporte_faltantes) ||
+			!inventario_iniciar_reporte(reporte_no_fisico) ||
+			!inventario_iniciar_reporte(reporte_posibles))
+		{
+			++fallidos;
+		}
+		else
+		{
+			for(int i = 0; i < cantidad_items; ++i) encontrados[i] = 0;
+			for(int i = 0; i < cantidad_filas_inventario; ++i)
+			{
+				int n_campos = 0;
+				char **producto = split(inventario[i],
+					GG_caracter_separacion[0], &n_campos,
+					error_o_datos_a_retornar, nivel_de_profundidad);
+				double stock = 0.0;
+				if(producto == NULL || n_campos <= 18 ||
+					!ventas_parsear_numero(producto[6], &stock))
+				{
+					liberarSplit(producto, n_campos,
+						error_o_datos_a_retornar, 0);
+					++fallidos;
+					continue;
+				}
+				int encontrado = 0;
+				for(int j = 0; j < cantidad_items; ++j)
+				{
+					if(strcmp(items[j].codigo, producto[5]) == 0)
+					{
+						encontrado = 1;
+						encontrados[j] = 1;
+						int guardado = 1;
+						if(items[j].cantidad > stock)
+							guardado = inventario_agregar_reporte(
+								reporte_sobrantes, producto[5], producto[1],
+								items[j].cantidad, stock, producto[18]);
+						else if(items[j].cantidad < stock)
+							guardado = inventario_agregar_reporte(
+								reporte_faltantes, producto[5], producto[1],
+								items[j].cantidad, stock, producto[18]);
+						if(guardado) ++procesados;
+						else ++fallidos;
+						break;
+					}
+				}
+				if(!encontrado)
+				{
+					long ultimo_movimiento = 0;
+					char *fin_movimiento = NULL;
+					if(producto[18][0] != '\0')
+						ultimo_movimiento = strtol(
+							producto[18], &fin_movimiento, 10);
+					const char *ruta_reporte =
+						ultimo_movimiento < fecha_numero - 10000
+						? reporte_no_fisico : reporte_posibles;
+					if(inventario_agregar_reporte(
+						ruta_reporte, producto[5], producto[1], 0.0,
+						stock, producto[18]))
+						++procesados;
+					else
+						++fallidos;
+				}
+				liberarSplit(producto, n_campos,
+					error_o_datos_a_retornar, 0);
+			}
+			for(int i = 0; i < cantidad_items; ++i)
+			{
+				if(encontrados[i] || items[i].cantidad <= 0.0) continue;
+				if(inventario_agregar_producto_desde_conteo(
+					ruta_inventario, &items[i], fecha,
+					error_o_datos_a_retornar, nivel_de_profundidad))
+				{
+					++productos_agregados;
+					++procesados;
+				}
+				else
+				{
+					++fallidos;
+				}
+			}
+		}
+		sistema_memoria_liberar(encontrados,
+			error_o_datos_a_retornar, 0);
+		liberarSplit(inventario, cantidad_filas_inventario,
+			error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(filas_inventario,
+			error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(reporte_sobrantes,
+			error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(reporte_faltantes,
+			error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(reporte_no_fisico,
+			error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(reporte_posibles,
+			error_o_datos_a_retornar, 0);
+	}
+
+	char *resumen = variable_string(
+		"Procesados: %d; productos nuevos agregados: %d; fallidos: %d",
+		procesados, productos_agregados, fallidos);
+	if(GG_ruta_sesion_inventario_activa != NULL &&
+		strcmp(GG_ruta_sesion_inventario_activa, direccion_registro) == 0 &&
+		fallidos == 0)
+	{
+		sistema_memoria_liberar(GG_ruta_sesion_inventario_activa,
+			error_o_datos_a_retornar, 0);
+		GG_ruta_sesion_inventario_activa = NULL;
+	}
+	inventario_liberar_items(items, cantidad_items);
+	liberarSplit(partes_info, partes_info_n,
+		error_o_datos_a_retornar, 0);
+	if(resumen == NULL)
+		return inventario_respuesta(0, "error_de_memoria");
+	char *respuesta = variable_string("%d%s%s",
+		fallidos == 0 ? 1 : 0,
+		GG_caracter_para_confirmacion_o_error[0], resumen);
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"Conciliación de inventario: %s\n", resumen);
+	sistema_memoria_liberar(resumen, error_o_datos_a_retornar, 0);
+	(void)nivel_de_profundidad;
+	return respuesta;
+}
+
+static char *pruebas_recopilar_proveedores(
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	int opcion = 0;
+	char **campos = NULL;
+	const char *prompts_alta[] = {
+		"Ruta del archivo de proveedores (Enter usa la ruta configurada): ",
+		"Nombre de la empresa: ",
+		"Monto/dinero de compra asignado: ",
+		"Nombre del encargado: ",
+		"Dirección: ",
+		"Ciudad: ",
+		"Estado: ",
+		"Código postal: ",
+		"País: ",
+		"Correo electrónico: ",
+		"Teléfono del encargado: ",
+		"Teléfono de la empresa: ",
+		"Tipo de proveedor: ",
+		"Productos o servicios suministrados: ",
+		"Cuenta bancaria: ",
+		"Ubicación GPS: ",
+		"Notas: ",
+		"Recordatorio: ",
+		"Estado (ACTIVO/INACTIVO): ",
+		"Escriba SI para confirmar el alta: "
+	};
+	const char *prompts_ruta[] = {
+		"Ruta del archivo de proveedores (Enter usa la ruta configurada): "
+	};
+	const char **prompts = NULL;
+	int cantidad = 0;
+
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"\n=== PRUEBAS DE PROVEEDORES ===\n"
+		"1. Registrar proveedor\n"
+		"2. Extraer nombres de proveedores\n"
+		"3. Extraer nombres y dinero asignado para compras\n"
+		"4. Volver\n");
+	if(!pm_pedir_entero("Seleccione una opción: ", &opcion,
+		error_o_datos_a_retornar, nivel_de_profundidad))
+		return NULL;
+	if(opcion == 4) return pm_copiar_texto("0");
+	if(opcion == 1)
+	{
+		prompts = prompts_alta;
+		cantidad = 20;
+	}
+	else if(opcion == 2 || opcion == 3)
+	{
+		prompts = prompts_ruta;
+		cantidad = 1;
+	}
+	else
+	{
+		return NULL;
+	}
+	if(!pruebas_leer_campos(prompts, cantidad, &campos,
+		error_o_datos_a_retornar, nivel_de_profundidad))
+	{
+		pruebas_liberar_campos(campos, cantidad,
+			error_o_datos_a_retornar);
+		return NULL;
+	}
+	if(campos[0][0] == '\0')
+	{
+		sistema_memoria_liberar(campos[0], error_o_datos_a_retornar, 0);
+		campos[0] = pm_copiar_texto(GG_secciones_negocio[3].ruta);
+	}
+	if(campos[0] == NULL)
+	{
+		pruebas_liberar_campos(campos, cantidad,
+			error_o_datos_a_retornar);
+		return NULL;
+	}
+	if(opcion == 1)
+	{
+		double monto = 0.0;
+		if(campos[1][0] == '\0' ||
+			!ventas_parsear_numero(campos[2], &monto) || monto < 0.0)
+		{
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+				"El nombre del proveedor y el monto numérico no pueden ser inválidos.\n");
+			pruebas_liberar_campos(campos, cantidad,
+				error_o_datos_a_retornar);
+			return NULL;
+		}
+		if(strcmp(campos[18], "ACTIVO") != 0 &&
+			strcmp(campos[18], "INACTIVO") != 0 &&
+			strcmp(campos[18], "activo") != 0 &&
+			strcmp(campos[18], "inactivo") != 0)
+		{
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+				"El estado debe ser ACTIVO o INACTIVO.\n");
+			pruebas_liberar_campos(campos, cantidad,
+				error_o_datos_a_retornar);
+			return NULL;
+		}
+		if(strcmp(campos[19], "SI") != 0 &&
+			strcmp(campos[19], "si") != 0)
+		{
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+				"Alta cancelada; no se modificó el archivo.\n");
+			pruebas_liberar_campos(campos, cantidad,
+				error_o_datos_a_retornar);
+			return pm_copiar_texto("0");
+		}
+	}
+	for(int i = 0; i < cantidad; ++i)
+	{
+		if(campos[i] == NULL || !pruebas_campo_serializable(campos[i]) ||
+			(i > 0 && i < 19 &&
+				strchr(campos[i], GG_caracter_separacion[0][0]) != NULL))
+		{
+			sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+				"Los campos no pueden contener separadores del protocolo ni saltos de línea.\n");
+			pruebas_liberar_campos(campos, cantidad,
+				error_o_datos_a_retornar);
+			return NULL;
+		}
+	}
+	char *serializado = pruebas_serializar(
+		opcion, campos, cantidad, error_o_datos_a_retornar);
+	pruebas_liberar_campos(campos, cantidad, error_o_datos_a_retornar);
+	return serializado;
+}
+
+static int ejecutar_prueba_proveedores(
+	int opcion,
+	char **argumentos,
+	int cantidad,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	const char *ruta = GG_secciones_negocio[3].ruta;
+	char *respuesta = NULL;
+	int codigo = -1;
+	if(opcion == 1 && cantidad == 20 &&
+		(strcmp(argumentos[19], "SI") == 0 ||
+			strcmp(argumentos[19], "si") == 0))
+	{
+		char *datos = join(argumentos + 1, 18,
+			GG_caracter_separacion[0],
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		respuesta = datos != NULL
+			? registro_provedores_cod3_r_(
+				argumentos[0][0] != '\0' ? argumentos[0] : ruta,
+				datos, error_o_datos_a_retornar, nivel_de_profundidad)
+			: NULL;
+		sistema_memoria_liberar(datos, error_o_datos_a_retornar, 0);
+	}
+	else if((opcion == 2 || opcion == 3) && cantidad == 1)
+	{
+		const char *ruta_consulta = argumentos[0][0] != '\0'
+			? argumentos[0] : ruta;
+		respuesta = opcion == 2
+			? extraer_nombre_provedores(
+				ruta_consulta, error_o_datos_a_retornar,
+				nivel_de_profundidad)
+			: extraer_nombre_provedores_y_dinero(
+				ruta_consulta, error_o_datos_a_retornar,
+				nivel_de_profundidad);
+	}
+	else
+	{
+		return -1;
+	}
+	int correcto = respuesta != NULL &&
+		compras_respuesta_codigo(respuesta, &codigo, NULL, NULL,
+			error_o_datos_a_retornar, nivel_de_profundidad) &&
+		codigo > 0;
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"Resultado de proveedores: %s\n",
+		respuesta != NULL ? respuesta : "(no se pudo ejecutar)");
+	sistema_memoria_liberar(respuesta, error_o_datos_a_retornar, 0);
+	return correcto ? 0 : -1;
+}
+
+char *registro_provedores_cod3_r_(
+	const char *direccion_archivo,
+	const char *datos,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	const char *ruta = direccion_archivo != NULL &&
+		direccion_archivo[0] != '\0'
+		? direccion_archivo : GG_secciones_negocio[3].ruta;
+	int cantidad_datos = 0;
+	char **datos_campos = datos != NULL
+		? split(datos, GG_caracter_separacion[0], &cantidad_datos,
+			error_o_datos_a_retornar, nivel_de_profundidad)
+		: NULL;
+	if(datos_campos == NULL || cantidad_datos != 18)
+	{
+		liberarSplit(datos_campos, cantidad_datos,
+			error_o_datos_a_retornar, 0);
+		return inventario_respuesta(0, "se_requieren_18_campos_de_proveedor");
+	}
+	double monto = 0.0;
+	if(datos_campos[0][0] == '\0' ||
+		!ventas_parsear_numero(datos_campos[1], &monto) || monto < 0.0)
+	{
+		liberarSplit(datos_campos, cantidad_datos,
+			error_o_datos_a_retornar, 0);
+		return inventario_respuesta(
+			0, "nombre_o_monto_de_proveedor_invalido");
+	}
+	char *campos[23];
+	for(int i = 0; i < 23; ++i) campos[i] = "";
+	campos[0] = datos_campos[0];
+	campos[1] = datos_campos[2];
+	for(int i = 2; i <= 16; ++i)
+		campos[i] = datos_campos[i + 1];
+	campos[20] = datos_campos[1];
+	char *fila = join(campos, 23, GG_caracter_separacion[0],
+		error_o_datos_a_retornar, nivel_de_profundidad);
+	char *respuesta = fila != NULL
+		? agregar_info_dividida(
+			ruta, fila, GG_secciones_negocio[3].columnas)
+		: NULL;
+	sistema_memoria_liberar(fila, error_o_datos_a_retornar, 0);
+	liberarSplit(datos_campos, cantidad_datos,
+		error_o_datos_a_retornar, 0);
+	if(respuesta == NULL)
+		return inventario_respuesta(0, "no_se_pudo_guardar_el_proveedor");
+	return respuesta;
+}
+
+static char *proveedores_extraer_columna(
+	const char *direccion_archivo,
+	int columna,
+	int columna_dinero,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	const char *ruta = direccion_archivo != NULL &&
+		direccion_archivo[0] != '\0'
+		? direccion_archivo : GG_secciones_negocio[3].ruta;
+	char *filas = leer_todo_info_dividida(ruta);
+	if(filas == NULL)
+		return inventario_respuesta(0, "no_se_pudo_leer_el_archivo_de_proveedores");
+	int cantidad_filas = 0;
+	char **lista = filas[0] != '\0'
+		? split(filas, GG_caracter_separacion_funciones_espesificas[3],
+			&cantidad_filas, error_o_datos_a_retornar,
+			nivel_de_profundidad)
+		: NULL;
+	if(filas[0] != '\0' && lista == NULL)
+	{
+		sistema_memoria_liberar(filas, error_o_datos_a_retornar, 0);
+		return inventario_respuesta(0, "no_se_pudieron_leer_los_proveedores");
+	}
+	char *resultado = NULL;
+	int correcto = 1;
+	for(int i = 0; i < cantidad_filas && correcto; ++i)
+	{
+		int cantidad_campos = 0;
+		char **campos = split(lista[i], GG_caracter_separacion[0],
+			&cantidad_campos, error_o_datos_a_retornar,
+			nivel_de_profundidad);
+		if(campos == NULL || columna >= cantidad_campos ||
+			(columna_dinero >= 0 && columna_dinero >= cantidad_campos))
+		{
+			correcto = 0;
+		}
+		else
+		{
+			char *valor = columna_dinero >= 0
+				? variable_string("%s%s%s", campos[columna],
+					GG_caracter_separacion[2], campos[columna_dinero])
+				: pm_copiar_texto(campos[columna]);
+			if(valor == NULL ||
+				concatenar_formato_separado_por_variable(
+					&resultado,
+					resultado != NULL
+						? GG_caracter_separacion[1] : NULL,
+					"%s", valor) < 0)
+				correcto = 0;
+			sistema_memoria_liberar(valor,
+				error_o_datos_a_retornar, 0);
+		}
+		liberarSplit(campos, cantidad_campos,
+			error_o_datos_a_retornar, 0);
+	}
+	liberarSplit(lista, cantidad_filas,
+		error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(filas, error_o_datos_a_retornar, 0);
+	if(!correcto)
+	{
+		sistema_memoria_liberar(resultado, error_o_datos_a_retornar, 0);
+		return inventario_respuesta(0, "fila_de_proveedor_invalida");
+	}
+	if(resultado == NULL) resultado = pm_copiar_texto("");
+	if(resultado == NULL)
+		return inventario_respuesta(0, "error_de_memoria");
+	char *respuesta = variable_string("1%s%s",
+		GG_caracter_para_confirmacion_o_error[0], resultado);
+	sistema_memoria_liberar(resultado, error_o_datos_a_retornar, 0);
+	return respuesta;
+}
+
+char *extraer_nombre_provedores(
+	const char *direccion_archivo,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	return proveedores_extraer_columna(direccion_archivo, 1, -1,
+		error_o_datos_a_retornar, nivel_de_profundidad);
+}
+
+char *extraer_nombre_provedores_y_dinero(
+	const char *direccion_archivo,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	return proveedores_extraer_columna(direccion_archivo, 1, 21,
+		error_o_datos_a_retornar, nivel_de_profundidad);
+}
+
+static int analisis_reemplazar_celda(
+	char **campos,
+	int cantidad_campos,
+	int columna,
+	const char *valor)
+{
+	if(campos == NULL || valor == NULL || columna < 0 ||
+		columna >= cantidad_campos)
+		return 0;
+	char *copia = pm_copiar_texto(valor);
+	if(copia == NULL) return 0;
+	sistema_memoria_liberar(campos[columna], NULL, 0);
+	campos[columna] = copia;
+	return 1;
+}
+
+static int analisis_numero_celda(
+	const char *texto,
+	double valor_vacio,
+	double *valor)
+{
+	if(texto == NULL || valor == NULL) return 0;
+	if(texto[0] == '\0')
+	{
+		*valor = valor_vacio;
+		return 1;
+	}
+	return ventas_parsear_numero(texto, valor);
+}
+
+static int analisis_enriquecer_fila(
+	char **campos,
+	int cantidad_campos,
+	int columna_historial,
+	int columna_promedio,
+	int columna_veces,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	if(campos == NULL || cantidad_campos < 11 ||
+		columna_historial < 0 || columna_historial >= cantidad_campos ||
+		columna_promedio < 0 || columna_promedio >= cantidad_campos ||
+		columna_veces < 0 || columna_veces >= cantidad_campos)
+		return 0;
+
+	int cantidad_semanas = 0;
+	char **historial = split(campos[columna_historial],
+		GG_caracter_separacion[1], &cantidad_semanas,
+		error_o_datos_a_retornar, nivel_de_profundidad);
+	if(historial == NULL || cantidad_semanas == 0)
+	{
+		liberarSplit(historial, cantidad_semanas,
+			error_o_datos_a_retornar, 0);
+		return 0;
+	}
+
+	double semanas[4] = {0.0, 0.0, 0.0, 0.0};
+	int semanas_validas = 0;
+	for(int i = 0; i < cantidad_semanas && semanas_validas < 4; ++i)
+	{
+		if(historial[i][0] == '\0') break;
+		if(!ventas_parsear_numero(historial[i], &semanas[semanas_validas]) ||
+			semanas[semanas_validas] < 0.0)
+		{
+			liberarSplit(historial, cantidad_semanas,
+				error_o_datos_a_retornar, 0);
+			return 0;
+		}
+		++semanas_validas;
+	}
+	liberarSplit(historial, cantidad_semanas,
+		error_o_datos_a_retornar, 0);
+
+	double promedio = 0.0;
+	double veces_numero = 0.0;
+	if(!analisis_numero_celda(campos[columna_promedio], 0.0, &promedio) ||
+		!analisis_numero_celda(campos[columna_veces], 0.0, &veces_numero) ||
+		promedio < 0.0 || veces_numero < 0.0)
+		return 0;
+	int veces = veces_numero >= 4.0 ? 4 : (int)veces_numero;
+	if(promedio == 0.0 && semanas_validas > 0)
+		promedio = semanas[0];
+	else if(semanas_validas > 0 && semanas[0] > promedio)
+	{
+		if(veces < 4) ++veces;
+		if(veces >= 4 && semanas_validas == 4)
+			promedio = (semanas[0] + semanas[1] +
+				semanas[2] + semanas[3]) / 4.0;
+	}
+	else
+	{
+		veces = 0;
+	}
+
+	char *promedio_texto = variable_string("%.17g", promedio);
+	char *veces_texto = variable_string("%d", veces);
+	int correcto = promedio_texto != NULL && veces_texto != NULL &&
+		analisis_reemplazar_celda(
+			campos, cantidad_campos, columna_promedio, promedio_texto) &&
+		analisis_reemplazar_celda(
+			campos, cantidad_campos, columna_veces, veces_texto);
+	sistema_memoria_liberar(promedio_texto, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(veces_texto, error_o_datos_a_retornar, 0);
+	return correcto;
+}
+
+static int analisis_agregar_datos_inventario(
+	char **campos,
+	int cantidad_campos,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	if(campos == NULL || cantidad_campos < 11) return 0;
+	if(campos[0][0] != '\0')
+	{
+		char *respuesta = inventario_buscar(
+			GG_secciones_negocio[1].ruta, campos[0], "",
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		int codigo = 0;
+		char **partes = NULL;
+		int cantidad_partes = 0;
+		if(respuesta == NULL ||
+			!compras_respuesta_codigo(respuesta, &codigo, &partes,
+				&cantidad_partes, error_o_datos_a_retornar,
+				nivel_de_profundidad))
+		{
+			sistema_memoria_liberar(respuesta,
+				error_o_datos_a_retornar, 0);
+			return 0;
+		}
+		if(codigo > 0 && cantidad_partes >= 2)
+		{
+			int cantidad_inventario = 0;
+			char **producto = split(partes[1], GG_caracter_separacion[0],
+				&cantidad_inventario, error_o_datos_a_retornar,
+				nivel_de_profundidad);
+			int correcto = producto != NULL && cantidad_inventario > 9 &&
+				analisis_reemplazar_celda(
+					campos, cantidad_campos, 8, producto[6]) &&
+				analisis_reemplazar_celda(
+					campos, cantidad_campos, 9, producto[9]) &&
+				analisis_reemplazar_celda(
+					campos, cantidad_campos, 10, producto[7]);
+			liberarSplit(producto, cantidad_inventario,
+				error_o_datos_a_retornar, 0);
+			liberarSplit(partes, cantidad_partes,
+				error_o_datos_a_retornar, 0);
+			sistema_memoria_liberar(respuesta,
+				error_o_datos_a_retornar, 0);
+			return correcto;
+		}
+		if(codigo == 0 && cantidad_partes >= 2 &&
+			strstr(partes[1], "no_encontro") == NULL)
+		{
+			liberarSplit(partes, cantidad_partes,
+				error_o_datos_a_retornar, 0);
+			sistema_memoria_liberar(respuesta,
+				error_o_datos_a_retornar, 0);
+			return 0;
+		}
+		liberarSplit(partes, cantidad_partes,
+			error_o_datos_a_retornar, 0);
+		sistema_memoria_liberar(respuesta,
+			error_o_datos_a_retornar, 0);
+	}
+
+	for(int i = 8; i <= 10; ++i)
+	{
+		if(campos[i][0] == '\0' &&
+			!analisis_reemplazar_celda(
+				campos, cantidad_campos, i, i == 9 ? "" : "0"))
+			return 0;
+	}
+	return 1;
+}
+
+char *existe_informacion(
+	const char *direccion_archivo,
+	const char *informacion,
+	int columna,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	const char *ruta = direccion_archivo != NULL &&
+		direccion_archivo[0] != '\0'
+		? direccion_archivo : GG_secciones_negocio[1].ruta;
+	if(informacion == NULL || informacion[0] == '\0' || columna < 0)
+		return inventario_respuesta(0, "parametros_de_busqueda_invalidos");
+	char *respuesta = buscar_info_dividida(ruta, informacion, columna, -1);
+	int codigo = 0;
+	char **partes = NULL;
+	int cantidad = 0;
+	if(respuesta == NULL ||
+		!compras_respuesta_codigo(respuesta, &codigo, &partes, &cantidad,
+			error_o_datos_a_retornar, nivel_de_profundidad))
+	{
+		sistema_memoria_liberar(respuesta, error_o_datos_a_retornar, 0);
+		return inventario_respuesta(0, "error_al_buscar_informacion");
+	}
+	char *resultado = NULL;
+	if(codigo > 0)
+		resultado = inventario_respuesta(1, "encontrado");
+	else if(cantidad >= 2 && strstr(partes[1], "no_encontro") != NULL)
+		resultado = inventario_respuesta(-1, "no_encontrado");
+	else
+		resultado = inventario_respuesta(0,
+			cantidad >= 2 ? partes[1] : "error_al_buscar_informacion");
+	liberarSplit(partes, cantidad, error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(respuesta, error_o_datos_a_retornar, 0);
+	return resultado;
+}
+
+typedef struct
+{
+	char *fila;
+	double ranking;
+	double nivel_necesidad;
+} AnalisisFilaCompra;
+
+static void analisis_liberar_filas(
+	AnalisisFilaCompra *filas,
+	int cantidad)
+{
+	if(filas == NULL) return;
+	for(int i = 0; i < cantidad; ++i)
+		sistema_memoria_liberar(filas[i].fila, NULL, 0);
+	sistema_memoria_liberar(filas, NULL, 0);
+}
+
+char *calculo_pred_compra(
+	char **ranking,
+	int cantidad_filas,
+	int columna_ranking,
+	int columna_promedio_compra,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	if(ranking == NULL || cantidad_filas < 0 ||
+		columna_ranking < 0 || columna_promedio_compra < 0)
+		return inventario_respuesta(0, "parametros_de_ranking_invalidos");
+	if((size_t)cantidad_filas >
+		(size_t)-1 / sizeof(AnalisisFilaCompra))
+		return inventario_respuesta(0, "ranking_demasiado_grande");
+	AnalisisFilaCompra *filas = cantidad_filas > 0
+		? (AnalisisFilaCompra *)sistema_memoria_reservar(
+			(size_t)cantidad_filas * sizeof(*filas),
+			error_o_datos_a_retornar, nivel_de_profundidad)
+		: NULL;
+	if(cantidad_filas > 0 && filas == NULL)
+		return inventario_respuesta(0, "error_de_memoria");
+	if(filas != NULL)
+		memset(filas, 0, (size_t)cantidad_filas * sizeof(*filas));
+
+	for(int i = 0; i < cantidad_filas; ++i)
+	{
+		int cantidad_campos = 0;
+		char **campos = split(ranking[i], GG_caracter_separacion[0],
+			&cantidad_campos, error_o_datos_a_retornar,
+			nivel_de_profundidad);
+		double stock = 0.0;
+		double promedio = 0.0;
+		double valor_ranking = 0.0;
+		int valido = campos != NULL && cantidad_campos >= 11 &&
+			columna_ranking < cantidad_campos &&
+			columna_promedio_compra < cantidad_campos &&
+			analisis_numero_celda(campos[8], 0.0, &stock) &&
+			analisis_numero_celda(campos[columna_promedio_compra],
+				0.0, &promedio) &&
+			analisis_numero_celda(campos[columna_ranking],
+				0.0, &valor_ranking) &&
+			stock >= 0.0 && promedio >= 0.0;
+		if(valido)
+		{
+			filas[i].fila = pm_copiar_texto(ranking[i]);
+			filas[i].ranking = valor_ranking;
+			filas[i].nivel_necesidad =
+				(double)posicion_rango_nesecidad(promedio, stock);
+			valido = filas[i].fila != NULL;
+		}
+		liberarSplit(campos, cantidad_campos,
+			error_o_datos_a_retornar, 0);
+		if(!valido)
+		{
+			analisis_liberar_filas(filas, cantidad_filas);
+			return inventario_respuesta(0,
+				"fila_de_ranking_o_valor_numerico_invalido");
+		}
+	}
+
+	for(int i = 0; i < cantidad_filas; ++i)
+	{
+		for(int j = i + 1; j < cantidad_filas; ++j)
+		{
+			if(filas[j].nivel_necesidad < filas[i].nivel_necesidad ||
+				(filas[j].nivel_necesidad == filas[i].nivel_necesidad &&
+					filas[j].ranking < filas[i].ranking))
+			{
+				AnalisisFilaCompra temporal = filas[i];
+				filas[i] = filas[j];
+				filas[j] = temporal;
+			}
+		}
+	}
+
+	char *lista = NULL;
+	int correcto = 1;
+	for(int i = 0; i < cantidad_filas && correcto; ++i)
+	{
+		int cantidad_campos = 0;
+		char **campos = split(filas[i].fila,
+			GG_caracter_separacion[0], &cantidad_campos,
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		double stock = 0.0;
+		double promedio = 0.0;
+		double costo = 0.0;
+		correcto = campos != NULL && cantidad_campos >= 11 &&
+			analisis_numero_celda(campos[8], 0.0, &stock) &&
+			analisis_numero_celda(campos[columna_promedio_compra],
+				0.0, &promedio) &&
+			analisis_numero_celda(campos[10], 0.0, &costo);
+		if(correcto)
+		{
+			double por_comprar = promedio > stock ? promedio - stock : 0.0;
+			char *fila_salida = variable_string(
+				"%.17g%s%s%s%s%s%s%s%.17g%s%.17g",
+				por_comprar, GG_caracter_separacion[0],
+				campos[1], GG_caracter_separacion[0],
+				campos[0], GG_caracter_separacion[0],
+				campos[3], GG_caracter_separacion[0],
+				stock, GG_caracter_separacion[0], costo);
+			if(fila_salida == NULL)
+				correcto = 0;
+			else
+			{
+				char *nueva_lista = lista == NULL
+					? pm_copiar_texto(fila_salida)
+					: variable_string("%s%s%s", lista,
+						GG_caracter_separacion_funciones_espesificas[0],
+						fila_salida);
+				if(nueva_lista == NULL)
+					correcto = 0;
+				else
+				{
+					sistema_memoria_liberar(lista,
+						error_o_datos_a_retornar, 0);
+					lista = nueva_lista;
+				}
+				sistema_memoria_liberar(fila_salida,
+					error_o_datos_a_retornar, 0);
+			}
+		}
+		liberarSplit(campos, cantidad_campos,
+			error_o_datos_a_retornar, 0);
+	}
+	analisis_liberar_filas(filas, cantidad_filas);
+	if(!correcto)
+	{
+		sistema_memoria_liberar(lista, error_o_datos_a_retornar, 0);
+		return inventario_respuesta(0, "no_se_pudo_calcular_la_prediccion");
+	}
+	char *respuesta = inventario_respuesta(1, lista != NULL ? lista : "");
+	sistema_memoria_liberar(lista, error_o_datos_a_retornar, 0);
+	return respuesta;
+}
+
+char *prediccion_arreglo_compra(
+	char **todo_el_ranking,
+	int cantidad_filas,
+	int columna_historial,
+	int columna_ranking,
+	int columna_promedio_compra,
+	int columna_veces_supera_promedio,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	if(todo_el_ranking == NULL || cantidad_filas < 0 ||
+		columna_historial < 0 || columna_ranking < 0 ||
+		columna_promedio_compra < 0 ||
+		columna_veces_supera_promedio < 0)
+		return inventario_respuesta(0,
+			"parametros_de_prediccion_invalidos");
+	if((size_t)cantidad_filas > (size_t)-1 / sizeof(*todo_el_ranking))
+		return inventario_respuesta(0, "ranking_demasiado_grande");
+	char **enriquecido = cantidad_filas > 0
+		? (char **)sistema_memoria_reservar(
+			(size_t)cantidad_filas * sizeof(*enriquecido),
+			error_o_datos_a_retornar, nivel_de_profundidad)
+		: NULL;
+	if(cantidad_filas > 0 && enriquecido == NULL)
+		return inventario_respuesta(0, "error_de_memoria");
+	if(enriquecido != NULL)
+		memset(enriquecido, 0, (size_t)cantidad_filas * sizeof(*enriquecido));
+
+	int correcto = 1;
+	for(int i = 0; i < cantidad_filas && correcto; ++i)
+	{
+		int cantidad_campos = 0;
+		char **campos = split(todo_el_ranking[i],
+			GG_caracter_separacion[0], &cantidad_campos,
+			error_o_datos_a_retornar, nivel_de_profundidad);
+		correcto = campos != NULL &&
+			analisis_enriquecer_fila(campos, cantidad_campos,
+				columna_historial, columna_promedio_compra,
+				columna_veces_supera_promedio,
+				error_o_datos_a_retornar, nivel_de_profundidad) &&
+			analisis_agregar_datos_inventario(
+				campos, cantidad_campos, error_o_datos_a_retornar,
+				nivel_de_profundidad);
+		if(correcto)
+			enriquecido[i] = join(campos, cantidad_campos,
+				GG_caracter_separacion[0],
+				error_o_datos_a_retornar, nivel_de_profundidad);
+		if(enriquecido[i] == NULL) correcto = 0;
+		liberarSplit(campos, cantidad_campos,
+			error_o_datos_a_retornar, 0);
+	}
+	char *respuesta = correcto
+		? calculo_pred_compra(enriquecido, cantidad_filas,
+			columna_ranking, columna_promedio_compra,
+			error_o_datos_a_retornar, nivel_de_profundidad)
+		: inventario_respuesta(0,
+			"no_se_pudo_preparar_una_fila_del_ranking");
+	for(int i = 0; i < cantidad_filas; ++i)
+		sistema_memoria_liberar(enriquecido[i],
+			error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(enriquecido, error_o_datos_a_retornar, 0);
+	return respuesta;
+}
+
+char *prediccion_archivo_compra(
+	const char *direccion_ranking,
+	int columna_historial,
+	int columna_ranking,
+	int columna_promedio_compra,
+	int columna_veces_supera_promedio,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	if(direccion_ranking == NULL || direccion_ranking[0] == '\0')
+		return inventario_respuesta(0, "ruta_de_ranking_vacia");
+	int total_lineas = 0;
+	char **lineas = leer_archivo(direccion_ranking, &total_lineas);
+	if(lineas == NULL)
+		return inventario_respuesta(0, "no_se_pudo_leer_el_archivo_de_ranking");
+	int inicio = GG_indice_donde_comensar;
+	if(inicio < 0) inicio = 0;
+	if(inicio > total_lineas) inicio = total_lineas;
+	char *respuesta = prediccion_arreglo_compra(
+		lineas + inicio, total_lineas - inicio, columna_historial,
+		columna_ranking, columna_promedio_compra,
+		columna_veces_supera_promedio, error_o_datos_a_retornar,
+		nivel_de_profundidad);
+	free_lineas(lineas, total_lineas);
+	return respuesta;
+}
+
+int posicion_rango_nesecidad(
+	double promedio_compra,
+	double cantidad_inventario)
+{
+	if(promedio_compra <= 0.0 || cantidad_inventario < 0.0)
+		return 4;
+	if(cantidad_inventario < promedio_compra * 0.3) return 1;
+	if(cantidad_inventario < promedio_compra * 0.6) return 2;
+	if(cantidad_inventario < promedio_compra * 0.9) return 3;
+	return 4;
+}
+
+static char *pruebas_recopilar_analisis_compras(
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	int opcion = 0;
+	char **campos = NULL;
+	const char *prompts_busqueda[] = {
+		"Ruta del inventario dividido (Enter usa la ruta configurada): ",
+		"Valor que desea buscar: ",
+		"Columna de búsqueda (índice desde 0): "
+	};
+	const char *prompts_prediccion[] = {
+		"Ruta del archivo de ranking: ",
+		"Columna del historial semanal (índice desde 0): ",
+		"Columna del ranking numérico (índice desde 0): ",
+		"Columna del promedio de compra (índice desde 0): ",
+		"Columna de semanas sobre el promedio (índice desde 0): "
+	};
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"\n=== ANÁLISIS DE DATOS Y COMPRAS ===\n"
+		"1. Buscar si existe un valor en el inventario\n"
+		"2. Predecir compras desde un archivo de ranking\n"
+		"3. Volver\n");
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"Ranking esperado: 0 código | 1 nombre | 2 ventas | 3 proveedor | "
+		"4 historial | 5 ranking | 6 promedio | 7 semanas sobre promedio | "
+		"8 inventario | 9 tipo | 10 costo\n");
+	if(!pm_pedir_entero("Seleccione una opción: ", &opcion,
+		error_o_datos_a_retornar, nivel_de_profundidad))
+		return NULL;
+	if(opcion == 3) return pm_copiar_texto("0");
+	int cantidad = opcion == 1 ? 3 : (opcion == 2 ? 5 : 0);
+	const char **prompts = opcion == 1
+		? prompts_busqueda : prompts_prediccion;
+	if(cantidad == 0 ||
+		!pruebas_leer_campos(prompts, cantidad, &campos,
+			error_o_datos_a_retornar, nivel_de_profundidad))
+	{
+		pruebas_liberar_campos(campos, cantidad,
+			error_o_datos_a_retornar);
+		return NULL;
+	}
+	if(opcion == 1 && campos[0][0] == '\0')
+	{
+		sistema_memoria_liberar(campos[0], error_o_datos_a_retornar, 0);
+		campos[0] = pm_copiar_texto(GG_secciones_negocio[1].ruta);
+	}
+	int indices_validos = campos[0] != NULL;
+	if(opcion == 1 && indices_validos)
+	{
+		int indice = -1;
+		indices_validos = texto_a_int_seguro(campos[2], &indice) == 0 &&
+			indice >= 0;
+	}
+	else
+	{
+		for(int i = 1; i < cantidad && indices_validos; ++i)
+		{
+			int indice = -1;
+			indices_validos = texto_a_int_seguro(campos[i], &indice) == 0 &&
+				indice >= 0;
+		}
+	}
+	if(!indices_validos ||
+		(opcion == 1 && campos[1][0] == '\0') ||
+		(opcion == 2 && campos[0][0] == '\0'))
+	{
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"Ruta, valor o índice de columna inválido.\n");
+		pruebas_liberar_campos(campos, cantidad,
+			error_o_datos_a_retornar);
+		return NULL;
+	}
+	for(int i = 0; i < cantidad; ++i)
+	{
+		if(campos[i] == NULL || !pruebas_campo_serializable(campos[i]))
+		{
+			pruebas_liberar_campos(campos, cantidad,
+				error_o_datos_a_retornar);
+			return NULL;
+		}
+	}
+	char *serializado = pruebas_serializar(
+		opcion, campos, cantidad, error_o_datos_a_retornar);
+	pruebas_liberar_campos(campos, cantidad, error_o_datos_a_retornar);
+	return serializado;
+}
+
+static int ejecutar_prueba_analisis_compras(
+	int opcion,
+	char **argumentos,
+	int cantidad,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	char *respuesta = NULL;
+	if(opcion == 1 && cantidad == 3)
+	{
+		int columna = -1;
+		if(texto_a_int_seguro(argumentos[2], &columna) != 0 ||
+			columna < 0)
+			return -1;
+		respuesta = existe_informacion(
+			argumentos[0], argumentos[1], columna,
+			error_o_datos_a_retornar, nivel_de_profundidad);
+	}
+	else if(opcion == 2 && cantidad == 5)
+	{
+		int columnas[4];
+		for(int i = 0; i < 4; ++i)
+		{
+			if(texto_a_int_seguro(argumentos[i + 1], &columnas[i]) != 0 ||
+				columnas[i] < 0)
+				return -1;
+		}
+		respuesta = prediccion_archivo_compra(
+			argumentos[0], columnas[0], columnas[1], columnas[2],
+			columnas[3], error_o_datos_a_retornar,
+			nivel_de_profundidad);
+	}
+	else
+	{
+		return -1;
+	}
+	int codigo = 0;
+	char **partes = NULL;
+	int cantidad_partes = 0;
+	int correcto = respuesta != NULL &&
+		compras_respuesta_codigo(respuesta, &codigo, &partes,
+			&cantidad_partes, error_o_datos_a_retornar,
+			nivel_de_profundidad) &&
+		(opcion == 1 ? codigo != 0 : codigo > 0);
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"Resultado del análisis: %s\n",
+		respuesta != NULL ? respuesta : "(no se pudo ejecutar)");
+	liberarSplit(partes, cantidad_partes,
+		error_o_datos_a_retornar, 0);
+	sistema_memoria_liberar(respuesta, error_o_datos_a_retornar, 0);
+	return correcto ? 0 : -1;
 }
