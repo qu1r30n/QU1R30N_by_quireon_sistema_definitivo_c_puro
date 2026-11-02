@@ -315,7 +315,9 @@ static const GG_SeccionNegocio GG_secciones_negocio[] = {
 	{"Deducibles", "CONFIG/INF/IMPUESTOS/DEDUSIBLES.TXT", "_00_ID°_01_FECHA°_02_MONTO°_03_DESCRIPCION°_04_PROVEDOR°_05_ARCHIVO_FACTURA°_06_FOLIO"},
 	{"Herramientas / tipos de medida", "CONFIG/INF/INVENTARIO/TIPOS_DE_MEDIDA.TXT", "_00_ID°_01_COD_BAR"},
 	{"Trabajos por día", "CONFIG/INF/DAT/TRABAJOS_POR_DIA.TXT",
-		"_00_ID°_01_DIA°_02_ID_TRABAJADOR°_03_HECHO_O_NO°_04_CANTIDAD°_05_COSTO_COMP°_06_ID_QUIENLOISO°_07_ID_PROGRAMA"},
+		"_00_ID°_01_DIA°_02_ID_TRABAJADOR°_03_HECHO_O_NO°_04_CANTIDAD°_05_COSTO_COMP°_06_ID_QUIENLOISO°_07_ID_PROGRAMA°_08_DESCRIPCION_TAREA°_09_DESTINATARIOS"},
+	{"Recordatorios", "CONFIG/INF/DAT/RECORDATORIOS.TXT",
+		"_00_ID°_01_DESTINATARIO°_02_MENSAJE°_03_FECHA_HORA°_04_CONTACTO"},
 	{NULL, NULL, NULL}
 };
 
@@ -454,6 +456,9 @@ const char *obtener_ultimo_retorno_formateado(void);
   char **leer_archivo(const char *ruta, int *n_lineas_out);
   void guardar_archivo(const char *ruta, char **lineas, int n_lineas);
   void free_lineas(char **lineas, int n_lineas);
+  static int diversas_guardar_archivo(const char *ruta, char **lineas, int n_lineas);
+  static int diversas_agregar_fila(const char *ruta, const char *fila);
+  static int diversas_encolar_mensaje(const char *destinatario, const char *info);
   void agregar_fila(const char *ruta, const char *fila);
   int existe_archivo(const char *ruta);
   void generar_ruta_archivo(const char *ruta, long id, long cant_por_arch, char *salida, size_t tam_salida);
@@ -502,6 +507,7 @@ const char *obtener_ultimo_retorno_formateado(void);
  static char *pruebas_recopilar_inventario(char *error_o_datos_a_retornar,int nivel_de_profundidad);
  static char *pruebas_recopilar_proveedores(char *error_o_datos_a_retornar,int nivel_de_profundidad);
  static char *pruebas_recopilar_analisis_compras(char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ static char *pruebas_recopilar_funciones_diversas(char *error_o_datos_a_retornar,int nivel_de_profundidad);
  static int ejecutar_prueba_espacios(int opcion,char **argumentos,int cantidad,char *error_o_datos_a_retornar,int nivel_de_profundidad);
  static int ejecutar_prueba_proceso_mul(int opcion,char **argumentos,int cantidad,char *error_o_datos_a_retornar,int nivel_de_profundidad);
  static int ejecutar_prueba_ventas(char **argumentos,int cantidad,char *error_o_datos_a_retornar,int nivel_de_profundidad);
@@ -509,6 +515,7 @@ const char *obtener_ultimo_retorno_formateado(void);
  static int ejecutar_prueba_inventario(int opcion,char **argumentos,int cantidad,char *error_o_datos_a_retornar,int nivel_de_profundidad);
  static int ejecutar_prueba_proveedores(int opcion,char **argumentos,int cantidad,char *error_o_datos_a_retornar,int nivel_de_profundidad);
  static int ejecutar_prueba_analisis_compras(int opcion,char **argumentos,int cantidad,char *error_o_datos_a_retornar,int nivel_de_profundidad);
+ static int ejecutar_prueba_funciones_diversas(int opcion,char **argumentos,int cantidad,char *error_o_datos_a_retornar,int nivel_de_profundidad);
  char *registro_unificado_cod3_r_(const char *dir_arch_afiliados,const char *dir_arch_niveles,const char *id_enc,const char *tabla_enc,const char *datos,char *error_o_datos_a_retornar,int nivel_de_profundidad);
  char *compras(const char *direccion_archivo,char **productos,int cantidad_productos,const char *proveedores,const char *sucursales,double porcentaje_ganancia,char *error_o_datos_a_retornar,int nivel_de_profundidad);
  char *ventas(const char *direccion_archivo,const char *codigos,const char *cantidades,char *error_o_datos_a_retornar,int nivel_de_profundidad);
@@ -588,7 +595,8 @@ char* prueba(int nivel_de_profundidad)
 	 * 10 = pregunta las opciones y parámetros de productos e inventario; main ejecuta la operación.
 	 * 11 = preguntar las opciones y campos de proveedores; main ejecuta la operación.
 	 * 12 = analizar ranking y predecir compras; main calcula sin alterar el ranking.
-	 * 13 = volver; genera el comando "salir" para que main retorne al menú previo.
+	 * 13 = probar tipos de medida, recordatorios y tareas diarias.
+	 * 14 = volver; genera el comando "salir" para que main retorne al menú previo.
 	 * La entrada recibida aquí siempre es el número del menú principal.
 	 */
 	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "\n=== MENÚ DE PRUEBAS ===\n");
@@ -604,7 +612,8 @@ char* prueba(int nivel_de_profundidad)
 	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "10. Probar productos y proceso de inventario\n");
 	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "11. Probar proveedores\n");
 	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "12. Analizar ranking y predecir compras\n");
-	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "13. Volver al menú principal\n");
+	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "13. Probar funciones diversas (medidas, recordatorios y tareas)\n");
+	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "14. Volver al menú principal\n");
 	sistema_consola_escribir_formato(error_o_datos_a_retornar,0, "Seleccione una opción: ");
 
 	char *entrada = leerLineaConsola(error_o_datos_a_retornar,nivel_de_profundidad);
@@ -986,8 +995,19 @@ char* prueba(int nivel_de_profundidad)
 			break;
 		}
 		case 13:
+		{
+			comando = "pruebas_funciones_diversas";
+			accionSubmenu = pruebas_recopilar_funciones_diversas(
+				error_o_datos_a_retornar, nivel_de_profundidad);
+			if(accionSubmenu == NULL)
 			{
-				/* Entrada 13 del menú principal: se recibe la orden de salir y main vuelve al menú anterior. */
+				return crearResultado(-1, "no_se_pudieron_recopilar_parametros_de_funciones_diversas", "", __func__, error_o_datos_a_retornar, nivel_de_profundidad);
+			}
+			break;
+		}
+		case 14:
+			{
+				/* Entrada 14 del menú principal: se recibe la orden de salir y main vuelve al menú anterior. */
 				char *salida = concatenar(
 					"%s%s%s%s%s%s%d%s%s",
 					GG_id_programa,
@@ -1674,6 +1694,36 @@ int main(void)
 			resultado = crearResultado(
 				estado < 0 ? -1 : 1,
 				estado < 0 ? "error_en_analisis_de_compras" : "analisis_de_compras_completado",
+				"",
+				__func__,
+				error_o_datos_a_retornar,
+				1
+			);
+		}
+		else if(nombreFuncion != NULL &&
+			strcmp(nombreFuncion, "pruebas_funciones_diversas") == 0)
+		{
+			int cantidadArgumentos = 0;
+			int opcionPrueba = 0;
+			char **argumentos = cantidadPartesComando > 1
+				? split(partesComando[1], GG_caracter_separacion[2],
+					&cantidadArgumentos, error_o_datos_a_retornar, 1)
+				: NULL;
+			int estado = argumentos != NULL && cantidadArgumentos > 0 &&
+				texto_a_int_seguro(argumentos[0], &opcionPrueba) == 0 &&
+				opcionPrueba >= 0 && opcionPrueba <= 4
+				? (opcionPrueba == 0 ? 0 :
+					ejecutar_prueba_funciones_diversas(
+						opcionPrueba, argumentos + 1,
+						cantidadArgumentos - 1,
+						error_o_datos_a_retornar, 1))
+				: -1;
+			liberarSplit(argumentos, cantidadArgumentos,
+				error_o_datos_a_retornar, 0);
+			sistema_memoria_liberar(resultado, error_o_datos_a_retornar, 0);
+			resultado = crearResultado(
+				estado < 0 ? -1 : 1,
+				estado < 0 ? "error_en_pruebas_de_funciones_diversas" : "pruebas_de_funciones_diversas_completadas",
 				"",
 				__func__,
 				error_o_datos_a_retornar,
@@ -14757,6 +14807,58 @@ static char *pruebas_recopilar_analisis_compras(
 	}
 	char *serializado = pruebas_serializar(
 		opcion, campos, cantidad, error_o_datos_a_retornar);
+	pruebas_liberar_campos(campos, cantidad, 	error_o_datos_a_retornar);
+	return serializado;
+}
+
+static char *pruebas_recopilar_funciones_diversas(
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	int opcion = 0;
+	char **campos = NULL;
+	const char *prompts_recordatorio[] = {
+	"ID o programa destinatario: ",
+	"Texto del recordatorio: ",
+	"Fecha y hora (YYYYMMDDHHmm): ",
+	"ID de contacto relacionado (opcional): "
+	};
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+	"\n=== FUNCIONES DIVERSAS ===\n"
+	"1. Extraer tipos de medida\n"
+	"2. Guardar un recordatorio\n"
+	"3. Encolar recordatorios vencidos\n"
+	"4. Procesar tareas del día\n"
+	"5. Volver\n"
+	"Fecha de recordatorio: YYYYMMDDHHmm. Para tareas, DIA acepta YYYYMMDD, "
+	"0-6 (domingo-sábado) o nombre del día; DESTINATARIOS usa IDs separados por ';'.\n");
+	if(!pm_pedir_entero("Seleccione una opción: ", &opcion,
+	error_o_datos_a_retornar, nivel_de_profundidad))
+	return NULL;
+	if(opcion == 5) return pm_copiar_texto("0");
+	if(opcion < 1 || opcion > 4) return NULL;
+
+	int cantidad = opcion == 2 ? 4 : 0;
+	if(cantidad > 0 &&
+	!pruebas_leer_campos(prompts_recordatorio, cantidad, &campos,
+		error_o_datos_a_retornar, nivel_de_profundidad))
+	{
+	pruebas_liberar_campos(campos, cantidad,
+		error_o_datos_a_retornar);
+	return NULL;
+	}
+	if(opcion == 2 &&
+	(campos[0][0] == '\0' || campos[1][0] == '\0' ||
+		campos[2][0] == '\0'))
+	{
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"El destinatario, el texto y la fecha/hora son obligatorios.\n");
+	pruebas_liberar_campos(campos, cantidad,
+		error_o_datos_a_retornar);
+	return NULL;
+	}
+	char *serializado = pruebas_serializar(
+	opcion, campos, cantidad, error_o_datos_a_retornar);
 	pruebas_liberar_campos(campos, cantidad, error_o_datos_a_retornar);
 	return serializado;
 }
@@ -14812,4 +14914,495 @@ static int ejecutar_prueba_analisis_compras(
 		error_o_datos_a_retornar, 0);
 	sistema_memoria_liberar(respuesta, error_o_datos_a_retornar, 0);
 	return correcto ? 0 : -1;
+}
+
+static int diversas_agregar_fila(const char *ruta, const char *fila)
+{
+	char *resultado = escribirLinea(ruta, fila, NULL, 0);
+	int codigo = -1;
+	int correcto = resultado != NULL &&
+		leerCodigoResultado(NULL, 0, resultado, &codigo) && codigo > 0;
+	sistema_memoria_liberar(resultado, NULL, 0);
+	return correcto ? 0 : -1;
+}
+
+static int diversas_guardar_archivo(
+	const char *ruta,
+	char **lineas,
+	int cantidad)
+{
+#if !defined(PLATAFORMA_SEMICONDUCTOR)
+	return gg_guardar_archivo(ruta, lineas, cantidad);
+#else
+	(void)ruta;
+	(void)lineas;
+	(void)cantidad;
+	return -1;
+#endif
+}
+
+static int diversas_encolar_mensaje(
+	const char *destinatario,
+	const char *info)
+{
+	if(destinatario == NULL || destinatario[0] == '\0' ||
+		info == NULL || info[0] == '\0')
+		return -1;
+	const char *ruta = GG_archivos[2].ruta;
+	int correcto = crearArchivo(ruta, GG_archivos[2].columnas) >= 0;
+	char *linea = correcto
+		? variable_string("%s%s%s%s%s%s%s",
+			destinatario,
+			GG_caracter_para_transferencia_entre_archivos[1],
+			GG_id_programa,
+			GG_caracter_para_transferencia_entre_archivos[0],
+			info,
+			GG_caracter_para_transferencia_entre_archivos[0],
+			"")
+		: NULL;
+	if(linea == NULL || diversas_agregar_fila(ruta, linea) != 0)
+		correcto = 0;
+	sistema_memoria_liberar(linea, NULL, 0);
+	return correcto ? 0 : -1;
+}
+
+static int diversas_fecha_hora_valida(const char *texto)
+{
+	if(texto == NULL || strlen(texto) != 12) return 0;
+	for(int i = 0; i < 12; ++i)
+		if(texto[i] < '0' || texto[i] > '9') return 0;
+
+	int anio = (texto[0] - '0') * 1000 + (texto[1] - '0') * 100 +
+		(texto[2] - '0') * 10 + texto[3] - '0';
+	int mes = (texto[4] - '0') * 10 + texto[5] - '0';
+	int dia = (texto[6] - '0') * 10 + texto[7] - '0';
+	int hora = (texto[8] - '0') * 10 + texto[9] - '0';
+	int minuto = (texto[10] - '0') * 10 + texto[11] - '0';
+	if(anio < 1 || mes < 1 || mes > 12 || hora > 23 || minuto > 59)
+		return 0;
+	static const int dias_por_mes[] =
+		{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+	int max_dia = dias_por_mes[mes - 1];
+	if(mes == 2 &&
+		(anio % 400 == 0 || (anio % 4 == 0 && anio % 100 != 0)))
+		max_dia = 29;
+	return dia >= 1 && dia <= max_dia;
+}
+
+static int diversas_texto_seguro(const char *texto)
+{
+	return texto != NULL &&
+		strstr(texto, GG_caracter_separacion[1]) == NULL &&
+		strstr(texto, GG_caracter_separacion[2]) == NULL &&
+		strstr(texto, GG_caracter_separacion_funciones_espesificas[0]) == NULL &&
+		strstr(texto, GG_caracter_para_transferencia_entre_archivos[0]) == NULL &&
+		strstr(texto, GG_caracter_para_transferencia_entre_archivos[1]) == NULL &&
+		strchr(texto, '\r') == NULL && strchr(texto, '\n') == NULL;
+}
+
+static int diversas_asegurar_archivo(const char *ruta, const char *columnas)
+{
+	return ruta != NULL && columnas != NULL &&
+		crearArchivo(ruta, columnas) >= 0;
+}
+
+static int diversas_listar_tipos_medida(
+	char *error_o_datos_a_retornar)
+{
+	const char *ruta = GG_secciones_negocio[16].ruta;
+	if(!diversas_asegurar_archivo(
+		ruta, GG_secciones_negocio[16].columnas))
+		return -1;
+	int cantidad = 0;
+	char **lineas = leer_archivo(ruta, &cantidad);
+	if(lineas == NULL) return -1;
+	int encontrados = 0;
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"\n=== TIPOS DE MEDIDA ===\n");
+	for(int i = GG_indice_donde_comensar; i < cantidad; ++i)
+	{
+		if(lineas[i] == NULL || lineas[i][0] == '\0') continue;
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"%s\n", lineas[i]);
+		++encontrados;
+	}
+	if(encontrados == 0)
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"No hay tipos de medida registrados en %s.\n", ruta);
+	free_lineas(lineas, cantidad);
+	return 0;
+}
+
+static int diversas_guardar_recordatorio(
+	char **argumentos,
+	int cantidad,
+	char *error_o_datos_a_retornar)
+{
+	const char *ruta = GG_secciones_negocio[18].ruta;
+	if(argumentos == NULL || cantidad != 4 ||
+		argumentos[0][0] == '\0' || argumentos[1][0] == '\0' ||
+		!diversas_fecha_hora_valida(argumentos[2]) ||
+		!diversas_texto_seguro(argumentos[0]) ||
+		!diversas_texto_seguro(argumentos[1]) ||
+		!diversas_texto_seguro(argumentos[3]))
+	{
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"Datos de recordatorio inválidos; usa YYYYMMDDHHmm y no incluyas separadores de protocolo.\n");
+		return -1;
+	}
+	if(!diversas_asegurar_archivo(
+		ruta, GG_secciones_negocio[18].columnas))
+	{
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"No se pudo crear o abrir el archivo de recordatorios: %s.\n",
+			ruta);
+		return -1;
+	}
+
+	int cantidad_lineas = 0;
+	char **lineas = leer_archivo(ruta, &cantidad_lineas);
+	if(lineas == NULL) return -1;
+	int id_maximo = 0;
+	int correcto = 1;
+	for(int i = GG_indice_donde_comensar; i < cantidad_lineas; ++i)
+	{
+		int cantidad_campos = 0;
+		char **campos = split(lineas[i], GG_caracter_separacion[1],
+			&cantidad_campos, error_o_datos_a_retornar, 0);
+		int id = 0;
+		if(campos == NULL || cantidad_campos != 5 ||
+			texto_a_int_seguro(campos[0], &id) != 0 || id < 1)
+			correcto = 0;
+		else if(id > id_maximo)
+			id_maximo = id;
+		liberarSplit(campos, cantidad_campos,
+			error_o_datos_a_retornar, 0);
+		if(!correcto) break;
+	}
+	free_lineas(lineas, cantidad_lineas);
+	if(!correcto || id_maximo == INT_MAX)
+	{
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"No se pudo determinar un ID seguro para el recordatorio.\n");
+		return -1;
+	}
+
+	char *fila = variable_string("%d%s%s%s%s%s%s%s%s",
+		id_maximo + 1, GG_caracter_separacion[1], argumentos[0],
+		GG_caracter_separacion[1], argumentos[1],
+		GG_caracter_separacion[1], argumentos[2],
+		GG_caracter_separacion[1], argumentos[3]);
+	if(fila == NULL || diversas_agregar_fila(ruta, fila) != 0)
+	{
+		sistema_memoria_liberar(fila, error_o_datos_a_retornar, 0);
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"No se pudo guardar el recordatorio en %s.\n", ruta);
+		return -1;
+	}
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"Recordatorio %d guardado para %s.\n", id_maximo + 1,
+		argumentos[2]);
+	sistema_memoria_liberar(fila, error_o_datos_a_retornar, 0);
+	return 0;
+}
+
+static int diversas_procesar_recordatorios(
+	char *error_o_datos_a_retornar)
+{
+	const char *ruta = GG_secciones_negocio[18].ruta;
+	char ahora[20];
+	fechaActual(ahora, "%Y%m%d%H%M");
+	if(ahora[0] == '\0' ||
+		!diversas_asegurar_archivo(
+			ruta, GG_secciones_negocio[18].columnas))
+		return -1;
+
+	int cantidad_lineas = 0;
+	char **lineas = leer_archivo(ruta, &cantidad_lineas);
+	if(lineas == NULL || cantidad_lineas == 0)
+	{
+		free_lineas(lineas, cantidad_lineas);
+		return -1;
+	}
+	char **conservadas = sistema_memoria_reservar(
+		(size_t)cantidad_lineas * sizeof(*conservadas),
+		error_o_datos_a_retornar, 0);
+	if(conservadas == NULL)
+	{
+		free_lineas(lineas, cantidad_lineas);
+		return -1;
+	}
+	for(int i = 0; i < cantidad_lineas; ++i) conservadas[i] = NULL;
+	conservadas[0] = pm_copiar_texto(lineas[0]);
+	int nuevas = 1;
+	int encolados = 0;
+	int correcto = conservadas[0] != NULL;
+	for(int i = GG_indice_donde_comensar;
+		i < cantidad_lineas && correcto; ++i)
+	{
+		int cantidad_campos = 0;
+		char **campos = split(lineas[i], GG_caracter_separacion[1],
+			&cantidad_campos, error_o_datos_a_retornar, 0);
+		if(campos == NULL || cantidad_campos != 5 ||
+			!diversas_fecha_hora_valida(campos[3]) ||
+			!diversas_texto_seguro(campos[1]) ||
+			!diversas_texto_seguro(campos[2]) ||
+			!diversas_texto_seguro(campos[4]))
+		{
+			correcto = 0;
+			liberarSplit(campos, cantidad_campos,
+				error_o_datos_a_retornar, 0);
+			break;
+		}
+		if(strcmp(campos[3], ahora) <= 0)
+		{
+			char *mensaje = variable_string(
+				"RECORDATORIO~%s~%s~%s~%s",
+				campos[0], campos[2], campos[3], campos[4]);
+			if(mensaje == NULL ||
+				diversas_encolar_mensaje(campos[1], mensaje) != 0)
+				correcto = 0;
+			else
+				++encolados;
+			sistema_memoria_liberar(mensaje,
+				error_o_datos_a_retornar, 0);
+		}
+		else
+		{
+			conservadas[nuevas] = pm_copiar_texto(lineas[i]);
+			if(conservadas[nuevas] == NULL) correcto = 0;
+			else ++nuevas;
+		}
+		liberarSplit(campos, cantidad_campos,
+			error_o_datos_a_retornar, 0);
+	}
+	int guardado = correcto
+		? diversas_guardar_archivo(ruta, conservadas, nuevas) : -1;
+	free_lineas(conservadas, cantidad_lineas);
+	free_lineas(lineas, cantidad_lineas);
+	if(!correcto || guardado != 0)
+	{
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"Error al procesar recordatorios; revisa el archivo. Los mensajes confirmados ya quedaron en la salida.\n");
+		return -1;
+	}
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"Recordatorios encolados: %d.\n", encolados);
+	return 0;
+}
+
+static int diversas_asegurar_esquema_tareas(
+	char *error_o_datos_a_retornar)
+{
+	const char *ruta = GG_secciones_negocio[17].ruta;
+	if(!diversas_asegurar_archivo(
+		ruta, GG_secciones_negocio[17].columnas))
+		return -1;
+	int cantidad = 0;
+	char **lineas = leer_archivo(ruta, &cantidad);
+	if(lineas == NULL || cantidad == 0)
+	{
+		free_lineas(lineas, cantidad);
+		return -1;
+	}
+	int columnas = 0;
+	char **cabecera = split(lineas[0], GG_caracter_separacion[1],
+		&columnas, error_o_datos_a_retornar, 0);
+	liberarSplit(cabecera, columnas, error_o_datos_a_retornar, 0);
+	if(columnas == 10 &&
+		strcmp(lineas[0], GG_secciones_negocio[17].columnas) == 0)
+	{
+		free_lineas(lineas, cantidad);
+		return 0;
+	}
+	if(columnas != 8)
+	{
+		free_lineas(lineas, cantidad);
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"El encabezado de trabajos debe tener 8 columnas antiguas o las 10 columnas actuales.\n");
+		return -1;
+	}
+
+	char **actualizadas = sistema_memoria_reservar(
+		(size_t)cantidad * sizeof(*actualizadas),
+		error_o_datos_a_retornar, 0);
+	if(actualizadas == NULL)
+	{
+		free_lineas(lineas, cantidad);
+		return -1;
+	}
+	for(int i = 0; i < cantidad; ++i) actualizadas[i] = NULL;
+	actualizadas[0] = pm_copiar_texto(GG_secciones_negocio[17].columnas);
+	int correctas = actualizadas[0] != NULL;
+	for(int i = 1; i < cantidad && correctas; ++i)
+	{
+		actualizadas[i] = lineas[i][0] == '\0'
+			? pm_copiar_texto("")
+			: variable_string("%s%s%s%s%s", lineas[i],
+				GG_caracter_separacion[1], "",
+				GG_caracter_separacion[1], "");
+		if(actualizadas[i] == NULL) correctas = 0;
+	}
+	int guardado = correctas
+		? diversas_guardar_archivo(ruta, actualizadas, cantidad) : -1;
+	free_lineas(actualizadas, cantidad);
+	free_lineas(lineas, cantidad);
+	if(guardado != 0)
+	{
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"No se pudo ampliar el archivo de trabajos; no se modificaron sus tareas.\n");
+		return -1;
+	}
+	return 0;
+}
+
+static int diversas_igual_ascii(const char *izquierda, const char *derecha)
+{
+	if(izquierda == NULL || derecha == NULL) return 0;
+	while(*izquierda != '\0' && *derecha != '\0')
+	{
+		unsigned char a = (unsigned char)*izquierda++;
+		unsigned char b = (unsigned char)*derecha++;
+		if(a >= 'A' && a <= 'Z') a = (unsigned char)(a - 'A' + 'a');
+		if(b >= 'A' && b <= 'Z') b = (unsigned char)(b - 'A' + 'a');
+		if(a != b) return 0;
+	}
+	return *izquierda == '\0' && *derecha == '\0';
+}
+
+static int diversas_dia_coincide(const char *dia, const char *fecha_hoy)
+{
+	static const char *dias[] = {
+		"domingo", "lunes", "martes", "miercoles", "jueves", "viernes",
+		"sabado", "sunday", "monday", "tuesday", "wednesday",
+		"thursday", "friday", "saturday", "miércoles", "sábado",
+		"Miércoles", "Sábado"
+	};
+	static const int indices[] = {
+		0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6, 3, 6, 3, 6
+	};
+	char numero_dia[4];
+	char fecha_con_guiones[11];
+	fechaActual(numero_dia, "%w");
+	if(dia == NULL || fecha_hoy == NULL || numero_dia[0] == '\0') return 0;
+	if(strcmp(dia, fecha_hoy) == 0) return 1;
+	if(strlen(fecha_hoy) == 8)
+	{
+		memcpy(fecha_con_guiones, fecha_hoy, 4);
+		fecha_con_guiones[4] = '-';
+		memcpy(fecha_con_guiones + 5, fecha_hoy + 4, 2);
+		fecha_con_guiones[7] = '-';
+		memcpy(fecha_con_guiones + 8, fecha_hoy + 6, 2);
+		fecha_con_guiones[10] = '\0';
+		if(strcmp(dia, fecha_con_guiones) == 0) return 1;
+	}
+	if(strcmp(dia, numero_dia) == 0) return 1;
+	int actual = numero_dia[0] - '0';
+	for(size_t i = 0; i < sizeof(indices) / sizeof(indices[0]); ++i)
+		if(indices[i] == actual && diversas_igual_ascii(dia, dias[i]))
+			return 1;
+	return 0;
+}
+
+static int diversas_procesar_tareas(
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	if(diversas_asegurar_esquema_tareas(error_o_datos_a_retornar) != 0)
+		return -1;
+	char hoy[20];
+	fechaActual(hoy, "%Y%m%d");
+	if(hoy[0] == '\0') return -1;
+	const char *ruta = GG_secciones_negocio[17].ruta;
+	int cantidad_lineas = 0;
+	char **lineas = leer_archivo(ruta, &cantidad_lineas);
+	if(lineas == NULL) return -1;
+	int encolados = 0;
+	int correcto = 1;
+	for(int i = GG_indice_donde_comensar;
+		i < cantidad_lineas && correcto; ++i)
+	{
+		int cantidad_campos = 0;
+		char **campos = split(lineas[i], GG_caracter_separacion[1],
+			&cantidad_campos, error_o_datos_a_retornar,
+			nivel_de_profundidad);
+		if(campos == NULL || cantidad_campos != 10)
+		{
+			liberarSplit(campos, cantidad_campos,
+				error_o_datos_a_retornar, 0);
+			correcto = 0;
+			break;
+		}
+		int hecha = strcmp(campos[3], "1") == 0 ||
+			diversas_igual_ascii(campos[3], "si") ||
+			diversas_igual_ascii(campos[3], "hecho") ||
+			diversas_igual_ascii(campos[3], "true");
+		if(!hecha && diversas_dia_coincide(campos[1], hoy))
+		{
+			if(campos[8][0] == '\0' || campos[9][0] == '\0')
+				correcto = 0;
+			for(int columna = 0; columna < 9 && correcto; ++columna)
+				if(!diversas_texto_seguro(campos[columna]))
+					correcto = 0;
+			int cantidad_destinatarios = 0;
+			char **destinatarios = correcto
+				? split(campos[9], ";", &cantidad_destinatarios,
+					error_o_datos_a_retornar, nivel_de_profundidad)
+				: NULL;
+			if(destinatarios == NULL || cantidad_destinatarios == 0)
+				correcto = 0;
+			char *mensaje = correcto
+				? variable_string(
+					"TAREA~%s~%s~%s~%s~%s~%s~%s~%s",
+					campos[0], campos[1], campos[8], campos[2],
+					campos[4], campos[5], campos[6], campos[7])
+				: NULL;
+			if(mensaje == NULL) correcto = 0;
+			for(int j = 0; j < cantidad_destinatarios && correcto; ++j)
+			{
+				if(destinatarios[j][0] == '\0' ||
+					!diversas_texto_seguro(destinatarios[j]) ||
+					diversas_encolar_mensaje(destinatarios[j], mensaje) != 0)
+					correcto = 0;
+				else
+					++encolados;
+			}
+			sistema_memoria_liberar(mensaje,
+				error_o_datos_a_retornar, 0);
+			liberarSplit(destinatarios, cantidad_destinatarios,
+				error_o_datos_a_retornar, 0);
+		}
+		liberarSplit(campos, cantidad_campos,
+			error_o_datos_a_retornar, 0);
+	}
+	free_lineas(lineas, cantidad_lineas);
+	if(!correcto)
+	{
+		sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+			"Error en una tarea de hoy o al encolar; revisa sus 10 campos y los destinatarios. Los mensajes confirmados ya quedaron en la salida.\n");
+		return -1;
+	}
+	sistema_consola_escribir_formato(error_o_datos_a_retornar, 0,
+		"Tareas del día encoladas para destinatarios: %d.\n", encolados);
+	return 0;
+}
+
+static int ejecutar_prueba_funciones_diversas(
+	int opcion,
+	char **argumentos,
+	int cantidad,
+	char *error_o_datos_a_retornar,
+	int nivel_de_profundidad)
+{
+	if(opcion == 1 && cantidad == 0)
+		return diversas_listar_tipos_medida(error_o_datos_a_retornar);
+	if(opcion == 2 && cantidad == 4)
+		return diversas_guardar_recordatorio(
+			argumentos, cantidad, error_o_datos_a_retornar);
+	if(opcion == 3 && cantidad == 0)
+		return diversas_procesar_recordatorios(error_o_datos_a_retornar);
+	if(opcion == 4 && cantidad == 0)
+		return diversas_procesar_tareas(
+			error_o_datos_a_retornar, nivel_de_profundidad);
+	return -1;
 }
